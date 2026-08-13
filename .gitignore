@@ -1,0 +1,36 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+web/.next/
+web/out/
+web/build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Variables de entorno — NUNCA subir claves al repositorio
+.env
+.env*.local
+.env.production
+
+# Sistema operativo
+.DS_Store
+*.pem
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editores
+.vscode/
+.idea/
+
+# Vercel
+.vercel
+
+# Archivo local del prototipo original (no forma parte del producto)
+_archivo/

@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Nora — Tu hogar, en control</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['Inter','system-ui','sans-serif'], display: ['Sora','Inter','sans-serif'] },
+        colors: {
+          brand: { 50:'#E9F4F2',100:'#D2EAE6',200:'#A6D6CD',300:'#6FBDB1',400:'#34A091',500:'#14857A',600:'#0E5C54',700:'#0B3B38',800:'#082D2B',900:'#06201E' },
+          sand:'#F2F0EA', surface:'#FFFFFF', ink:'#16211F', mute:'#5B6B68', faint:'#8A9794', line:'#E6E3DB',
+          urgent:'#C9503A', warn:'#C8841C', good:'#1F9D63',
+        },
+        boxShadow: {
+          card:'0 1px 2px rgba(11,59,56,.04), 0 8px 24px -12px rgba(11,59,56,.18)',
+          hero:'0 12px 40px -16px rgba(8,45,43,.55)', fab:'0 10px 24px -6px rgba(14,92,84,.55)',
+          nav:'0 -8px 30px -18px rgba(11,59,56,.25)', sheet:'0 -12px 40px -10px rgba(8,45,43,.35)',
+        },
+        borderRadius: { xl2:'20px', xl3:'26px' },
+      } },
+    };
+  </script>
+  <style>
+    html,body{ -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+    body{ background:#DDD8CE; }
+    .num{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+    .no-scrollbar::-webkit-scrollbar{ display:none; } .no-scrollbar{ -ms-overflow-style:none; scrollbar-width:none; }
+
+    .reveal{ opacity:0; transform:translateY(18px); transition:opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1); }
+    .reveal.in{ opacity:1; transform:none; }
+
+    @keyframes pulse-live{ 0%{box-shadow:0 0 0 0 rgba(31,157,99,.45);}70%{box-shadow:0 0 0 7px rgba(31,157,99,0);}100%{box-shadow:0 0 0 0 rgba(31,157,99,0);} }
+    .live-dot{ animation:pulse-live 2s infinite; }
+    .ring-track{ stroke:rgba(255,255,255,.16); }
+    .ring-fill{ stroke:url(#scoreGrad); stroke-linecap:round; transition:stroke-dashoffset 1.5s cubic-bezier(.22,1,.36,1); }
+
+    .press{ transition:transform .12s ease, box-shadow .2s ease; } .press:active{ transform:scale(.97); }
+    .lift{ transition:transform .2s ease, box-shadow .2s ease; } .lift:hover{ transform:translateY(-2px); }
+    [data-lucide]{ width:1em; height:1em; }
+    .logo-word{ font-family:'DM Serif Display',serif; font-weight:400; letter-spacing:-.045em; }
+
+    /* Logo Nora — corazón que late + anillos (igual que la app original) */
+    .heart-pulse{ transform-origin:72px 5px; animation:hb 2s ease-in-out infinite; }
+    @keyframes hb{ 0%,100%{transform:scale(1)} 15%{transform:scale(1.45)} 30%{transform:scale(1)} 45%{transform:scale(1.25)} 60%{transform:scale(1)} }
+    .wring{ fill:none; stroke:#FF6B9D; stroke-width:1.5; transform-origin:72px 5px; opacity:0; animation:wr 2s ease-out infinite; }
+    .wring.r2{ animation-delay:.35s; } .wring.r3{ animation-delay:.7s; }
+    @keyframes wr{ 0%{transform:scale(.35);opacity:.7} 70%,100%{transform:scale(2.6);opacity:0} }
+
+    /* Toast */
+    #toast{ transform:translate(-50%,10px); opacity:0; transition:opacity .28s ease, transform .28s cubic-bezier(.22,1,.36,1); }
+    #toast.show{ transform:translate(-50%,0); opacity:1; }
+
+    /* Splash de carga (~1s) */
+    #splash{ position:absolute; inset:0; z-index:60; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:radial-gradient(125% 100% at 50% 34%, #0E5C54 0%, #0B3B38 48%, #06201E 100%);
+      transition:opacity .5s ease, transform .5s ease; }
+    #splash.hide{ opacity:0; transform:scale(1.05); pointer-events:none; }
+    .sp-glow{ position:absolute; width:330px; height:330px; border-radius:50%;
+      background:radial-gradient(circle, rgba(0,194,184,.28), transparent 62%); filter:blur(22px); animation:spGlow 2.6s ease-in-out infinite; }
+    @keyframes spGlow{ 0%,100%{opacity:.45; transform:scale(1)} 50%{opacity:.85; transform:scale(1.12)} }
+    .sp-mark{ animation:spMark .8s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes spMark{ from{opacity:0; transform:scale(.6) translateY(8px); filter:blur(6px)} to{opacity:1; transform:none; filter:blur(0)} }
+    .sp-word span{ display:inline-block; animation:spRise .7s .28s cubic-bezier(.22,1,.36,1) both; }
+    .sp-tag{ animation:spRise .7s .52s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes spRise{ from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none} }
+    .sp-bar{ width:54px; height:3px; border-radius:3px; background:rgba(255,255,255,.14); overflow:hidden; }
+    .sp-bar i{ display:block; height:100%; width:0; border-radius:3px; background:linear-gradient(90deg,#9BE7DA,#34A091); animation:spBar 1s .15s ease forwards; }
+    @keyframes spBar{ to{ width:100% } }
+
+    .view{ display:none; } .view.active{ display:block; }
+    .scroller{ height:100vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .scroller::-webkit-scrollbar{ display:none; }
+
+    /* Overlays full (pedir, track) */
+    .overlay{ transform:translateY(100%); transition:transform .42s cubic-bezier(.22,1,.36,1); }
+    .overlay.open{ transform:translateY(0); }
+    .step{ display:none; } .step.active{ display:block; }
+    @keyframes spin{ to{ transform:rotate(360deg);} }
+    .spin{ animation:spin 1s linear infinite; }
+    @keyframes pop{ 0%{ transform:scale(.6); opacity:0;}60%{ transform:scale(1.08);}100%{ transform:scale(1); opacity:1;} }
+    .pop{ animation:pop .5s cubic-bezier(.22,1,.36,1) forwards; }
+
+    /* Bottom sheets */
+    #scrim{ opacity:0; pointer-events:none; transition:opacity .3s ease; }
+    #scrim.show{ opacity:1; pointer-events:auto; }
+    .sheet{ transform:translateY(100%); transition:transform .4s cubic-bezier(.22,1,.36,1); }
+    .sheet.open{ transform:translateY(0); }
+
+    /* Mapa */
+    @keyframes dash{ to{ stroke-dashoffset:-28; } }
+    .route-anim{ stroke-dasharray:2 8; animation:dash 1s linear infinite; }
+    @keyframes pinpulse{ 0%{transform:scale(.85);opacity:.6;}70%{transform:scale(1.8);opacity:0;}100%{opacity:0;} }
+    .pin-pulse{ animation:pinpulse 2s ease-out infinite; transform-origin:center; }
+  </style>
+</head>
+
+<body class="min-h-screen flex justify-center">
+  <div class="relative w-full max-w-[440px] h-screen bg-sand overflow-hidden shadow-2xl">
+
+    <!-- ============== INICIO ============== -->
+    <main data-view="inicio" class="view active scroller no-scrollbar pb-28">
+      <header class="px-5 pt-12 pb-2">
+        <div class="flex items-center justify-between reveal">
+          <div class="flex items-center gap-2 select-none">
+            <svg viewBox="0 0 110 125" class="h-9 w-auto shrink-0" aria-label="Nora">
+              <path d="M8 52L55 8l47 44H90v62H20V52Z" fill="#00C2B8" opacity=".07"/>
+              <line x1="28" y1="52" x2="28" y2="114" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="82" y1="52" x2="82" y2="114" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="28" y1="114" x2="82" y2="114" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="28" y1="52" x2="55" y2="22" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="82" y1="52" x2="55" y2="22" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="72" y1="22" x2="72" y2="8" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="66" y1="22" x2="79" y2="22" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+              <line x1="28" y1="79" x2="82" y2="79" stroke="#007A8C" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+              <line x1="64" y1="60" x2="64" y2="79" stroke="#007A8C" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+              <line x1="45" y1="114" x2="45" y2="96" stroke="#007A8C" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+              <line x1="65" y1="114" x2="65" y2="96" stroke="#007A8C" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+              <line x1="45" y1="96" x2="65" y2="96" stroke="#007A8C" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+              <circle cx="55" cy="22" r="5.5" fill="#00C2B8"/>
+              <circle cx="28" cy="52" r="5" fill="#00C2B8"/>
+              <circle cx="82" cy="52" r="5" fill="#00C2B8"/>
+              <circle cx="28" cy="114" r="5" fill="#00C2B8"/>
+              <circle cx="82" cy="114" r="5" fill="#00C2B8"/>
+              <circle cx="45" cy="96" r="3" fill="#007A8C" opacity=".55"/>
+              <circle cx="65" cy="96" r="3" fill="#007A8C" opacity=".55"/>
+              <g class="heart-pulse">
+                <path d="M72 4Q72 0 74.5 0Q77 0 77 4Q77 8 72 11Q67 8 67 4Q67 0 69.5 0Q72 0 72 4Z" fill="#FF6B9D"/>
+                <circle class="wring r1" cx="72" cy="5" r="5"/>
+                <circle class="wring r2" cx="72" cy="5" r="5"/>
+                <circle class="wring r3" cx="72" cy="5" r="5"/>
+              </g>
+            </svg>
+            <span class="logo-word text-[28px] text-ink leading-none">nora</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="bellBtn" class="press relative w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card">
+              <i data-lucide="bell" class="text-[18px]"></i>
+              <span id="bellDot" class="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-urgent ring-2 ring-surface"></span>
+            </button>
+            <button data-go="perfil" class="relative">
+              <img src="mati.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/96?img=12'" alt="" class="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-sm" />
+              <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-good ring-2 ring-sand"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2 reveal">
+          <h1 class="text-[23px] font-bold font-display text-ink leading-tight">Buen día, Mati</h1>
+          <span class="inline-flex items-center gap-1 rounded-full bg-brand-600 text-white text-[10.5px] font-semibold px-2 py-0.5"><i data-lucide="sparkles" class="text-[11px]"></i> Premium</span>
+        </div>
+      </header>
+
+      <div class="px-5 space-y-3.5">
+        <!-- Selector domicilio -->
+        <button id="domSelector" class="reveal press w-full flex items-center justify-between bg-surface border border-line rounded-2xl px-4 py-3 shadow-card">
+          <span class="flex items-center gap-3 min-w-0">
+            <span id="selIcon" class="w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="home" class="text-[18px]"></i></span>
+            <span class="text-left min-w-0">
+              <span id="selName" class="block text-[15px] font-semibold text-ink truncate">Mi hogar</span>
+              <span id="selAddr" class="block text-[12.5px] text-faint truncate">Bancalari 3901 · Tigre · Bs As</span>
+            </span>
+          </span>
+          <span class="flex items-center gap-1.5 shrink-0"><span id="selIdx" class="text-[11px] font-medium text-faint">1/3</span><i data-lucide="chevrons-up-down" class="text-[18px] text-faint"></i></span>
+        </button>
+
+        <!-- HERO score -->
+        <section class="reveal relative overflow-hidden rounded-xl3 bg-brand-700 text-white shadow-hero p-5" style="background-image:radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%);">
+          <div class="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-brand-400/20 blur-2xl"></div>
+          <div class="relative flex items-center gap-5">
+            <div class="relative shrink-0 w-[118px] h-[118px]">
+              <svg viewBox="0 0 124 124" class="w-full h-full -rotate-90">
+                <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9BE7DA"/><stop offset="100%" stop-color="#34A091"/></linearGradient></defs>
+                <circle cx="62" cy="62" r="52" fill="none" stroke-width="11" class="ring-track"/>
+                <circle id="scoreRing" cx="62" cy="62" r="52" fill="none" stroke-width="11" class="ring-fill" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+              </svg>
+              <div class="absolute inset-0 grid place-content-center text-center leading-none">
+                <span id="scoreNum" class="num text-[38px] font-extrabold font-display tracking-tight">0</span>
+                <span class="text-[11px] font-medium text-white/55 mt-1">de 100</span>
+              </div>
+            </div>
+            <div class="min-w-0">
+              <div class="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-2.5 py-1 text-[11.5px] font-medium text-brand-50"><i data-lucide="shield-check" class="text-[13px]"></i> Salud de la propiedad</div>
+              <p id="scoreStatus" class="mt-2.5 text-[19px] font-semibold font-display leading-snug">Tu hogar está<br>en buen estado</p>
+              <p class="mt-2 inline-flex items-center gap-1.5 text-[13px] text-brand-100"><i data-lucide="trending-up" class="text-[15px] text-emerald-300"></i><span class="font-semibold text-emerald-300">+5</span> este mes</p>
+            </div>
+          </div>
+          <button data-agenda class="press relative mt-4 w-full flex items-center gap-3 rounded-2xl bg-white/[.08] border border-white/10 px-3.5 py-3 text-left">
+            <span id="heroAlertIcon" class="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-urgent/20 text-orange-200"><i data-lucide="flame" class="text-[18px]"></i></span>
+            <span class="min-w-0 flex-1">
+              <span id="heroAlertTitle" class="block text-[13.5px] font-semibold text-white leading-snug">Calefón: revisión urgente antes del invierno</span>
+              <span id="heroAlertSub" class="block text-[11.5px] text-brand-100 mt-0.5">1 urgente · 2 pendientes · suma +8 pts</span>
+            </span>
+            <i data-lucide="arrow-right" class="text-[18px] text-white/70 shrink-0"></i>
+          </button>
+        </section>
+
+        <!-- CTA pedir -->
+        <button data-pedir class="reveal press w-full flex items-center justify-between rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab">
+          <span class="flex items-center gap-3">
+            <span class="w-10 h-10 grid place-items-center rounded-full bg-white/15"><i data-lucide="message-circle" class="text-[20px]"></i></span>
+            <span class="text-left leading-tight">
+              <span class="block text-[15.5px] font-semibold">Pedir un servicio</span>
+              <span class="block text-[12px] text-brand-100">Precio fijo · cuadrilla en minutos</span>
+            </span>
+          </span>
+          <i data-lucide="arrow-right" class="text-[20px]"></i>
+        </button>
+
+        <!-- En vivo -->
+        <button data-track class="reveal lift w-full text-left bg-surface rounded-xl2 border border-line shadow-card p-4">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase text-good"><span class="live-dot w-2 h-2 rounded-full bg-good"></span> En vivo</span>
+            <span class="num text-[12.5px] font-medium text-mute">llega en ~18 min</span>
+          </div>
+          <div class="mt-3 flex items-center gap-3.5">
+            <img src="tecnico.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/96?img=33'" alt="" class="w-12 h-12 rounded-2xl object-cover"/>
+            <div class="min-w-0 flex-1">
+              <p class="text-[14.5px] font-semibold text-ink leading-tight">Marcos Rodríguez</p>
+              <p class="text-[12.5px] text-mute flex items-center gap-1.5 mt-0.5"><i data-lucide="star" class="text-[13px] text-warn fill-warn"></i><span class="num font-medium text-ink">4.9</span> · 231 trabajos · a 3.2 km</p>
+            </div>
+            <span class="press w-9 h-9 grid place-items-center rounded-full bg-brand-50 text-brand-600"><i data-lucide="map-pin" class="text-[17px]"></i></span>
+          </div>
+          <div class="mt-3.5 flex items-center gap-1.5">
+            <span class="h-1.5 flex-1 rounded-full bg-good"></span><span class="h-1.5 flex-1 rounded-full bg-good"></span><span class="h-1.5 flex-1 rounded-full bg-good/40"></span><span class="h-1.5 flex-1 rounded-full bg-line"></span>
+          </div>
+          <p class="mt-2 text-[12px] text-faint flex items-center gap-1">En camino a tu domicilio <i data-lucide="arrow-right" class="text-[13px]"></i></p>
+        </button>
+
+        <!-- Próximo mantenimiento -->
+        <button data-agenda class="reveal lift w-full flex items-center gap-3.5 bg-surface rounded-xl2 border border-line shadow-card p-3.5 text-left">
+          <span id="nextMaintIcon" class="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-urgent/10 text-urgent"><i data-lucide="flame" class="text-[19px]"></i></span>
+          <div class="min-w-0 flex-1">
+            <p class="text-[10.5px] font-bold tracking-wide uppercase text-faint">Próximo mantenimiento</p>
+            <p id="nextMaintTitle" class="text-[14px] font-semibold text-ink leading-tight mt-0.5">Calefón Orbis · Revisión</p>
+          </div>
+          <div class="text-right shrink-0"><p id="nextMaintDate" class="num text-[13px] font-semibold text-urgent">Sep 2026</p><p class="text-[11.5px] text-faint">ver agenda</p></div>
+        </button>
+      </div>
+    </main>
+
+    <!-- ============== HISTORIAL ============== -->
+    <main data-view="historial" class="view scroller no-scrollbar pb-28">
+      <div class="px-5 pt-12 pb-2 reveal">
+        <h1 class="text-[24px] font-bold font-display text-ink">Historial</h1>
+        <p class="text-[13px] text-mute mt-0.5">Todo lo que Nora resolvió por vos</p>
+      </div>
+      <div class="px-5 grid grid-cols-3 gap-2.5 reveal">
+        <div class="bg-surface border border-line rounded-2xl shadow-card p-3 text-center"><p class="num text-[20px] font-extrabold font-display text-ink">28</p><p class="text-[11px] text-faint mt-0.5">servicios</p></div>
+        <div class="bg-surface border border-line rounded-2xl shadow-card p-3 text-center"><p class="num text-[20px] font-extrabold font-display text-ink">USD 940</p><p class="text-[11px] text-faint mt-0.5">invertido</p></div>
+        <div class="bg-surface border border-line rounded-2xl shadow-card p-3 text-center"><p class="num text-[20px] font-extrabold font-display text-good">100%</p><p class="text-[11px] text-faint mt-0.5">resuelto</p></div>
+      </div>
+
+      <div class="px-5 mt-5 space-y-3">
+        <p class="reveal text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Junio 2026</p>
+        <div class="reveal bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+          <button class="hist w-full flex items-center gap-3.5 p-3.5 lift text-left" data-cat="droplet" data-title="Plomería · Pérdida en cocina" data-tech="Marcos Rodríguez" data-date="04 Jun 2026" data-price="USD 35" data-rating="4.9" data-desc="Cambio de flexible y sellado de la conexión bajo bacha. Sin pérdidas.">
+            <span class="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="droplet" class="text-[19px]"></i></span>
+            <div class="min-w-0 flex-1"><p class="text-[14px] font-semibold text-ink leading-tight">Plomería · Pérdida en cocina</p><p class="text-[12.5px] text-faint mt-0.5">Marcos Rodríguez · 04 Jun</p></div>
+            <div class="text-right"><p class="num text-[13px] font-semibold text-ink">USD 35</p><span class="inline-flex items-center gap-1 text-[11px] text-good font-medium"><i data-lucide="check" class="text-[12px]"></i> Resuelto</span></div>
+          </button>
+          <button class="hist w-full flex items-center gap-3.5 p-3.5 lift text-left" data-cat="zap" data-title="Electricidad · Tablero" data-tech="Laura Giménez" data-date="01 Jun 2026" data-price="USD 60" data-rating="4.8" data-desc="Revisión de tablero, recambio de térmica y disyuntor. Instalación segura.">
+            <span class="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="zap" class="text-[19px]"></i></span>
+            <div class="min-w-0 flex-1"><p class="text-[14px] font-semibold text-ink leading-tight">Electricidad · Tablero</p><p class="text-[12.5px] text-faint mt-0.5">Laura Giménez · 01 Jun</p></div>
+            <div class="text-right"><p class="num text-[13px] font-semibold text-ink">USD 60</p><span class="inline-flex items-center gap-1 text-[11px] text-good font-medium"><i data-lucide="check" class="text-[12px]"></i> Resuelto</span></div>
+          </button>
+        </div>
+
+        <p class="reveal text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 pt-1">Mayo 2026</p>
+        <div class="reveal bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+          <button class="hist w-full flex items-center gap-3.5 p-3.5 lift text-left" data-cat="paintbrush" data-title="Pintura · Living + pasillo" data-tech="Pinturas Rex" data-date="22 May 2026" data-price="USD 210" data-rating="5.0" data-desc="Pintura completa de living y pasillo, 2 manos. Incluyó enduido y reparación de fisuras.">
+            <span class="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="paintbrush" class="text-[19px]"></i></span>
+            <div class="min-w-0 flex-1"><p class="text-[14px] font-semibold text-ink leading-tight">Pintura · Living + pasillo</p><p class="text-[12.5px] text-faint mt-0.5">Pinturas Rex · 22 May</p></div>
+            <div class="text-right"><p class="num text-[13px] font-semibold text-ink">USD 210</p><span class="inline-flex items-center gap-1 text-[11px] text-good font-medium"><i data-lucide="check" class="text-[12px]"></i> Resuelto</span></div>
+          </button>
+          <button class="hist w-full flex items-center gap-3.5 p-3.5 lift text-left" data-cat="key-round" data-title="Cerrajería · Cambio de cerradura" data-tech="Diego Ferrari" data-date="09 May 2026" data-price="USD 45" data-rating="4.9" data-desc="Cambio de cerradura de seguridad en puerta principal. 3 juegos de llaves entregados.">
+            <span class="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="key-round" class="text-[19px]"></i></span>
+            <div class="min-w-0 flex-1"><p class="text-[14px] font-semibold text-ink leading-tight">Cerrajería · Cambio de cerradura</p><p class="text-[12.5px] text-faint mt-0.5">Diego Ferrari · 09 May</p></div>
+            <div class="text-right"><p class="num text-[13px] font-semibold text-ink">USD 45</p><span class="inline-flex items-center gap-1 text-[11px] text-good font-medium"><i data-lucide="check" class="text-[12px]"></i> Resuelto</span></div>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============== OBRAS ============== -->
+    <main data-view="obras" class="view scroller no-scrollbar pb-28">
+      <div class="px-5 pt-12 pb-2 reveal flex items-center justify-between">
+        <div><h1 class="text-[24px] font-bold font-display text-ink">Obras</h1><p class="text-[13px] text-mute mt-0.5">Tus proyectos grandes, bajo control</p></div>
+        <button data-toast="Nueva obra · demo" data-ti="plus" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab"><i data-lucide="plus" class="text-[20px]"></i></button>
+      </div>
+      <div class="px-5 mt-2 space-y-3.5">
+        <section class="reveal relative overflow-hidden rounded-xl3 bg-brand-700 text-white shadow-hero p-5" style="background-image:radial-gradient(120% 90% at 0% 0%, #14857A 0%, #0E5C54 42%, #0B3B38 100%);">
+          <div class="flex items-center justify-between">
+            <div><p class="text-[11px] font-medium text-brand-100 uppercase tracking-wide">En ejecución</p><h2 class="text-[19px] font-bold font-display mt-0.5">Casa Nueva · Tigre</h2></div>
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11.5px] font-medium"><i data-lucide="hard-hat" class="text-[13px]"></i> 62%</span>
+          </div>
+          <div class="mt-4">
+            <div class="h-2.5 w-full rounded-full bg-white/15 overflow-hidden"><div id="obraBar" class="h-full rounded-full bg-gradient-to-r from-[#9BE7DA] to-[#34A091] transition-[width] duration-1000" style="width:0%"></div></div>
+            <div class="mt-2 flex justify-between text-[12px] text-brand-100"><span>Avance de obra</span><span class="num font-semibold text-white">62% completado</span></div>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <div class="rounded-2xl bg-white/[.07] border border-white/10 p-3"><p class="text-[11px] text-brand-100">Presupuesto</p><p class="num text-[16px] font-bold mt-0.5">USD 48.000</p></div>
+            <div class="rounded-2xl bg-white/[.07] border border-white/10 p-3"><p class="text-[11px] text-brand-100">Ejecutado</p><p class="num text-[16px] font-bold mt-0.5">USD 29.760</p></div>
+          </div>
+        </section>
+        <p class="reveal text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Etapas</p>
+        <div class="reveal bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-good/10 text-good"><i data-lucide="check" class="text-[18px]"></i></span><p class="flex-1 text-[14px] font-semibold text-ink">Fundaciones y estructura</p><span class="text-[12px] text-good font-medium">Completo</span></div>
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-good/10 text-good"><i data-lucide="check" class="text-[18px]"></i></span><p class="flex-1 text-[14px] font-semibold text-ink">Mampostería</p><span class="text-[12px] text-good font-medium">Completo</span></div>
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-warn/15 text-warn"><i data-lucide="loader" class="text-[18px]"></i></span><p class="flex-1 text-[14px] font-semibold text-ink">Instalaciones</p><span class="text-[12px] text-warn font-medium">En curso</span></div>
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-line text-faint"><i data-lucide="circle" class="text-[18px]"></i></span><p class="flex-1 text-[14px] font-semibold text-faint">Terminaciones</p><span class="text-[12px] text-faint font-medium">Pendiente</span></div>
+        </div>
+        <section class="reveal flex items-center gap-3.5 bg-surface rounded-xl2 border border-line shadow-card p-3.5">
+          <img src="arquitecta.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/96?img=15'" alt="" class="w-12 h-12 rounded-2xl object-cover"/>
+          <button data-chat="sofia" type="button" class="press flex items-center gap-3.5 min-w-0 flex-1 text-left"><span class="min-w-0"><span class="block text-[14.5px] font-semibold text-ink leading-tight">Arq. Sofía Méndez</span><span class="block text-[12.5px] text-mute mt-0.5">Dirección de obra · tocá para chatear</span></span></button>
+          <button data-chat="sofia" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-brand-600 text-white shrink-0"><i data-lucide="message-circle" class="text-[18px]"></i></button>
+        </section>
+      </div>
+    </main>
+
+    <!-- ============== PERFIL ============== -->
+    <main data-view="perfil" class="view scroller no-scrollbar pb-28">
+      <div class="px-5 pt-12 pb-2 reveal flex items-center justify-between">
+        <h1 class="text-[24px] font-bold font-display text-ink">Perfil</h1>
+        <button data-toast="Ajustes · demo" data-ti="settings" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"><i data-lucide="settings" class="text-[18px]"></i></button>
+      </div>
+      <div class="px-5 mt-2 space-y-3.5">
+        <section class="reveal flex items-center gap-4 bg-surface rounded-xl2 border border-line shadow-card p-4">
+          <img src="mati.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/120?img=12'" alt="" class="w-16 h-16 rounded-2xl object-cover"/>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2"><p class="text-[17px] font-bold font-display text-ink">Mati Valdivia</p><span class="inline-flex items-center gap-1 rounded-full bg-brand-600 text-white text-[10px] font-semibold px-1.5 py-0.5"><i data-lucide="sparkles" class="text-[10px]"></i> Premium</span></div>
+            <p class="text-[12.5px] text-mute mt-0.5 truncate">mati@nora.app</p>
+          </div>
+        </section>
+        <p class="reveal text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Mis domicilios</p>
+        <div class="reveal bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="home" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[14px] font-semibold text-ink leading-tight">Mi hogar</p><p class="text-[12px] text-faint truncate">Bancalari 3901 · Tigre</p></div><span class="text-[11px] font-semibold text-brand-600 bg-brand-50 rounded-full px-2 py-0.5 num">73</span></div>
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="house" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[14px] font-semibold text-ink leading-tight">Casa Padres</p><p class="text-[12px] text-faint truncate">Vega 678 · Merlo</p></div><span class="text-[11px] font-semibold text-brand-600 bg-brand-50 rounded-full px-2 py-0.5 num">88</span></div>
+          <div class="flex items-center gap-3.5 p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="building-2" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[14px] font-semibold text-ink leading-tight">NORA Industrias</p><p class="text-[12px] text-faint truncate">Av. Perón 7039 · Udaondo</p></div><span class="text-[11px] font-semibold text-warn bg-warn/10 rounded-full px-2 py-0.5 num">64</span></div>
+          <button data-toast="Agregar domicilio · demo" data-ti="plus" type="button" class="w-full flex items-center gap-3.5 p-3.5 press text-brand-600"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl border border-dashed border-brand-200"><i data-lucide="plus" class="text-[18px]"></i></span><span class="text-[14px] font-semibold">Agregar domicilio</span></button>
+        </div>
+        <p class="reveal text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Métodos de pago</p>
+        <div class="reveal bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+          <div data-toast="Visa ···· 4821 · demo" data-ti="credit-card" class="flex items-center gap-3.5 p-3.5 press cursor-pointer"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="credit-card" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[14px] font-semibold text-ink leading-tight">Visa ···· 4821</p><p class="text-[12px] text-faint">Vence 08/27</p></div><i data-lucide="chevron-right" class="text-[18px] text-faint"></i></div>
+          <div data-toast="Mercado Pago conectado · demo" data-ti="wallet" class="flex items-center gap-3.5 p-3.5 press cursor-pointer"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="wallet" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[14px] font-semibold text-ink leading-tight">Mercado Pago</p><p class="text-[12px] text-faint">Conectado</p></div><i data-lucide="chevron-right" class="text-[18px] text-faint"></i></div>
+        </div>
+        <p class="reveal text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Beneficios para vos</p>
+        <div class="reveal flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-5 px-5">
+          <div data-toast="Nora Seguro Hogar · USD 12/mes" data-ti="shield-check" class="press cursor-pointer shrink-0 w-[200px] bg-surface border border-line rounded-xl2 shadow-card p-4 lift"><div class="flex items-center justify-between"><span class="w-10 h-10 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="shield-check" class="text-[20px]"></i></span><span class="text-[10.5px] font-bold text-brand-600 bg-brand-50 rounded-full px-2 py-1">USD 12/mes</span></div><p class="text-[14.5px] font-semibold text-ink mt-3 leading-tight">Nora Seguro Hogar</p><p class="text-[12px] text-mute mt-1">Cobertura total ante imprevistos.</p></div>
+          <div data-toast="Pinturas Rex × Nora · 30% OFF aplicado" data-ti="paintbrush" class="press cursor-pointer shrink-0 w-[200px] bg-surface border border-line rounded-xl2 shadow-card p-4 lift"><div class="flex items-center justify-between"><span class="w-10 h-10 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="paintbrush" class="text-[20px]"></i></span><span class="text-[10.5px] font-bold text-good bg-good/10 rounded-full px-2 py-1">30% OFF</span></div><p class="text-[14.5px] font-semibold text-ink mt-3 leading-tight">Pinturas Rex × Nora</p><p class="text-[12px] text-mute mt-1">Pintá tu casa con descuento.</p></div>
+          <div data-toast="Limpieza en altura con drone · 20% OFF" data-ti="building-2" class="press cursor-pointer shrink-0 w-[200px] bg-surface border border-line rounded-xl2 shadow-card p-4 lift"><div class="flex items-center justify-between"><span class="w-10 h-10 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="building-2" class="text-[20px]"></i></span><span class="text-[10.5px] font-bold text-good bg-good/10 rounded-full px-2 py-1">20% OFF</span></div><p class="text-[14.5px] font-semibold text-ink mt-3 leading-tight">Limpieza en altura</p><p class="text-[12px] text-mute mt-1">Edificios con drone, sin riesgo.</p></div>
+        </div>
+        <section class="reveal lift flex items-center gap-3.5 rounded-xl2 border border-line bg-surface p-3.5 shadow-card">
+          <span class="shrink-0 w-10 h-10 grid place-items-center rounded-2xl bg-good/10 text-good"><i data-lucide="gift" class="text-[20px]"></i></span>
+          <div class="min-w-0 flex-1"><p class="text-[14px] font-semibold text-ink leading-tight">Invitá y ganá USD 10</p><p class="text-[12px] text-mute mt-0.5">Código <span class="font-semibold text-ink tracking-wide">NORATEAYUDA</span></p></div>
+          <button data-toast="Link copiado: nora.app/ref/NORATEAYUDA" data-ti="copy" type="button" class="press flex items-center gap-1.5 rounded-xl bg-brand-600 text-white text-[12.5px] font-semibold px-3 py-2"><i data-lucide="share-2" class="text-[14px]"></i> Compartir</button>
+        </section>
+        <button data-toast="Sesión cerrada · demo" data-ti="log-out" type="button" class="reveal w-full flex items-center justify-center gap-2 text-[14px] font-semibold text-urgent py-3"><i data-lucide="log-out" class="text-[17px]"></i> Cerrar sesión</button>
+      </div>
+    </main>
+
+    <!-- ============== BOTTOM NAV ============== -->
+    <nav class="absolute bottom-0 inset-x-0 z-30">
+      <div class="relative mx-auto max-w-[440px] bg-surface/90 backdrop-blur-xl border-t border-line shadow-nav px-6 pb-6 pt-2.5">
+        <div class="flex items-end justify-between">
+          <button data-go="inicio" class="nav-btn flex flex-col items-center gap-1 w-14"><i data-lucide="house" class="text-[22px]"></i><span class="text-[10.5px] font-medium">Inicio</span></button>
+          <button data-go="historial" class="nav-btn flex flex-col items-center gap-1 w-14"><i data-lucide="history" class="text-[22px]"></i><span class="text-[10.5px] font-medium">Historial</span></button>
+          <div class="w-14 flex justify-center"><button data-pedir class="press -mt-8 w-16 h-16 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab ring-4 ring-sand"><i data-lucide="plus" class="text-[28px]"></i></button></div>
+          <button data-go="obras" class="nav-btn flex flex-col items-center gap-1 w-14"><i data-lucide="hard-hat" class="text-[22px]"></i><span class="text-[10.5px] font-medium">Obras</span></button>
+          <button data-go="perfil" class="nav-btn flex flex-col items-center gap-1 w-14"><i data-lucide="user-round" class="text-[22px]"></i><span class="text-[10.5px] font-medium">Perfil</span></button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ============== OVERLAY: PEDIR ============== -->
+    <div id="pedir" class="overlay absolute inset-0 z-40 bg-sand flex flex-col">
+      <div class="px-5 pt-12 pb-3 flex items-center gap-3">
+        <button id="pedirBack" class="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"><i data-lucide="arrow-left" class="text-[18px]"></i></button>
+        <div class="flex-1"><div class="h-1.5 w-full rounded-full bg-line overflow-hidden"><div id="pedirProg" class="h-full rounded-full bg-brand-600 transition-[width] duration-300" style="width:20%"></div></div></div>
+        <button id="pedirClose" class="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"><i data-lucide="x" class="text-[18px]"></i></button>
+      </div>
+      <div class="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
+        <section class="step active" data-step="0">
+          <h2 class="text-[22px] font-bold font-display text-ink leading-tight">¿Qué necesitás<br>resolver?</h2>
+          <p class="text-[13px] text-mute mt-1.5">Elegí una categoría y Nora arma la cuadrilla.</p>
+          <div class="grid grid-cols-3 gap-3 mt-5">
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="wrench" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Plomería</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="zap" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Electricidad</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="flame" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Gas</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="key-round" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Cerrajería</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="paint-roller" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Pintura</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="brick-wall" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Yesería</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="hammer" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Carpintería</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="air-vent" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Aire acond.</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="washing-machine" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Electro-<br>domésticos</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="house" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Techado</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="droplets" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Impermea-<br>bilización</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="sparkles" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Limpieza</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="truck" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Mudanzas</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="shield-check" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Alarmas</span></button>
+            <button class="cat press flex flex-col items-center gap-2 bg-surface border border-line rounded-2xl shadow-card py-4"><span class="text-brand-600"><i data-lucide="trees" class="text-[24px]"></i></span><span class="text-[12px] font-medium text-mute text-center leading-tight">Jardín</span></button>
+          </div>
+        </section>
+        <section class="step" data-step="1">
+          <!-- Encabezado Nora -->
+          <div class="flex items-center gap-2.5">
+            <span class="relative w-10 h-10 grid place-items-center rounded-full text-white shadow-sm shrink-0" style="background-image:radial-gradient(130% 130% at 0% 0%, #14857A 0%, #0E5C54 45%, #0B3B38 100%);">
+              <i data-lucide="sparkles" class="text-[18px]"></i>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-good ring-2 ring-sand"></span>
+            </span>
+            <div><p class="text-[16px] font-bold font-display text-ink leading-none">Nora</p><p class="text-[11.5px] text-good flex items-center gap-1.5 mt-1"><span class="live-dot w-1.5 h-1.5 rounded-full bg-good"></span> En línea · responde al instante</p></div>
+          </div>
+
+          <!-- Domicilio -->
+          <button id="pedirDomBtn" type="button" class="press mt-3.5 w-full rounded-2xl bg-surface border border-line shadow-card p-3 flex items-center gap-3 text-left">
+            <span id="pedirDomIcon" class="w-8 h-8 grid place-items-center rounded-lg bg-brand-50 text-brand-600"><i data-lucide="home" class="text-[16px]"></i></span>
+            <div class="flex-1 min-w-0"><p id="pedirDomName" class="text-[12.5px] font-semibold text-ink truncate">Mi hogar · Bancalari 3901</p><p class="text-[11px] text-faint">Domicilio · tocá para cambiar</p></div>
+            <i data-lucide="chevrons-up-down" class="text-[16px] text-faint shrink-0"></i>
+          </button>
+
+          <!-- Mensajes -->
+          <div id="chatMsgs" class="mt-3.5 space-y-2.5 min-h-[190px]"></div>
+
+          <!-- Input del chat -->
+          <div class="mt-3 flex items-center gap-2">
+            <button id="chatPhoto" type="button" class="press w-11 h-11 grid place-items-center rounded-full bg-surface border border-line text-mute shrink-0"><i data-lucide="camera" class="text-[18px]"></i></button>
+            <input id="chatInput" type="text" autocomplete="off" placeholder="Escribí qué pasa…" class="flex-1 min-w-0 rounded-full bg-surface border border-line shadow-card px-4 py-3 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300" />
+            <button id="chatSend" type="button" class="press w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shrink-0"><i data-lucide="arrow-up" class="text-[19px]"></i></button>
+          </div>
+        </section>
+        <section class="step" data-step="2">
+          <div class="min-h-[60vh] flex flex-col items-center justify-center text-center">
+            <div class="relative w-24 h-24 grid place-items-center">
+              <span class="absolute inset-0 rounded-full border-4 border-brand-100"></span>
+              <span class="absolute inset-0 rounded-full border-4 border-transparent border-t-brand-600 spin"></span>
+              <i data-lucide="users" class="text-[34px] text-brand-600"></i>
+            </div>
+            <h2 class="text-[20px] font-bold font-display text-ink mt-6">Armando tu cuadrilla ideal</h2>
+            <p class="text-[13px] text-mute mt-2 max-w-[260px]">Buscamos al mejor equipo por cercanía, especialidad y reputación.</p>
+          </div>
+        </section>
+        <section class="step" data-step="3">
+          <div class="flex items-center gap-2 text-good text-[12px] font-bold uppercase tracking-wide"><i data-lucide="badge-check" class="text-[15px]"></i> Cuadrilla confirmada</div>
+          <h2 class="text-[22px] font-bold font-display text-ink leading-tight mt-1.5">Tu presupuesto</h2>
+          <button data-tech type="button" class="press mt-4 w-full flex items-center gap-3.5 bg-surface rounded-xl2 border border-line shadow-card p-4 text-left">
+            <img src="tecnico.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/96?img=33'" alt="" class="w-12 h-12 rounded-2xl object-cover"/>
+            <div class="flex-1 min-w-0"><p class="text-[14.5px] font-semibold text-ink leading-tight">Marcos Rodríguez</p><p class="text-[12.5px] text-mute flex items-center gap-1.5 mt-0.5"><i data-lucide="star" class="text-[13px] text-warn fill-warn"></i><span class="num font-medium text-ink">4.9</span> · 231 trabajos · ver perfil</p></div>
+            <span class="text-[11px] font-semibold text-good bg-good/10 rounded-full px-2 py-1">98% puntual</span>
+          </button>
+          <section class="mt-3 rounded-xl2 bg-surface border border-line shadow-card overflow-hidden">
+            <div class="p-4 flex items-end justify-between">
+              <div><p class="text-[12px] text-mute">Precio fijo · todo incluido</p><p class="num text-[34px] font-extrabold font-display text-ink leading-none mt-1">USD 48</p></div>
+              <span class="inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand-600 bg-brand-50 rounded-full px-2.5 py-1"><i data-lucide="shield-check" class="text-[13px]"></i> Garantía 30 días</span>
+            </div>
+            <div class="border-t border-line divide-y divide-line">
+              <div class="flex items-center gap-3 px-4 py-3 text-[13px] text-ink"><i data-lucide="check" class="text-[16px] text-good"></i> Diagnóstico y mano de obra</div>
+              <div class="flex items-center gap-3 px-4 py-3 text-[13px] text-ink"><i data-lucide="check" class="text-[16px] text-good"></i> Materiales básicos incluidos</div>
+              <div class="flex items-center gap-3 px-4 py-3 text-[13px] text-ink"><i data-lucide="check" class="text-[16px] text-good"></i> Sin sorpresas al terminar</div>
+            </div>
+          </section>
+        </section>
+        <section class="step" data-step="4">
+          <h2 class="text-[22px] font-bold font-display text-ink leading-tight">¿Cuándo te<br>viene bien?</h2>
+          <p class="text-[13px] text-mute mt-1.5">Elegí día y franja horaria.</p>
+          <div class="mt-5 flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5">
+            <button class="day press shrink-0 w-[64px] rounded-2xl border border-line bg-surface shadow-card py-3 flex flex-col items-center gap-0.5"><span class="text-[11px] text-faint">HOY</span><span class="num text-[18px] font-bold text-ink">12</span><span class="text-[11px] text-faint">Jun</span></button>
+            <button class="day press shrink-0 w-[64px] rounded-2xl border border-line bg-surface shadow-card py-3 flex flex-col items-center gap-0.5"><span class="text-[11px] text-faint">VIE</span><span class="num text-[18px] font-bold text-ink">13</span><span class="text-[11px] text-faint">Jun</span></button>
+            <button class="day press shrink-0 w-[64px] rounded-2xl border border-line bg-surface shadow-card py-3 flex flex-col items-center gap-0.5"><span class="text-[11px] text-faint">SÁB</span><span class="num text-[18px] font-bold text-ink">14</span><span class="text-[11px] text-faint">Jun</span></button>
+            <button class="day press shrink-0 w-[64px] rounded-2xl border border-line bg-surface shadow-card py-3 flex flex-col items-center gap-0.5"><span class="text-[11px] text-faint">DOM</span><span class="num text-[18px] font-bold text-ink">15</span><span class="text-[11px] text-faint">Jun</span></button>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <button class="slot press rounded-2xl border border-line bg-surface shadow-card py-3.5 text-[14px] font-semibold text-ink">Mañana · 8–12h</button>
+            <button class="slot press rounded-2xl border border-line bg-surface shadow-card py-3.5 text-[14px] font-semibold text-ink">Tarde · 13–17h</button>
+            <button class="slot press rounded-2xl border border-line bg-surface shadow-card py-3.5 text-[14px] font-semibold text-ink">Tarde · 17–20h</button>
+            <button class="slot press rounded-2xl border border-line bg-surface shadow-card py-3.5 text-[14px] font-semibold text-ink">Lo antes posible</button>
+          </div>
+        </section>
+        <section class="step" data-step="5">
+          <h2 class="text-[22px] font-bold font-display text-ink leading-tight">Confirmá<br>y pagá</h2>
+          <p class="text-[13px] text-mute mt-1.5">Se cobra recién al finalizar el trabajo.</p>
+          <div class="mt-5 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute">Servicio</span><span class="text-[13px] font-semibold text-ink">Plomería · Calefón</span></div>
+            <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute">Cuándo</span><span class="text-[13px] font-semibold text-ink">Hoy · 13–17h</span></div>
+            <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute">Total (precio fijo)</span><span class="num text-[16px] font-bold text-ink">USD 48</span></div>
+          </div>
+          <p class="text-[11px] font-bold tracking-wide uppercase text-faint mt-5 mb-2 px-0.5">Pagás con</p>
+          <div class="space-y-2.5">
+            <button class="pay press w-full flex items-center gap-3.5 rounded-2xl border border-line bg-surface shadow-card p-3.5 text-left"><span class="w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="credit-card" class="text-[18px]"></i></span><span class="flex-1"><span class="block text-[14px] font-semibold text-ink">Visa ···· 4821</span><span class="block text-[11.5px] text-faint">Tarjeta de crédito</span></span><span class="pay-dot w-5 h-5 rounded-full border-2 border-line"></span></button>
+            <button class="pay press w-full flex items-center gap-3.5 rounded-2xl border border-line bg-surface shadow-card p-3.5 text-left"><span class="w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="wallet" class="text-[18px]"></i></span><span class="flex-1"><span class="block text-[14px] font-semibold text-ink">Mercado Pago</span><span class="block text-[11.5px] text-faint">Saldo disponible</span></span><span class="pay-dot w-5 h-5 rounded-full border-2 border-line"></span></button>
+          </div>
+        </section>
+        <section class="step" data-step="6">
+          <div class="min-h-[64vh] flex flex-col items-center justify-center text-center">
+            <div class="pop w-24 h-24 grid place-items-center rounded-full bg-good/15 text-good"><i data-lucide="check" class="text-[44px]"></i></div>
+            <h2 class="text-[24px] font-bold font-display text-ink mt-6">¡Cuadrilla en camino!</h2>
+            <p class="text-[13.5px] text-mute mt-2 max-w-[280px]">Marcos ya salió para tu domicilio. Seguí el viaje en vivo.</p>
+            <div class="mt-6 w-full rounded-xl2 bg-surface border border-line shadow-card p-4 flex items-center gap-3.5 text-left">
+              <img src="tecnico.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/96?img=33'" alt="" class="w-12 h-12 rounded-2xl object-cover"/>
+              <div class="flex-1"><p class="text-[14px] font-semibold text-ink">Marcos Rodríguez</p><p class="text-[12px] text-mute">Llega en ~18 min · a 3.2 km</p></div>
+              <span class="live-dot w-2.5 h-2.5 rounded-full bg-good"></span>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div id="pedirFooter" class="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent">
+        <button id="pedirNext" class="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab text-[15.5px] font-semibold">Continuar <i data-lucide="arrow-right" class="text-[19px]"></i></button>
+      </div>
+    </div>
+
+    <!-- ============== OVERLAY: SEGUIMIENTO EN VIVO ============== -->
+    <div id="track" class="overlay absolute inset-0 z-40 bg-sand flex flex-col">
+      <!-- Mapa -->
+      <div class="relative h-[46%] overflow-hidden" style="background:linear-gradient(160deg,#E9ECE6 0%,#E3E8E0 100%);">
+        <svg viewBox="0 0 375 320" preserveAspectRatio="xMidYMid slice" class="absolute inset-0 w-full h-full">
+          <!-- bloques / parque -->
+          <rect x="-20" y="180" width="170" height="170" rx="14" fill="#DDE4D8"/>
+          <rect x="230" y="-10" width="180" height="120" rx="14" fill="#DDE4D8"/>
+          <path d="M250 200 q60 -10 120 20 v120 h-160 q20 -80 40 -140z" fill="#CFE3CC"/>
+          <!-- calles -->
+          <g stroke="#F4F6F1" stroke-width="13" stroke-linecap="round">
+            <line x1="-10" y1="120" x2="385" y2="95"/>
+            <line x1="40" y1="-10" x2="90" y2="330"/>
+            <line x1="-10" y1="250" x2="385" y2="235"/>
+            <line x1="260" y1="-10" x2="300" y2="330"/>
+          </g>
+          <g stroke="#EAEEE6" stroke-width="5" stroke-linecap="round">
+            <line x1="-10" y1="60" x2="385" y2="45"/>
+            <line x1="170" y1="-10" x2="200" y2="330"/>
+          </g>
+          <!-- ruta (sigue las calles, con esquinas redondeadas) -->
+          <path id="routePath" d="M79 256 L60 130 Q56 116 72 114 L258 104 Q272 102 272 90 L270 70" fill="none" stroke="#0E5C54" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".22"/>
+          <path d="M79 256 L60 130 Q56 116 72 114 L258 104 Q272 102 272 90 L270 70" fill="none" stroke="#14857A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="route-anim"/>
+          <!-- destino (hogar) -->
+          <g>
+            <circle cx="270" cy="70" r="16" fill="#0E5C54" opacity=".25" class="pin-pulse"/>
+            <circle cx="270" cy="70" r="11" fill="#0E5C54"/>
+            <g transform="translate(270,70)" stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round"><path d="M-4 1 L0 -4 L4 1 V5 H-4 Z"/></g>
+          </g>
+          <!-- vehículo (se mueve) -->
+          <g>
+            <circle r="9" fill="#fff" stroke="#14857A" stroke-width="3">
+              <animateMotion dur="6s" repeatCount="indefinite" rotate="0" path="M79 256 L60 130 Q56 116 72 114 L258 104 Q272 102 272 90 L270 70"/>
+            </circle>
+          </g>
+        </svg>
+        <!-- topbar -->
+        <div class="absolute top-0 inset-x-0 px-5 pt-12 pb-3 flex items-center justify-between">
+          <button id="trackClose" class="press w-10 h-10 grid place-items-center rounded-full bg-surface text-ink shadow-card"><i data-lucide="arrow-left" class="text-[18px]"></i></button>
+          <span class="px-3 py-1.5 rounded-full bg-surface/95 shadow-card text-[12px] font-semibold text-ink flex items-center gap-1.5"><span class="live-dot w-2 h-2 rounded-full bg-good"></span> En vivo</span>
+          <button data-toast="Ubicación compartida" data-ti="share-2" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-surface text-ink shadow-card"><i data-lucide="share-2" class="text-[17px]"></i></button>
+        </div>
+      </div>
+
+      <!-- Hoja inferior -->
+      <div class="flex-1 -mt-6 rounded-t-[26px] bg-sand relative z-10 overflow-y-auto no-scrollbar">
+        <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+        <div class="px-5 pt-3 pb-7">
+          <div class="flex items-center gap-3">
+            <div class="flex-1">
+              <p class="text-[12px] text-mute">Marcos llega en</p>
+              <p class="num text-[30px] font-extrabold font-display text-ink leading-none mt-0.5">18 min</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1.5"><i data-lucide="navigation" class="text-[13px]"></i> a 3.2 km</span>
+          </div>
+
+          <!-- stepper -->
+          <div class="mt-5 flex items-center">
+            <div class="flex flex-col items-center"><span class="w-7 h-7 grid place-items-center rounded-full bg-good text-white"><i data-lucide="check" class="text-[15px]"></i></span></div>
+            <div class="flex-1 h-1 rounded-full bg-good mx-1"></div>
+            <div class="flex flex-col items-center"><span class="w-7 h-7 grid place-items-center rounded-full bg-brand-600 text-white live-dot"><i data-lucide="car" class="text-[15px]"></i></span></div>
+            <div class="flex-1 h-1 rounded-full bg-line mx-1"></div>
+            <div class="flex flex-col items-center"><span class="w-7 h-7 grid place-items-center rounded-full bg-line text-faint"><i data-lucide="home" class="text-[15px]"></i></span></div>
+            <div class="flex-1 h-1 rounded-full bg-line mx-1"></div>
+            <div class="flex flex-col items-center"><span class="w-7 h-7 grid place-items-center rounded-full bg-line text-faint"><i data-lucide="wrench" class="text-[15px]"></i></span></div>
+          </div>
+          <div class="mt-1.5 flex justify-between text-[10.5px] text-faint"><span>Confirmado</span><span class="text-brand-600 font-semibold">En camino</span><span>Llegó</span><span>Trabajando</span></div>
+
+          <!-- técnico -->
+          <div class="mt-5 flex items-center gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5">
+            <button data-tech type="button" class="press flex items-center gap-3 min-w-0 flex-1 text-left">
+              <img src="tecnico.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/96?img=33'" alt="" class="w-12 h-12 rounded-2xl object-cover shrink-0"/>
+              <span class="min-w-0"><span class="block text-[14.5px] font-semibold text-ink leading-tight">Marcos Rodríguez</span><span class="block text-[12.5px] text-mute mt-0.5"><i data-lucide="star" class="text-[13px] text-warn fill-warn inline align-[-2px]"></i> <span class="num font-medium text-ink">4.9</span> · Plomería · ver perfil</span></span>
+            </button>
+            <button data-toast="Llamando a Marcos…" data-ti="phone" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-brand-50 text-brand-600 shrink-0"><i data-lucide="phone" class="text-[17px]"></i></button>
+            <button data-chat="marcos" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-brand-600 text-white shrink-0"><i data-lucide="message-circle" class="text-[17px]"></i></button>
+          </div>
+
+          <!-- detalle -->
+          <div class="mt-3 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute flex items-center gap-2"><i data-lucide="wrench" class="text-[15px] text-faint"></i> Servicio</span><span class="text-[13px] font-semibold text-ink">Plomería · Calefón</span></div>
+            <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute flex items-center gap-2"><i data-lucide="map-pin" class="text-[15px] text-faint"></i> Domicilio</span><span id="trackDom" class="text-[13px] font-semibold text-ink">Bancalari 3901</span></div>
+            <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute flex items-center gap-2"><i data-lucide="shield-check" class="text-[15px] text-faint"></i> Total</span><span class="num text-[14px] font-bold text-ink">USD 48</span></div>
+          </div>
+
+          <button data-finish-service type="button" class="press mt-4 w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-3.5 text-[14.5px] font-semibold shadow-fab"><i data-lucide="check-check" class="text-[18px]"></i> El técnico terminó</button>
+          <button data-toast="Escribinos para cancelar · demo" data-ti="x-circle" type="button" class="press mt-2.5 w-full flex items-center justify-center gap-2 rounded-xl2 border border-line bg-surface py-3.5 text-[14px] font-semibold text-urgent shadow-card"><i data-lucide="x-circle" class="text-[17px]"></i> Cancelar servicio</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============== SCRIM + SHEETS ============== -->
+    <div id="scrim" class="absolute inset-0 z-40 bg-black/40"></div>
+
+    <!-- Sheet: Domicilios -->
+    <div id="sheetDom" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[80%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-3 pb-7">
+        <div class="flex items-center justify-between"><h3 class="text-[18px] font-bold font-display text-ink">Tus domicilios</h3><button class="sheet-close press w-9 h-9 grid place-items-center rounded-full bg-surface border border-line text-ink"><i data-lucide="x" class="text-[16px]"></i></button></div>
+        <div id="domList" class="mt-4 space-y-2.5"></div>
+        <button data-toast="Agregar domicilio · demo" data-ti="plus" type="button" class="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"><i data-lucide="plus" class="text-[17px]"></i> Agregar domicilio</button>
+      </div>
+    </div>
+
+    <!-- Sheet: Perfil del técnico -->
+    <div id="sheetTech" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[90%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-2 pb-7">
+        <div class="flex justify-end"><button class="sheet-close press w-9 h-9 grid place-items-center rounded-full bg-surface border border-line text-ink"><i data-lucide="x" class="text-[16px]"></i></button></div>
+        <div class="flex flex-col items-center text-center -mt-3">
+          <img src="tecnico.jpg" onerror="this.onerror=null;this.src='https://i.pravatar.cc/120?img=33'" alt="" class="w-20 h-20 rounded-2xl object-cover ring-2 ring-white shadow-sm"/>
+          <p class="text-[18px] font-bold font-display text-ink mt-3">Marcos Rodríguez</p>
+          <p class="text-[12.5px] font-semibold text-brand-600 mt-0.5">Experto en plomería y gas</p>
+          <p class="text-[12px] text-faint mt-1 inline-flex items-center gap-1">Tigre, GBA Norte · Verificado <i data-lucide="badge-check" class="text-[13px] text-good"></i></p>
+        </div>
+        <div class="grid grid-cols-3 gap-2.5 mt-4">
+          <div class="bg-surface border border-line rounded-2xl shadow-card p-3 text-center"><p class="num text-[18px] font-extrabold font-display text-ink">231</p><p class="text-[10.5px] text-faint mt-0.5">trabajos</p></div>
+          <div class="bg-surface border border-line rounded-2xl shadow-card p-3 text-center"><p class="num text-[18px] font-extrabold font-display text-brand-600">94</p><p class="text-[10.5px] text-faint mt-0.5">Score Nora</p></div>
+          <div class="bg-surface border border-line rounded-2xl shadow-card p-3 text-center"><p class="num text-[18px] font-extrabold font-display text-good">98%</p><p class="text-[10.5px] text-faint mt-0.5">puntualidad</p></div>
+        </div>
+        <p class="text-[11px] font-bold tracking-wide uppercase text-faint mt-5 mb-2 px-0.5">Especialidades</p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[12px] font-medium text-brand-600 bg-brand-50 rounded-full px-3 py-1.5">Plomería</span>
+          <span class="text-[12px] font-medium text-brand-600 bg-brand-50 rounded-full px-3 py-1.5">Gas / Calefones</span>
+          <span class="text-[12px] font-medium text-brand-600 bg-brand-50 rounded-full px-3 py-1.5">Termotanques</span>
+          <span class="text-[12px] font-medium text-brand-600 bg-brand-50 rounded-full px-3 py-1.5">Destapaciones</span>
+        </div>
+        <p class="text-[11px] font-bold tracking-wide uppercase text-faint mt-5 mb-2 px-0.5">Opiniones recientes</p>
+        <div class="space-y-2.5">
+          <div class="bg-surface border border-line rounded-xl2 shadow-card p-3.5"><div class="flex items-center justify-between"><p class="text-[13.5px] font-semibold text-ink">Ana M.</p><span class="text-[12px] text-warn tracking-tight">★★★★★</span></div><p class="text-[13px] text-mute mt-1 leading-snug">“Muy prolijo, rápido y conoce su trabajo. Dejó todo impecable.”</p><p class="text-[11px] text-faint mt-1.5">hace 3 días</p></div>
+          <div class="bg-surface border border-line rounded-xl2 shadow-card p-3.5"><div class="flex items-center justify-between"><p class="text-[13.5px] font-semibold text-ink">Carlos B.</p><span class="text-[12px] text-warn tracking-tight">★★★★★</span></div><p class="text-[13px] text-mute mt-1 leading-snug">“Solucionó un problema que otros no pudieron. Recomendado.”</p><p class="text-[11px] text-faint mt-1.5">hace 1 semana</p></div>
+          <div class="bg-surface border border-line rounded-xl2 shadow-card p-3.5"><div class="flex items-center justify-between"><p class="text-[13.5px] font-semibold text-ink">Sofía P.</p><span class="text-[12px] text-warn tracking-tight">★★★★<span class="text-line">★</span></span></div><p class="text-[13px] text-mute mt-1 leading-snug">“Muy puntual y prolijo. Explicó todo lo que hizo.”</p><p class="text-[11px] text-faint mt-1.5">hace 2 semanas</p></div>
+        </div>
+        <button class="sheet-close press mt-5 w-full rounded-xl2 bg-brand-600 text-white py-3.5 text-[14.5px] font-semibold shadow-fab">Elegir a Marcos</button>
+      </div>
+    </div>
+
+    <!-- Sheet: Calificación -->
+    <div id="sheetRating" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[88%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-3 pb-7 text-center">
+        <span class="pop w-14 h-14 grid place-items-center rounded-full bg-good/15 text-good mx-auto"><i data-lucide="check" class="text-[28px]"></i></span>
+        <h3 class="text-[20px] font-bold font-display text-ink mt-3">¡Problema resuelto!</h3>
+        <p class="text-[13px] text-mute mt-1">¿Cómo estuvo el servicio de Marcos?</p>
+        <div id="ratingStars" class="flex items-center justify-center gap-2.5 mt-4">
+          <button type="button" data-star="1" class="rstar text-[36px] leading-none text-line">★</button>
+          <button type="button" data-star="2" class="rstar text-[36px] leading-none text-line">★</button>
+          <button type="button" data-star="3" class="rstar text-[36px] leading-none text-line">★</button>
+          <button type="button" data-star="4" class="rstar text-[36px] leading-none text-line">★</button>
+          <button type="button" data-star="5" class="rstar text-[36px] leading-none text-line">★</button>
+        </div>
+        <textarea id="ratingComment" rows="3" placeholder="Contanos tu experiencia (opcional)…" class="mt-4 w-full text-left rounded-2xl bg-surface border border-line shadow-card p-4 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"></textarea>
+        <button id="ratingSubmit" type="button" class="press mt-4 w-full rounded-xl2 bg-brand-600 text-white py-3.5 text-[14.5px] font-semibold shadow-fab opacity-40 pointer-events-none">Enviar y ver reporte <i data-lucide="arrow-right" class="text-[18px] inline align-[-3px]"></i></button>
+      </div>
+    </div>
+
+    <!-- Sheet: Reporte del trabajo -->
+    <div id="sheetReport" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[90%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-3 pb-7">
+        <div class="flex items-start justify-between">
+          <div><h3 class="text-[18px] font-bold font-display text-ink">Reporte del trabajo</h3><p class="text-[12.5px] text-faint mt-0.5">Plomería · Calefón · Bancalari 3901</p></div>
+          <span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-good bg-good/10 rounded-full px-2.5 py-1"><i data-lucide="check" class="text-[13px]"></i> Resuelto</span>
+        </div>
+        <p class="text-[11px] font-bold tracking-wide uppercase text-faint mt-5 mb-2 px-0.5">Trabajo realizado</p>
+        <div class="rounded-xl2 bg-surface border border-line shadow-card p-4"><p class="text-[13.5px] text-ink leading-relaxed">Revisión y reparación del calefón de paso. Reemplazo de válvula de gas defectuosa y limpieza de inyectores. Prueba de funcionamiento a 40°C confirmada.</p></div>
+        <p class="text-[11px] font-bold tracking-wide uppercase text-faint mt-4 mb-2 px-0.5">Detalle</p>
+        <div class="rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute">Diagnóstico y mano de obra</span><span class="num text-[13px] font-semibold text-ink">USD 33</span></div>
+          <div class="flex items-center justify-between px-4 py-3"><span class="text-[13px] text-mute">Materiales (válvula + inyectores)</span><span class="num text-[13px] font-semibold text-ink">USD 15</span></div>
+          <div class="flex items-center justify-between px-4 py-3 bg-brand-50/40"><span class="text-[13px] font-semibold text-ink">Total · precio fijo</span><span class="num text-[15px] font-bold text-ink">USD 48</span></div>
+        </div>
+        <div class="mt-3 flex items-center gap-2.5 rounded-xl2 bg-brand-50 border border-brand-100 px-3.5 py-3"><i data-lucide="shield-check" class="text-[18px] text-brand-600 shrink-0"></i><p class="text-[12.5px] text-ink leading-snug">Garantía de <span class="font-semibold">30 días</span> activada. Si algo falla, lo resolvemos sin costo.</p></div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <button data-toast="Descargando factura…" data-ti="file-text" type="button" class="press flex items-center justify-center gap-2 rounded-xl2 border border-line bg-surface py-3.5 text-[14px] font-semibold text-ink shadow-card"><i data-lucide="file-text" class="text-[17px]"></i> Factura</button>
+          <button id="reportDone" type="button" class="press flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-3.5 text-[14px] font-semibold shadow-fab"><i data-lucide="check" class="text-[17px]"></i> Listo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet: Agenda (Próximos mantenimientos) -->
+    <div id="sheetAgenda" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[84%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-3 pb-7">
+        <div class="flex items-start justify-between">
+          <div><h3 class="text-[18px] font-bold font-display text-ink">Próximos mantenimientos</h3><p id="agendaSub" class="text-[12.5px] text-mute mt-0.5">—</p></div>
+          <button class="sheet-close press w-9 h-9 grid place-items-center rounded-full bg-surface border border-line text-ink"><i data-lucide="x" class="text-[16px]"></i></button>
+        </div>
+        <div id="agendaList" class="mt-4 bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden"></div>
+        <button data-pedir class="press mt-4 w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-3.5 text-[14px] font-semibold shadow-fab"><i data-lucide="calendar-check" class="text-[17px]"></i> Agendar revisión</button>
+      </div>
+    </div>
+
+    <!-- Sheet: Notificaciones -->
+    <div id="sheetNoti" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[82%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-3 pb-7">
+        <div class="flex items-center justify-between">
+          <h3 class="text-[18px] font-bold font-display text-ink">Notificaciones</h3>
+          <button id="markRead" class="text-[12.5px] font-semibold text-brand-600">Marcar leídas</button>
+        </div>
+        <div class="mt-4 space-y-2.5">
+          <div class="noti flex items-start gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-urgent/10 text-urgent"><i data-lucide="flame" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[13.5px] font-semibold text-ink leading-snug">Calefón: revisión urgente</p><p class="text-[12px] text-mute mt-0.5">Programá la revisión antes del invierno.</p><p class="text-[11px] text-faint mt-1">hace 2 h</p></div><span class="noti-dot mt-1 w-2 h-2 rounded-full bg-urgent shrink-0"></span></div>
+          <div class="noti flex items-start gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600"><i data-lucide="map-pin" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[13.5px] font-semibold text-ink leading-snug">Marcos está en camino</p><p class="text-[12px] text-mute mt-0.5">Llega en ~18 min a Bancalari 3901.</p><p class="text-[11px] text-faint mt-1">hace 5 min</p></div><span class="noti-dot mt-1 w-2 h-2 rounded-full bg-brand-500 shrink-0"></span></div>
+          <div class="noti flex items-start gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-good/10 text-good"><i data-lucide="badge-check" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[13.5px] font-semibold text-ink leading-snug">Presupuesto aceptado</p><p class="text-[12px] text-mute mt-0.5">Plomería · Calefón · USD 48.</p><p class="text-[11px] text-faint mt-1">hace 6 min</p></div></div>
+          <div class="noti flex items-start gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-good/10 text-good"><i data-lucide="gift" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[13.5px] font-semibold text-ink leading-snug">Nuevo beneficio</p><p class="text-[12px] text-mute mt-0.5">30% OFF en Pinturas Rex × Nora.</p><p class="text-[11px] text-faint mt-1">ayer</p></div></div>
+          <div class="noti flex items-start gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5"><span class="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-warn/10 text-warn"><i data-lucide="star" class="text-[18px]"></i></span><div class="flex-1 min-w-0"><p class="text-[13.5px] font-semibold text-ink leading-snug">Calificá tu servicio</p><p class="text-[12px] text-mute mt-0.5">Electricidad · Laura Giménez.</p><p class="text-[11px] text-faint mt-1">ayer</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet: Detalle de historial -->
+    <div id="sheetHist" class="sheet absolute bottom-0 inset-x-0 z-50 bg-sand rounded-t-[26px] shadow-sheet max-h-[86%] overflow-y-auto no-scrollbar">
+      <div class="w-10 h-1 rounded-full bg-line mx-auto mt-2.5"></div>
+      <div class="px-5 pt-3 pb-7">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-good"><i data-lucide="check" class="text-[14px]"></i> Resuelto</span>
+          <button class="sheet-close press w-9 h-9 grid place-items-center rounded-full bg-surface border border-line text-ink"><i data-lucide="x" class="text-[16px]"></i></button>
+        </div>
+        <div class="flex items-center gap-3.5 mt-3">
+          <span id="hdIcon" class="shrink-0 w-12 h-12 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="droplet" class="text-[22px]"></i></span>
+          <div class="min-w-0"><h3 id="hdTitle" class="text-[17px] font-bold font-display text-ink leading-tight">—</h3><p id="hdDate" class="text-[12.5px] text-faint mt-0.5">—</p></div>
+        </div>
+        <div class="mt-4 flex items-center gap-3.5 bg-surface rounded-xl2 border border-line shadow-card p-3.5">
+          <span class="w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600"><i data-lucide="user-round" class="text-[20px]"></i></span>
+          <div class="flex-1 min-w-0"><p id="hdTech" class="text-[14px] font-semibold text-ink leading-tight">—</p><p class="text-[12.5px] text-mute flex items-center gap-1.5 mt-0.5"><i data-lucide="star" class="text-[13px] text-warn fill-warn"></i><span id="hdRating" class="num font-medium text-ink">—</span> · técnico verificado</p></div>
+          <span class="text-[11px] font-semibold text-good bg-good/10 rounded-full px-2 py-1">Garantía activa</span>
+        </div>
+        <p class="text-[11px] font-bold tracking-wide uppercase text-faint mt-5 mb-2 px-0.5">Qué se hizo</p>
+        <div class="rounded-xl2 bg-surface border border-line shadow-card p-4"><p id="hdDesc" class="text-[13.5px] text-ink leading-relaxed">—</p></div>
+        <div class="mt-3 grid grid-cols-2 gap-3">
+          <div class="rounded-xl2 bg-surface border border-line shadow-card p-3.5"><p class="text-[11px] text-faint">Total pagado</p><p id="hdPrice" class="num text-[18px] font-bold text-ink mt-0.5">—</p></div>
+          <div class="rounded-xl2 bg-surface border border-line shadow-card p-3.5"><p class="text-[11px] text-faint">Garantía</p><p class="text-[18px] font-bold text-ink mt-0.5">30 días</p></div>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <button data-toast="Descargando factura…" data-ti="file-text" type="button" class="press flex items-center justify-center gap-2 rounded-xl2 border border-line bg-surface py-3.5 text-[14px] font-semibold text-ink shadow-card"><i data-lucide="file-text" class="text-[17px]"></i> Factura</button>
+          <button class="press flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-3.5 text-[14px] font-semibold shadow-fab"><i data-lucide="repeat" class="text-[17px]"></i> Pedir de nuevo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============== CHAT (Sofía / Marcos) ============== -->
+    <div id="chatx" class="overlay absolute inset-0 z-[55] bg-sand flex flex-col">
+      <div class="px-5 pt-12 pb-3 flex items-center gap-3 bg-surface/85 backdrop-blur border-b border-line">
+        <button id="chatxBack" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-sand border border-line text-ink shrink-0"><i data-lucide="arrow-left" class="text-[18px]"></i></button>
+        <img id="chatxImg" src="" alt="" class="w-10 h-10 rounded-full object-cover shrink-0"/>
+        <div class="min-w-0 flex-1"><p id="chatxName" class="text-[15px] font-bold font-display text-ink leading-none"></p><p class="text-[11.5px] text-good flex items-center gap-1.5 mt-1"><span class="live-dot w-1.5 h-1.5 rounded-full bg-good"></span><span id="chatxStatus"></span></p></div>
+        <button data-toast="Llamando…" data-ti="phone" type="button" class="press w-10 h-10 grid place-items-center rounded-full bg-brand-50 text-brand-600 shrink-0"><i data-lucide="phone" class="text-[17px]"></i></button>
+      </div>
+      <div id="chatxMsgs" class="flex-1 overflow-y-auto no-scrollbar px-5 py-4 space-y-2.5"></div>
+      <div class="px-5 pb-7 pt-2.5 flex items-center gap-2 bg-surface/85 backdrop-blur border-t border-line">
+        <input id="chatxInput" type="text" autocomplete="off" placeholder="Escribí un mensaje…" class="flex-1 min-w-0 rounded-full bg-surface border border-line shadow-card px-4 py-3 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"/>
+        <button id="chatxSend" type="button" class="press w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shrink-0"><i data-lucide="arrow-up" class="text-[19px]"></i></button>
+      </div>
+    </div>
+
+    <!-- ============== TOAST ============== -->
+    <div id="toast" class="absolute left-1/2 bottom-28 z-[58] flex items-center gap-2 rounded-full bg-ink text-white text-[13px] font-medium px-4 py-2.5 shadow-xl pointer-events-none">
+      <span id="toastIcon" class="text-[16px] inline-flex"></span><span id="toastMsg"></span>
+    </div>
+
+    <!-- ============== SPLASH DE CARGA ============== -->
+    <div id="splash">
+      <span class="sp-glow"></span>
+      <div class="sp-mark relative z-10">
+        <svg viewBox="0 0 110 125" class="h-[112px] w-auto" aria-label="Nora">
+          <path d="M8 52L55 8l47 44H90v62H20V52Z" fill="#00C2B8" opacity=".10"/>
+          <line x1="28" y1="52" x2="28" y2="114" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="82" y1="52" x2="82" y2="114" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="28" y1="114" x2="82" y2="114" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="28" y1="52" x2="55" y2="22" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="82" y1="52" x2="55" y2="22" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="72" y1="22" x2="72" y2="8" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="66" y1="22" x2="79" y2="22" stroke="#00C2B8" stroke-width="4" stroke-linecap="round"/>
+          <line x1="28" y1="79" x2="82" y2="79" stroke="#3FE0D2" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>
+          <line x1="64" y1="60" x2="64" y2="79" stroke="#3FE0D2" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+          <line x1="45" y1="114" x2="45" y2="96" stroke="#3FE0D2" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+          <line x1="65" y1="114" x2="65" y2="96" stroke="#3FE0D2" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+          <line x1="45" y1="96" x2="65" y2="96" stroke="#3FE0D2" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+          <circle cx="55" cy="22" r="5.5" fill="#00C2B8"/>
+          <circle cx="28" cy="52" r="5" fill="#00C2B8"/>
+          <circle cx="82" cy="52" r="5" fill="#00C2B8"/>
+          <circle cx="28" cy="114" r="5" fill="#00C2B8"/>
+          <circle cx="82" cy="114" r="5" fill="#00C2B8"/>
+          <circle cx="45" cy="96" r="3" fill="#3FE0D2" opacity=".6"/>
+          <circle cx="65" cy="96" r="3" fill="#3FE0D2" opacity=".6"/>
+          <g class="heart-pulse">
+            <path d="M72 4Q72 0 74.5 0Q77 0 77 4Q77 8 72 11Q67 8 67 4Q67 0 69.5 0Q72 0 72 4Z" fill="#FF6B9D"/>
+            <circle class="wring r1" cx="72" cy="5" r="5"/>
+            <circle class="wring r2" cx="72" cy="5" r="5"/>
+            <circle class="wring r3" cx="72" cy="5" r="5"/>
+          </g>
+        </svg>
+      </div>
+      <div class="sp-word logo-word text-white text-[46px] leading-none mt-5 z-10"><span>nora</span></div>
+      <div class="sp-tag text-brand-100/90 text-[13.5px] mt-2.5 z-10" style="letter-spacing:.2px">Tu hogar, inteligente.</div>
+      <div class="sp-bar mt-8 z-10"><i></i></div>
+    </div>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    /* ---------- Reveal ---------- */
+    function revealIn(scope){
+      const items=[...scope.querySelectorAll('.reveal')];
+      items.forEach(it=>it.classList.remove('in'));
+      items.forEach((it,i)=> setTimeout(()=> it.classList.add('in'), 50 + Math.min(i*55,520)));
+    }
+
+    /* ---------- Score (con target) ---------- */
+    let scoreIv=null;
+    function animateScore(target){
+      const circ=326.7;
+      const ring=document.getElementById('scoreRing'), num=document.getElementById('scoreNum');
+      if(scoreIv) clearInterval(scoreIv);
+      ring.style.strokeDashoffset=circ; num.textContent='0';
+      setTimeout(()=> ring.style.strokeDashoffset=circ*(1-target/100), 60);
+      const dur=1400,start=Date.now(),ease=t=>1-Math.pow(1-t,3);
+      scoreIv=setInterval(()=>{ const p=Math.min((Date.now()-start)/dur,1); num.textContent=Math.round(ease(p)*target); if(p>=1) clearInterval(scoreIv); },40);
+    }
+
+    /* ---------- Propiedades (datos reales + por propiedad) ---------- */
+    const props=[
+      {
+        name:'Mi hogar', addr:'Bancalari 3901 · Tigre · Bs As', score:73, icon:'home',
+        status:'Tu hogar está<br>en buen estado',
+        alert:{ tone:'urgent', icon:'flame', title:'Calefón: revisión urgente antes del invierno', sub:'1 urgente · 2 pendientes · suma +8 pts' },
+        next:{ icon:'flame', title:'Calefón Orbis · Revisión', date:'Sep 2026', urgent:true },
+        agenda:[
+          { icon:'flame',   title:'Calefón Orbis',   sub:'Revisión preventiva', right:'Sep 2026', tag:'urgente' },
+          { icon:'wind',    title:'Limpieza de A/A',  sub:'En 45 días',          right:'USD 40',  tag:'programado' },
+          { icon:'droplet', title:'Tanque de agua',   sub:'En 60 días',          right:'USD 55',  tag:'programado' },
+        ],
+      },
+      {
+        name:'Casa Padres', addr:'Vega 678 · Merlo · Bs As', score:88, icon:'house',
+        status:'Tu propiedad está<br>impecable',
+        alert:{ tone:'good', icon:'shield-check', title:'Todo al día en esta propiedad', sub:'0 urgentes · 2 programados' },
+        next:{ icon:'wind', title:'Service de A/A · Revisión', date:'Ago 2026', urgent:false },
+        agenda:[
+          { icon:'wind',   title:'Service de A/A',  sub:'En 90 días',  right:'USD 40', tag:'programado' },
+          { icon:'sprout', title:'Poda de jardín',  sub:'En 120 días', right:'USD 30', tag:'programado' },
+        ],
+      },
+      {
+        name:'NORA Industrias', addr:'Av. Perón 7039 · Udaondo', score:64, icon:'building-2',
+        status:'Requiere algo<br>de tu atención',
+        alert:{ tone:'urgent', icon:'siren', title:'Matafuegos con recarga vencida', sub:'2 urgentes · 1 programado' },
+        next:{ icon:'flame', title:'Matafuegos · Recarga', date:'Vencido', urgent:true },
+        agenda:[
+          { icon:'flame',   title:'Matafuegos',        sub:'Recarga obligatoria', right:'Vencido',    tag:'urgente' },
+          { icon:'zap',     title:'Tablero trifásico', sub:'Revisión anual',      right:'En 20 días', tag:'urgente' },
+          { icon:'droplet', title:'Bomba de agua',     sub:'En 40 días',          right:'USD 90',     tag:'programado' },
+        ],
+      },
+    ];
+    let curProp=0;
+    function renderProp(animate){
+      const p=props[curProp];
+      document.getElementById('selName').textContent=p.name;
+      document.getElementById('selAddr').textContent=p.addr;
+      document.getElementById('selIdx').textContent=(curProp+1)+'/3';
+      document.getElementById('selIcon').innerHTML='<i data-lucide="'+p.icon+'" class="text-[18px]"></i>';
+      document.getElementById('scoreStatus').innerHTML=p.status;
+      // Alerta del hero (tono urgente o "todo al día")
+      const a=p.alert, urgent=a.tone==='urgent';
+      document.getElementById('heroAlertIcon').className='shrink-0 w-9 h-9 grid place-items-center rounded-xl '+(urgent?'bg-urgent/20 text-orange-200':'bg-good/20 text-emerald-200');
+      document.getElementById('heroAlertIcon').innerHTML='<i data-lucide="'+a.icon+'" class="text-[18px]"></i>';
+      document.getElementById('heroAlertTitle').textContent=a.title;
+      document.getElementById('heroAlertSub').textContent=a.sub;
+      // Próximo mantenimiento (peek)
+      const n=p.next;
+      document.getElementById('nextMaintIcon').className='shrink-0 w-11 h-11 grid place-items-center rounded-2xl '+(n.urgent?'bg-urgent/10 text-urgent':'bg-brand-50 text-brand-600');
+      document.getElementById('nextMaintIcon').innerHTML='<i data-lucide="'+n.icon+'" class="text-[19px]"></i>';
+      document.getElementById('nextMaintTitle').textContent=n.title;
+      const nd=document.getElementById('nextMaintDate'); nd.textContent=n.date; nd.className='num text-[13px] font-semibold '+(n.urgent?'text-urgent':'text-ink');
+      lucide.createIcons();
+      if(animate) animateScore(p.score);
+    }
+    function renderDomList(activeIdx){
+      const wrap=document.getElementById('domList');
+      wrap.innerHTML=props.map((p,i)=>`
+        <button class="domItem press w-full flex items-center gap-3.5 rounded-xl2 border ${i===activeIdx?'border-brand-300 bg-brand-50':'border-line bg-surface'} shadow-card p-3.5 text-left" data-i="${i}">
+          <span class="w-10 h-10 grid place-items-center rounded-xl ${i===activeIdx?'bg-brand-600 text-white':'bg-brand-50 text-brand-600'}"><i data-lucide="${p.icon}" class="text-[18px]"></i></span>
+          <span class="flex-1 min-w-0"><span class="block text-[14.5px] font-semibold text-ink leading-tight">${p.name}</span><span class="block text-[12px] text-faint truncate">${p.addr}</span></span>
+          <span class="text-[11px] font-semibold ${p.score>=80?'text-good bg-good/10':p.score>=70?'text-brand-600 bg-brand-50':'text-warn bg-warn/10'} rounded-full px-2 py-0.5 num">${p.score}</span>
+          ${i===activeIdx?'<i data-lucide="check" class="text-[18px] text-brand-600"></i>':''}
+        </button>`).join('');
+      lucide.createIcons();
+    }
+    // Agenda (Próximos mantenimientos) por propiedad
+    function renderAgenda(){
+      const p=props[curProp];
+      document.getElementById('agendaSub').textContent=p.name+' · '+p.addr.split(' · ')[0];
+      document.getElementById('agendaList').innerHTML=p.agenda.map(m=>{
+        const u=m.tag==='urgente';
+        return `<div class="flex items-center gap-3.5 p-3.5 lift">
+          <span class="shrink-0 w-11 h-11 grid place-items-center rounded-2xl ${u?'bg-urgent/10 text-urgent':'bg-brand-50 text-brand-600'}"><i data-lucide="${m.icon}" class="text-[19px]"></i></span>
+          <div class="min-w-0 flex-1"><p class="text-[14px] font-semibold text-ink leading-tight">${m.title}</p><p class="text-[12.5px] text-faint mt-0.5">${m.sub}</p></div>
+          <div class="text-right shrink-0"><p class="num text-[13px] font-semibold ${u?'text-urgent':'text-ink'}">${m.right}</p><p class="text-[11.5px] ${u?'text-urgent/80 font-medium':'text-faint'}">${u?'Urgente':'Programado'}</p></div>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    /* ---------- Router ---------- */
+    const views=document.querySelectorAll('[data-view]');
+    const navBtns=document.querySelectorAll('.nav-btn');
+    function go(name){
+      views.forEach(v=> v.classList.toggle('active', v.dataset.view===name));
+      navBtns.forEach(b=>{ const on=b.dataset.go===name; b.classList.toggle('text-brand-600',on); b.classList.toggle('text-faint',!on); const l=b.querySelector('span'); if(l) l.classList.toggle('font-semibold',on); });
+      const active=document.querySelector(`[data-view="${name}"]`);
+      active.scrollTop=0; revealIn(active);
+      if(name==='inicio') animateScore(props[curProp].score);
+      if(name==='obras'){ const bar=document.getElementById('obraBar'); bar.style.width='0%'; setTimeout(()=> bar.style.width='62%',80); }
+    }
+    document.querySelectorAll('[data-go]').forEach(b=> b.addEventListener('click', ()=> go(b.dataset.go)));
+
+    /* ---------- Sheets ---------- */
+    const scrim=document.getElementById('scrim');
+    let openSheetEl=null;
+    function openSheet(id){ const s=document.getElementById(id); openSheetEl=s; scrim.classList.add('show'); s.classList.add('open'); }
+    function closeSheet(){ if(openSheetEl){ openSheetEl.classList.remove('open'); openSheetEl=null; } scrim.classList.remove('show'); }
+    scrim.addEventListener('click', closeSheet);
+    document.querySelectorAll('.sheet-close').forEach(b=> b.addEventListener('click', closeSheet));
+
+    // Selector de domicilio: modo 'home' (cambia la propiedad activa) o 'pedir' (solo para el servicio)
+    let domMode='home';
+    let pedirProp=0;
+    function renderPedirDom(){
+      const p=props[pedirProp];
+      document.getElementById('pedirDomIcon').innerHTML='<i data-lucide="'+p.icon+'" class="text-[18px]"></i>';
+      document.getElementById('pedirDomName').textContent=p.name+' · '+p.addr.split(' · ')[0];
+      const td=document.getElementById('trackDom'); if(td) td.textContent=p.addr.split(' · ')[0];
+      lucide.createIcons();
+    }
+    document.getElementById('domSelector').addEventListener('click', ()=>{ domMode='home'; renderDomList(curProp); openSheet('sheetDom'); });
+    document.getElementById('pedirDomBtn').addEventListener('click', ()=>{ domMode='pedir'; renderDomList(pedirProp); openSheet('sheetDom'); });
+    document.getElementById('sheetDom').addEventListener('click',(e)=>{
+      const it=e.target.closest('.domItem'); if(!it) return;
+      const i=+it.dataset.i;
+      if(domMode==='pedir'){ pedirProp=i; renderPedirDom(); }
+      else { curProp=i; renderProp(true); }
+      closeSheet();
+    });
+
+    // Agenda (Próximos mantenimientos) de la propiedad activa
+    document.querySelectorAll('[data-agenda]').forEach(b=> b.addEventListener('click', ()=>{ renderAgenda(); openSheet('sheetAgenda'); }));
+
+    document.getElementById('bellBtn').addEventListener('click', ()=>{ openSheet('sheetNoti'); });
+    document.getElementById('markRead').addEventListener('click', ()=>{
+      document.querySelectorAll('#sheetNoti .noti-dot').forEach(d=> d.remove());
+      document.getElementById('bellDot').style.display='none';
+    });
+
+    document.querySelectorAll('.hist').forEach(b=> b.addEventListener('click', ()=>{
+      const d=b.dataset;
+      document.getElementById('hdTitle').textContent=d.title;
+      document.getElementById('hdDate').textContent=d.date;
+      document.getElementById('hdTech').textContent=d.tech;
+      document.getElementById('hdRating').textContent=d.rating;
+      document.getElementById('hdDesc').textContent=d.desc;
+      document.getElementById('hdPrice').textContent=d.price;
+      document.getElementById('hdIcon').innerHTML='<i data-lucide="'+d.cat+'" class="text-[22px]"></i>';
+      lucide.createIcons();
+      openSheet('sheetHist');
+    }));
+
+    /* ---------- Track overlay ---------- */
+    const track=document.getElementById('track');
+    document.querySelectorAll('[data-track]').forEach(b=> b.addEventListener('click', ()=> track.classList.add('open')));
+    document.getElementById('trackClose').addEventListener('click', ()=> track.classList.remove('open'));
+
+    /* ---------- Pedir flow ---------- */
+    const pedir=document.getElementById('pedir');
+    const steps=[...pedir.querySelectorAll('.step')];
+    let cur=0;
+    let selCat=false, selDay=false, selSlot=false, selPay=false, selDesc=false, selCatName='';
+    const chatMsgs=document.getElementById('chatMsgs');
+    const chatInput=document.getElementById('chatInput');
+    const nextBtn=document.getElementById('pedirNext');
+    const prog=document.getElementById('pedirProg');
+    const footer=document.getElementById('pedirFooter');
+    const backBtn=document.getElementById('pedirBack');
+
+    // Validación: qué dato exige cada paso para poder avanzar
+    function stepValid(i){
+      switch(i){
+        case 0: return selCat;                                  // elegir categoría
+        case 1: return selDesc;                                 // describiste el problema en el chat
+        case 4: return selDay && selSlot;                       // día + franja
+        case 5: return selPay;                                  // método de pago
+        default: return true;                                   // 2 (auto), 3 (presupuesto), 6 (listo)
+      }
+    }
+    function updateNext(){
+      const ok=stepValid(cur);
+      nextBtn.classList.toggle('opacity-40', !ok);
+      nextBtn.classList.toggle('pointer-events-none', !ok);
+      nextBtn.setAttribute('aria-disabled', String(!ok));
+    }
+
+    function openPedir(){
+      closeSheet();                       // cierra cualquier sheet (ej: Agenda) antes de abrir el flujo
+      cur=0; selCat=selDay=selSlot=selPay=selDesc=false; selCatName='';
+      pedirProp=curProp; renderPedirDom(); // el servicio arranca en la propiedad activa
+      chatMsgs.innerHTML=''; chatInput.value='';
+      pedir.querySelectorAll('.cat,.day,.slot,.pay').forEach(el=> el.classList.remove('ring-2','ring-brand-500','border-brand-300'));
+      pedir.querySelectorAll('.pay-dot').forEach(d=> d.classList.remove('bg-brand-600','border-brand-600'));
+      setStep(0); pedir.classList.add('open');
+    }
+    function closePedir(){ pedir.classList.remove('open'); }
+    document.querySelectorAll('[data-pedir]').forEach(b=> b.addEventListener('click', openPedir));
+    document.getElementById('pedirClose').addEventListener('click', closePedir);
+    const stepCfg=[ {label:'Continuar'},{label:'Buscar cuadrilla'},{label:null,auto:2200,hideFooter:true},{label:'Aceptar presupuesto'},{label:'Continuar'},{label:'Confirmar y pagar'},{btn:'Ver seguimiento en vivo',finish:true} ];
+    function setStep(i){
+      cur=i;
+      steps.forEach(s=> s.classList.toggle('active', +s.dataset.step===i));
+      prog.style.width=Math.round(((i+1)/steps.length)*100)+'%';
+      const cfg=stepCfg[i];
+      footer.style.display=cfg.hideFooter?'none':'block';
+      nextBtn.innerHTML=(cfg.btn||cfg.label||'Continuar')+' <i data-lucide="arrow-right" class="text-[19px]"></i>';
+      backBtn.style.visibility=i===0?'hidden':'visible';
+      lucide.createIcons();
+      pedir.querySelector('.flex-1.overflow-y-auto').scrollTop=0;
+      updateNext();
+      if(cfg.auto) setTimeout(()=>{ if(cur===i) setStep(i+1); }, cfg.auto);
+    }
+    nextBtn.addEventListener('click', ()=>{
+      if(!stepValid(cur)) return;                              // no avanza sin el dato requerido
+      if(stepCfg[cur].finish){ closePedir(); go('inicio'); setTimeout(()=> track.classList.add('open'), 300); return; }
+      if(cur<steps.length-1) setStep(cur+1);
+    });
+    backBtn.addEventListener('click', ()=>{ if(cur>0) setStep(Math.max(0,cur-1)); });
+    /* ---------- Chat con Nora (paso 1) ---------- */
+    function chatBubble(html, who){
+      const wrap=document.createElement('div');
+      wrap.className = who==='nora' ? 'flex justify-start' : 'flex justify-end';
+      const b=document.createElement('div');
+      b.className = who==='nora'
+        ? 'max-w-[82%] rounded-2xl rounded-tl-md bg-surface border border-line shadow-card px-3.5 py-2.5 text-[13.5px] text-ink leading-snug'
+        : 'max-w-[82%] rounded-2xl rounded-tr-md bg-brand-600 text-white px-3.5 py-2.5 text-[13.5px] leading-snug';
+      b.innerHTML=html;
+      wrap.appendChild(b); chatMsgs.appendChild(wrap);
+      const sc=pedir.querySelector('.flex-1.overflow-y-auto'); if(sc) sc.scrollTop=sc.scrollHeight;
+      return wrap;
+    }
+    function resetChat(){
+      selDesc=false; chatMsgs.innerHTML=''; chatInput.value='';
+      const cat = selCatName ? (' de <b>'+selCatName.toLowerCase()+'</b>') : '';
+      chatBubble('¡Hola, Mati! Soy Nora. Contame el problema'+cat+' y te armo la cuadrilla ideal. Si querés, sumá una foto.', 'nora');
+    }
+    let chatTyping=null;
+    function noraReply(){
+      chatTyping=chatBubble('<span class="inline-flex gap-1 py-0.5"><span class="w-1.5 h-1.5 rounded-full bg-faint animate-pulse"></span><span class="w-1.5 h-1.5 rounded-full bg-faint animate-pulse" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-faint animate-pulse" style="animation-delay:.3s"></span></span>','nora');
+      const first=!selDesc;
+      setTimeout(()=>{
+        if(chatTyping){ chatTyping.remove(); chatTyping=null; }
+        chatBubble(first ? 'Perfecto, ya tengo lo que necesito. Cuando quieras, tocá «Buscar cuadrilla» y armo el equipo ideal.' : 'Anotado. ¿Algo más o seguimos?','nora');
+        selDesc=true; updateNext();
+      }, 850);
+    }
+    function chatSend(text){
+      const t=(text!=null?text:chatInput.value).trim();
+      if(!t) return;
+      chatBubble(t.replace(/</g,'&lt;'),'user');
+      chatInput.value='';
+      noraReply();
+    }
+    document.getElementById('chatSend').addEventListener('click', ()=> chatSend());
+    document.getElementById('chatPhoto').addEventListener('click', ()=> chatSend('Foto del problema adjunta'));
+    chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); chatSend(); } });
+
+    /* ---------- Perfil del técnico + calificación + reporte ---------- */
+    document.querySelectorAll('[data-tech]').forEach(b=> b.addEventListener('click', ()=> openSheet('sheetTech')));
+    let ratingValue=0;
+    function setStars(n){
+      ratingValue=n;
+      document.querySelectorAll('#ratingStars .rstar').forEach(s=>{ const on=+s.dataset.star<=n; s.classList.toggle('text-warn',on); s.classList.toggle('text-line',!on); });
+      const sub=document.getElementById('ratingSubmit'); sub.classList.toggle('opacity-40', n<1); sub.classList.toggle('pointer-events-none', n<1);
+    }
+    document.querySelectorAll('#ratingStars .rstar').forEach(s=> s.addEventListener('click', ()=> setStars(+s.dataset.star)));
+    document.querySelectorAll('[data-finish-service]').forEach(b=> b.addEventListener('click', ()=>{ track.classList.remove('open'); setStars(0); document.getElementById('ratingComment').value=''; openSheet('sheetRating'); }));
+    document.getElementById('ratingSubmit').addEventListener('click', ()=>{ if(ratingValue<1) return; document.getElementById('sheetRating').classList.remove('open'); openSheet('sheetReport'); });
+    document.getElementById('reportDone').addEventListener('click', ()=>{ closeSheet(); go('inicio'); });
+
+    pedir.addEventListener('click',(e)=>{
+      const cat=e.target.closest('.cat'); if(cat){ pedir.querySelectorAll('.cat').forEach(c=>c.classList.remove('ring-2','ring-brand-500','border-brand-300')); cat.classList.add('ring-2','ring-brand-500','border-brand-300'); selCat=true; selCatName=(cat.querySelector('span:last-child')?.textContent||'').replace(/\s+/g,' ').trim(); resetChat(); updateNext(); setTimeout(()=> setStep(1),180); }
+      const day=e.target.closest('.day'); if(day){ pedir.querySelectorAll('.day').forEach(d=>d.classList.remove('ring-2','ring-brand-500')); day.classList.add('ring-2','ring-brand-500'); selDay=true; updateNext(); }
+      const slot=e.target.closest('.slot'); if(slot){ pedir.querySelectorAll('.slot').forEach(s=>s.classList.remove('ring-2','ring-brand-500')); slot.classList.add('ring-2','ring-brand-500'); selSlot=true; updateNext(); }
+      const pay=e.target.closest('.pay'); if(pay){ pedir.querySelectorAll('.pay').forEach(p=>{p.classList.remove('ring-2','ring-brand-500'); p.querySelector('.pay-dot').classList.remove('bg-brand-600','border-brand-600');}); pay.classList.add('ring-2','ring-brand-500'); pay.querySelector('.pay-dot').classList.add('bg-brand-600','border-brand-600'); selPay=true; updateNext(); }
+    });
+
+    /* ---------- Chat reutilizable (Sofía / Marcos) ---------- */
+    const personas={
+      sofia:{ name:'Arq. Sofía Méndez', status:'En línea · Nora Obras', img:'arquitecta.jpg',
+        greeting:'¡Hola, Mati! Soy Sofía, tu arquitecta en Casa Nueva. ¿En qué te ayudo?',
+        rules:[
+          {k:['presupuesto','costo','plata','cuanto','cuánto','precio','gast'], r:'El presupuesto total es USD 48.000 y vamos USD 29.760 ejecutado (62%). Si querés te paso el detalle por mail.'},
+          {k:['avance','va','obra','estado','cómo'], r:'Vamos 62%. Ya terminamos mampostería y estamos con las instalaciones. Todo en tiempo.'},
+          {k:['cuando','cuándo','termina','fecha','listo','entrega'], r:'A este ritmo, cierre estimado para agosto 2026.'},
+          {k:['material'], r:'Esta semana llegan los caños y el cableado. Te aviso apenas estén en obra.'},
+          {k:['hola','buenas','buen'], r:'¡Hola! ¿Querés que repasemos el avance o tenés alguna duda puntual?'},
+          {k:['gracias'], r:'¡De nada! Cualquier cosa estoy por acá.'},
+        ], def:'Anotado, lo reviso con el equipo y te confirmo a la brevedad.' },
+      marcos:{ name:'Marcos Rodríguez', status:'En camino · ~18 min', img:'tecnico.jpg',
+        greeting:'¡Hola, Mati! Ya estoy en camino, llego en unos 18 minutos. ¿Necesitás algo?',
+        rules:[
+          {k:['cuando','cuándo','llega','llegás','donde','dónde','falta'], r:'Estoy a 3.2 km, en ~18 minutos toco el timbre.'},
+          {k:['presupuesto','precio','cuanto','cuánto','cobra','sale'], r:'El total es USD 48, precio fijo. Sin sorpresas al terminar.'},
+          {k:['hola','buenas'], r:'¡Hola! Ya casi llego, cualquier cosa avisame.'},
+          {k:['gracias'], r:'¡Gracias a vos! Nos vemos en un rato.'},
+        ], def:'Perfecto, lo veo apenas llegue. ¡Gracias!' },
+    };
+    const chatxEl=document.getElementById('chatx');
+    const chatxMsgs=document.getElementById('chatxMsgs');
+    const chatxInput=document.getElementById('chatxInput');
+    let chatxP=null;
+    function chatxBubble(html, who){
+      const wrap=document.createElement('div');
+      wrap.className = who==='them' ? 'flex justify-start' : 'flex justify-end';
+      const b=document.createElement('div');
+      b.className = who==='them'
+        ? 'max-w-[82%] rounded-2xl rounded-tl-md bg-surface border border-line shadow-card px-3.5 py-2.5 text-[13.5px] text-ink leading-snug'
+        : 'max-w-[82%] rounded-2xl rounded-tr-md bg-brand-600 text-white px-3.5 py-2.5 text-[13.5px] leading-snug';
+      b.innerHTML=html; wrap.appendChild(b); chatxMsgs.appendChild(wrap);
+      chatxMsgs.scrollTop=chatxMsgs.scrollHeight; return wrap;
+    }
+    function openChat(key){
+      const p=personas[key]; if(!p) return; chatxP=p;
+      document.getElementById('chatxName').textContent=p.name;
+      document.getElementById('chatxStatus').textContent=p.status;
+      document.getElementById('chatxImg').src=p.img;
+      chatxMsgs.innerHTML=''; chatxInput.value='';
+      chatxBubble(p.greeting,'them');
+      chatxEl.classList.add('open');
+    }
+    function chatxSend(){
+      const t=chatxInput.value.trim(); if(!t||!chatxP) return;
+      chatxBubble(t.replace(/</g,'&lt;'),'me'); chatxInput.value='';
+      const low=t.toLowerCase(); let r=chatxP.def;
+      for(const rule of chatxP.rules){ if(rule.k.some(k=> low.includes(k))){ r=rule.r; break; } }
+      const typ=chatxBubble('<span class="inline-flex gap-1 py-0.5"><span class="w-1.5 h-1.5 rounded-full bg-faint animate-pulse"></span><span class="w-1.5 h-1.5 rounded-full bg-faint animate-pulse" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 rounded-full bg-faint animate-pulse" style="animation-delay:.3s"></span></span>','them');
+      setTimeout(()=>{ typ.remove(); chatxBubble(r,'them'); }, 800);
+    }
+    document.getElementById('chatxBack').addEventListener('click', ()=> chatxEl.classList.remove('open'));
+    document.getElementById('chatxSend').addEventListener('click', chatxSend);
+    chatxInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); chatxSend(); } });
+
+    /* ---------- Toast ---------- */
+    const toastEl=document.getElementById('toast');
+    let toastT=null;
+    function toast(msg, icon){
+      document.getElementById('toastMsg').textContent=msg;
+      document.getElementById('toastIcon').innerHTML='<i data-lucide="'+(icon||'check')+'" class="text-[16px]"></i>';
+      lucide.createIcons();
+      toastEl.classList.add('show');
+      clearTimeout(toastT); toastT=setTimeout(()=> toastEl.classList.remove('show'), 2200);
+    }
+
+    /* ---------- Cableo global: chat + toasts (simulación) ---------- */
+    document.addEventListener('click',(e)=>{
+      const c=e.target.closest('[data-chat]'); if(c){ openChat(c.dataset.chat); return; }
+      const t=e.target.closest('[data-toast]'); if(t){ toast(t.dataset.toast, t.dataset.ti); }
+    });
+
+    /* ---------- Splash (~1s) ---------- */
+    setTimeout(()=>{ const s=document.getElementById('splash'); if(s){ s.classList.add('hide'); setTimeout(()=> s.remove(), 550); } }, 1100);
+
+    /* ---------- Init ---------- */
+    renderProp(false);
+    go('inicio');
+  </script>
+</body>
+</html>
