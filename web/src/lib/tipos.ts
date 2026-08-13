@@ -31,14 +31,14 @@ export const REGLAS_EQUIPO: Record<
   },
   termotanque: {
     etiqueta: "Termotanque",
-    icono: "flame",
+    icono: "thermometer",
     frecuenciaMeses: 12,
     obligatorio: true,
     motivo: "Riesgo de monóxido de carbono. Revisión anual por gasista matriculado.",
   },
   caldera: {
     etiqueta: "Caldera",
-    icono: "flame",
+    icono: "heater",
     frecuenciaMeses: 12,
     obligatorio: true,
     motivo: "Revisión anual obligatoria por gasista matriculado.",
@@ -73,7 +73,7 @@ export const REGLAS_EQUIPO: Record<
   },
   bomba_agua: {
     etiqueta: "Bomba de agua",
-    icono: "droplets",
+    icono: "waves",
     frecuenciaMeses: 12,
     obligatorio: false,
     motivo: "Revisión anual de presión y automático.",

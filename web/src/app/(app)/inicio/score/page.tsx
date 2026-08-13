@@ -6,7 +6,6 @@ import { ArrowLeft, Info } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
-import { equiposDePropiedad } from "@/lib/datos-demo";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { textoVencimiento } from "@/lib/formato";
 
@@ -14,8 +13,8 @@ import { textoVencimiento } from "@/lib/formato";
    Un número solo ("73") no significa nada; acá se muestra
    exactamente de dónde sale y qué hacer para subirlo. */
 export default function PaginaScore() {
-  const { propiedad } = useApp();
-  const score = useMemo(() => calcularScore(equiposDePropiedad(propiedad.id)), [propiedad.id]);
+  const { propiedad, equiposDe } = useApp();
+  const score = useMemo(() => calcularScore(equiposDe(propiedad.id)), [equiposDe, propiedad.id]);
   const equipos = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
 
   return (

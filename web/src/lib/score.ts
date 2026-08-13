@@ -133,7 +133,7 @@ export function calcularScore(equipos: Equipo[], hoy: Date = new Date()): Result
   if (evaluados.length === 0) {
     return {
       valor: 0,
-      titulo: "Cargá tus equipos<br>para conocer el estado",
+      titulo: "Cargá tus equipos<br>para ver el estado",
       nivel: "atencion",
       equipos: [],
       desglose: [{ concepto: "Todavía no cargaste ningún equipo", puntos: 0 }],

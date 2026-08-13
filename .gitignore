@@ -34,3 +34,6 @@ yarn-error.log*
 
 # Archivo local del prototipo original (no forma parte del producto)
 _archivo/
+
+# Variables de entorno locales (claves de Supabase)
+web/.env.local

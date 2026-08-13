@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Plus, X } from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
 import { useApp } from "./ContextoApp";
-import { equiposDePropiedad } from "@/lib/datos-demo";
+import { FormularioPropiedad } from "./FormularioPropiedad";
 import { calcularScore } from "@/lib/score";
 
 /* Panel que sube desde abajo para cambiar de domicilio.
@@ -29,7 +29,8 @@ export function HojaPropiedades({
     return () => document.removeEventListener("keydown", alPresionar);
   }, [abierta, alCerrar]);
 
-  const { propiedades, propiedad, elegirPropiedad } = useApp();
+  const { propiedades, propiedad, elegirPropiedad, equiposDe } = useApp();
+  const [formAbierto, setFormAbierto] = useState(false);
 
   return (
     <>
@@ -69,7 +70,7 @@ export function HojaPropiedades({
           <div className="mt-4 space-y-2.5">
             {propiedades.map((p) => {
               const activa = p.id === propiedad.id;
-              const score = calcularScore(equiposDePropiedad(p.id));
+              const score = calcularScore(equiposDe(p.id));
               const colorScore =
                 score.valor >= 80
                   ? "text-good bg-good/10"
@@ -116,12 +117,21 @@ export function HojaPropiedades({
 
           <button
             type="button"
+            onClick={() => setFormAbierto(true)}
             className="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
           >
             <Plus className="w-[17px] h-[17px]" /> Agregar domicilio
           </button>
         </div>
       </div>
+
+      {/* Al guardar, el formulario deja activa la propiedad nueva y cerramos
+          también la hoja de abajo: el usuario vuelve al inicio viéndola. */}
+      <FormularioPropiedad
+        abierto={formAbierto}
+        alCerrar={() => setFormAbierto(false)}
+        alGuardar={alCerrar}
+      />
     </>
   );
 }

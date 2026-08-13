@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState } from "react";
 import { ChevronRight, LogOut, Plus, Settings } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
-import { equiposDePropiedad } from "@/lib/datos-demo";
+import { FormularioPropiedad } from "@/componentes/FormularioPropiedad";
 import { calcularScore } from "@/lib/score";
 
 export default function PaginaPerfil() {
-  const { propiedades } = useApp();
+  const { propiedades, equiposDe } = useApp();
+  const [formAbierto, setFormAbierto] = useState(false);
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
@@ -38,7 +39,7 @@ export default function PaginaPerfil() {
         <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Mis domicilios</p>
         <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
           {propiedades.map((p) => {
-            const score = calcularScore(equiposDePropiedad(p.id));
+            const score = calcularScore(equiposDe(p.id));
             const color =
               score.valor >= 80
                 ? "text-good bg-good/10"
@@ -64,6 +65,7 @@ export default function PaginaPerfil() {
           })}
           <button
             type="button"
+            onClick={() => setFormAbierto(true)}
             className="w-full flex items-center gap-3.5 p-3.5 press text-brand-600"
           >
             <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl border border-dashed border-brand-200">
@@ -90,6 +92,8 @@ export default function PaginaPerfil() {
           <LogOut className="w-[17px] h-[17px]" /> Cerrar sesión
         </button>
       </div>
+
+      <FormularioPropiedad abierto={formAbierto} alCerrar={() => setFormAbierto(false)} />
     </main>
   );
 }

@@ -17,16 +17,15 @@ import { AnilloScore } from "@/componentes/AnilloScore";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
 import { useApp } from "@/componentes/ContextoApp";
-import { equiposDePropiedad } from "@/lib/datos-demo";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { mesAnio, saludo, textoVencimiento } from "@/lib/formato";
 
 export default function PaginaInicio() {
-  const { propiedad, indice, propiedades } = useApp();
+  const { propiedad, indice, propiedades, equiposDe } = useApp();
   const [hojaAbierta, setHojaAbierta] = useState(false);
 
   // El score se recalcula solo cuando cambia la propiedad.
-  const score = useMemo(() => calcularScore(equiposDePropiedad(propiedad.id)), [propiedad.id]);
+  const score = useMemo(() => calcularScore(equiposDe(propiedad.id)), [equiposDe, propiedad.id]);
   const urgentes = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
 
   const critico = score.nivel === "critico";
