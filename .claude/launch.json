@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "nora",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4521"],
-      "port": 4521
+      "name": "nora-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "web"],
+      "port": 3000
     }
   ]
 }

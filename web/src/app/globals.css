@@ -1,26 +1,219 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   SISTEMA DE DISEÑO NORA
+   Extraído del prototipo original (prototipo/index.html, líneas 14-29).
+   Tailwind v4 define los tokens acá, en CSS, no en tailwind.config.js.
+   ============================================================ */
+
+@theme {
+  /* --- Marca --- */
+  --color-brand-50: #e9f4f2;
+  --color-brand-100: #d2eae6;
+  --color-brand-200: #a6d6cd;
+  --color-brand-300: #6fbdb1;
+  --color-brand-400: #34a091;
+  --color-brand-500: #14857a;
+  --color-brand-600: #0e5c54;
+  --color-brand-700: #0b3b38;
+  --color-brand-800: #082d2b;
+  --color-brand-900: #06201e;
+
+  /* --- Superficies y texto --- */
+  --color-sand: #f2f0ea;
+  --color-shell: #ddd8ce; /* fondo detrás del "teléfono" en escritorio */
+  --color-surface: #ffffff;
+  --color-ink: #16211f;
+  --color-mute: #5b6b68; /* contraste 5.59:1 sobre blanco — cumple WCAG AA */
+  --color-faint: #6b7975; /* AJUSTADO: el original #8A9794 daba 3.03:1 y NO cumplía AA.
+                             Este da 4.54:1 manteniendo el mismo tono gris-verdoso. */
+  --color-faint-deco: #8a9794; /* el tono original — SOLO para bordes/íconos decorativos,
+                                  nunca para texto que haya que leer */
+  --color-line: #e6e3db;
+
+  /* --- Estados --- */
+  --color-urgent: #c9503a;
+  --color-warn: #c8841c;
+  --color-good: #1f9d63;
+
+  /* --- Tipografías --- */
+  --font-sans: var(--fuente-inter), system-ui, sans-serif;
+  --font-display: var(--fuente-sora), var(--fuente-inter), sans-serif;
+  --font-logo: var(--fuente-dm-serif), serif;
+
+  /* --- Sombras --- */
+  --shadow-card: 0 1px 2px rgba(11, 59, 56, 0.04), 0 8px 24px -12px rgba(11, 59, 56, 0.18);
+  --shadow-hero: 0 12px 40px -16px rgba(8, 45, 43, 0.55);
+  --shadow-fab: 0 10px 24px -6px rgba(14, 92, 84, 0.55);
+  --shadow-nav: 0 -8px 30px -18px rgba(11, 59, 56, 0.25);
+  --shadow-sheet: 0 -12px 40px -10px rgba(8, 45, 43, 0.35);
+
+  /* --- Radios --- */
+  --radius-xl2: 20px;
+  --radius-xl3: 26px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ============================================================
+   BASE
+   ============================================================ */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-shell);
+}
+
+/* Números tabulares: evita que los precios "bailen" al animarse */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================================
+   ANIMACIONES
+   Todas respetan prefers-reduced-motion (ver el bloque del final).
+   ============================================================ */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes pulse-live {
+  0% {
+    box-shadow: 0 0 0 0 rgba(31, 157, 99, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(31, 157, 99, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(31, 157, 99, 0);
+  }
+}
+.live-dot {
+  animation: pulse-live 2s infinite;
+}
+
+/* Latido del corazón del logo */
+@keyframes latido {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.45);
+  }
+  30% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.25);
+  }
+  60% {
+    transform: scale(1);
+  }
+}
+.heart-pulse {
+  transform-origin: 72px 5px;
+  animation: latido 2s ease-in-out infinite;
+}
+
+@keyframes onda {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+.wring {
+  fill: none;
+  stroke: #ff6b9d;
+  stroke-width: 1.5;
+  transform-origin: 72px 5px;
+  opacity: 0;
+  animation: onda 2s ease-out infinite;
+}
+.wring.r2 {
+  animation-delay: 0.35s;
+}
+.wring.r3 {
+  animation-delay: 0.7s;
+}
+
+/* Feedback táctil de botones */
+.press {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.2s ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+.lift {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Anillo del score */
+.ring-track {
+  stroke: rgba(255, 255, 255, 0.16);
+}
+.ring-fill {
+  stroke: url(#scoreGrad);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ============================================================
+   ACCESIBILIDAD
+   El prototipo bloqueaba el zoom y no respetaba las preferencias
+   de movimiento del sistema. Las dos cosas quedan corregidas acá.
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Foco visible para navegación por teclado */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
