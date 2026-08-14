@@ -147,6 +147,12 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
   return aPropiedad(data as FilaPropiedad);
 }
 
+/* TODAVÍA NO SE USA — ninguna pantalla la llama.
+   La dejo escrita pero sin botón a propósito: borrar un domicilio que
+   tiene servicios hechos no es obvio. ¿Se borra el historial también?
+   ¿Y la factura de un trabajo que el cliente pagó? Lo más probable es que
+   convenga ocultarlo en vez de borrarlo. Es una decisión de producto,
+   no técnica, y prefiero no resolverla por mi cuenta. */
 export async function borrarPropiedad(id: string): Promise<void> {
   const { error } = await supabaseNavegador().from("propiedades").delete().eq("id", id);
   if (error) fallar("borrar el domicilio", error);

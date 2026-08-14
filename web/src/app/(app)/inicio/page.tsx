@@ -108,10 +108,13 @@ export default function PaginaInicio() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-2.5 py-1 text-[11.5px] font-medium text-brand-50">
                 <ShieldCheck className="w-[13px] h-[13px]" /> Salud de la propiedad
               </span>
-              <p
-                className="mt-2.5 text-[19px] font-semibold font-display leading-snug"
-                dangerouslySetInnerHTML={{ __html: score.titulo }}
-              />
+              <p className="mt-2.5 text-[19px] font-semibold font-display leading-snug">
+                {score.titulo.map((linea, i) => (
+                  <span key={i} className="block">
+                    {linea}
+                  </span>
+                ))}
+              </p>
               <Link
                 href="/inicio/score"
                 className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-brand-100 underline underline-offset-2 decoration-brand-100/40"

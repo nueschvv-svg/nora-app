@@ -65,15 +65,25 @@ export function FormularioPropiedad({
   const { agregarPropiedad } = useApp();
   const [datos, setDatos] = useState<DatosNuevaPropiedad>(VACIO);
   const [tocados, setTocados] = useState<Record<string, boolean>>({});
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
-  // Al abrir, empezamos de cero: si el usuario canceló antes, no queremos
-  // que reaparezca lo que había escrito.
-  useEffect(() => {
+  /* Al abrir, empezamos de cero: si el usuario canceló antes, no queremos
+     que reaparezca lo que había escrito.
+
+     Se hace durante el render y no en un efecto. Con efecto, React pinta
+     una vez con los datos viejos y recién después los limpia: se ve un
+     parpadeo del formulario anterior. Este es el patrón que recomienda
+     React para ajustar estado cuando cambia una prop. */
+  const [estabaAbierto, setEstabaAbierto] = useState(abierto);
+  if (abierto !== estabaAbierto) {
+    setEstabaAbierto(abierto);
     if (abierto) {
       setDatos(VACIO);
       setTocados({});
+      setErrorGuardar(null);
     }
-  }, [abierto]);
+  }
 
   useEffect(() => {
     if (!abierto) return;
@@ -91,9 +101,6 @@ export function FormularioPropiedad({
   if (!datos.localidad.trim()) errores.localidad = "Falta la localidad";
 
   const valido = Object.keys(errores).length === 0;
-
-  const [guardando, setGuardando] = useState(false);
-  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();

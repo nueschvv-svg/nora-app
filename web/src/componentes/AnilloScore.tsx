@@ -13,17 +13,15 @@ export function AnilloScore({ valor }: { valor: number }) {
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setMostrado(valor);
-      return;
-    }
-
-    const DURACION = 1400;
+    const DURACION = reduce ? 0 : 1400;
     const inicio = performance.now();
     const suavizar = (t: number) => 1 - Math.pow(1 - t, 3);
 
+    /* Si el sistema pide menos movimiento, la duración es cero y el primer
+       cuadro ya muestra el número final. Sale por el mismo camino en vez de
+       tener una rama aparte que asigne el valor de golpe. */
     const paso = (ahora: number) => {
-      const p = Math.min((ahora - inicio) / DURACION, 1);
+      const p = DURACION === 0 ? 1 : Math.min((ahora - inicio) / DURACION, 1);
       setMostrado(Math.round(suavizar(p) * valor));
       if (p < 1) rafRef.current = requestAnimationFrame(paso);
     };

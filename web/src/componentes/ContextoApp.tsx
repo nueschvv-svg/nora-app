@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Equipo, Propiedad } from "@/lib/tipos";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { HAY_SUPABASE } from "@/lib/supabase/config";
@@ -52,19 +53,19 @@ type Contexto = {
 const ContextoApp = createContext<Contexto | null>(null);
 
 export function ProveedorApp({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [idActiva, setIdActiva] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
+  /* Arranca en true sólo si hay algo que cargar. Sin Supabase configurado
+     no hay espera, y así no hace falta apagarlo desde un efecto. */
+  const [cargando, setCargando] = useState(HAY_SUPABASE);
   const [error, setError] = useState<string | null>(null);
   const [sesion, setSesion] = useState<Sesion | null>(null);
 
   /* --- Traer los datos de la persona --- */
   const traerDatos = useCallback(async () => {
-    if (!HAY_SUPABASE) {
-      setCargando(false);
-      return;
-    }
+    if (!HAY_SUPABASE) return;
     try {
       setError(null);
       // En paralelo: son dos consultas independientes, no tiene sentido
@@ -85,11 +86,12 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
 
   /* --- Quién entró --- */
   useEffect(() => {
-    if (!HAY_SUPABASE) {
-      setCargando(false);
-      return;
-    }
+    if (!HAY_SUPABASE) return;
     const supabase = supabaseNavegador();
+
+    /* Quién está adentro según la última lectura. Sirve para no repetir
+       trabajo cuando llegan eventos de sesión que no cambian al usuario. */
+    let usuarioActual: string | null = null;
 
     const leerSesion = async () => {
       const {
@@ -97,12 +99,15 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        usuarioActual = null;
         setSesion(null);
         setPropiedades([]);
         setEquipos([]);
         setCargando(false);
         return;
       }
+
+      usuarioActual = user.id;
 
       const { data: perfil } = await supabase
         .from("perfiles")
@@ -129,17 +134,27 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     leerSesion();
 
     /* Escuchamos los cambios en vez de leer una sola vez: si se cierra
-       sesión en otra pestaña, esta se entera y limpia lo que tenía. */
-    const { data: sub } = supabase.auth.onAuthStateChange((evento: string) => {
-      if (evento === "SIGNED_OUT") {
-        setSesion(null);
-        setPropiedades([]);
-        setEquipos([]);
-        setIdActiva(null);
-      } else if (evento === "SIGNED_IN" || evento === "TOKEN_REFRESHED") {
-        leerSesion();
-      }
-    });
+       sesión en otra pestaña, esta se entera y limpia lo que tenía.
+
+       Guardamos el id de quien está adentro para no recargar de gusto:
+       SIGNED_IN se dispara también al montar (justo después del leerSesion()
+       de arriba) y TOKEN_REFRESHED se dispara solo cada ~50 minutos. Sin
+       este control, cada uno de esos eventos volvía a pedir todos los
+       domicilios y equipos sin que hubiera cambiado nada. */
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      (evento: string, sesionNueva: { user?: { id?: string } } | null) => {
+        if (evento === "SIGNED_OUT") {
+          usuarioActual = null;
+          setSesion(null);
+          setPropiedades([]);
+          setEquipos([]);
+          setIdActiva(null);
+          return;
+        }
+        const idNuevo = sesionNueva?.user?.id ?? null;
+        if (idNuevo && idNuevo !== usuarioActual) leerSesion();
+      },
+    );
 
     return () => sub.subscription.unsubscribe();
   }, [traerDatos]);
@@ -172,9 +187,12 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const cerrarSesion = useCallback(async () => {
     if (HAY_SUPABASE) await supabaseNavegador().auth.signOut();
     localStorage.removeItem(CLAVE_ACTIVA);
-    // Recarga completa: no queda nada del usuario anterior en memoria.
-    window.location.href = "/entrar";
-  }, []);
+    /* signOut dispara SIGNED_OUT, que arriba vacía domicilios y equipos:
+       no queda nada del usuario anterior en memoria. El refresh() obliga
+       al servidor a releer la sesión (ahora vacía) antes de pintar. */
+    router.replace("/entrar");
+    router.refresh();
+  }, [router]);
 
   const indice = Math.max(
     0,

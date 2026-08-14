@@ -33,8 +33,12 @@ export type EquipoEvaluado = {
 export type ResultadoScore = {
   /** 0 a 100. */
   valor: number;
-  /** Frase corta para el hero, en dos líneas. */
-  titulo: string;
+  /* Frase del hero, ya partida en renglones.
+     Antes era un string con <br> que la pantalla inyectaba como HTML.
+     Funcionaba porque el texto es nuestro, pero alcanzaba con que alguien
+     hiciera este título dependiente de algo que escribe el usuario para
+     abrir un agujero. Un arreglo de líneas no puede inyectar nada. */
+  titulo: string[];
   nivel: "bueno" | "atencion" | "critico";
   equipos: EquipoEvaluado[];
   /** Desglose legible: qué sumó y qué restó. Es lo que se le muestra al usuario. */
@@ -133,7 +137,7 @@ export function calcularScore(equipos: Equipo[], hoy: Date = new Date()): Result
   if (evaluados.length === 0) {
     return {
       valor: 0,
-      titulo: "Cargá tus equipos<br>para ver el estado",
+      titulo: ["Cargá tus equipos", "para ver el estado"],
       nivel: "atencion",
       equipos: [],
       desglose: [{ concepto: "Todavía no cargaste ningún equipo", puntos: 0 }],
@@ -188,17 +192,17 @@ export function calcularScore(equipos: Equipo[], hoy: Date = new Date()): Result
 
   const hayObligatorioVencido = vencidos.some((e) => e.obligatorio);
   let nivel: ResultadoScore["nivel"];
-  let titulo: string;
+  let titulo: string[];
 
   if (hayObligatorioVencido || valor < 60) {
     nivel = "critico";
-    titulo = "Requiere tu<br>atención ahora";
+    titulo = ["Requiere tu", "atención ahora"];
   } else if (valor < 80) {
     nivel = "atencion";
-    titulo = "Tu hogar está<br>en buen estado";
+    titulo = ["Tu hogar está", "en buen estado"];
   } else {
     nivel = "bueno";
-    titulo = "Tu propiedad está<br>impecable";
+    titulo = ["Tu propiedad está", "impecable"];
   }
 
   return { valor, titulo, nivel, equipos: evaluados, desglose };

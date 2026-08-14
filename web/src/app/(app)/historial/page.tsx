@@ -25,29 +25,48 @@ const EN_CURSO = new Set([
 ]);
 
 export default function PaginaHistorial() {
-  const { propiedad, cargando: cargandoApp } = useApp();
+  const { propiedad, cargando: cargandoApp, sesion } = useApp();
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const traer = useCallback(async () => {
-    try {
-      setError(null);
-      setCargando(true);
-      const [srv, cats] = await Promise.all([listarServicios(), listarCategorias()]);
-      setServicios(srv);
-      setCategorias(cats);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No pudimos cargar tu historial.");
-    } finally {
-      setCargando(false);
-    }
-  }, []);
+  const [intento, setIntento] = useState(0);
+  const traer = useCallback(() => setIntento((n) => n + 1), []);
 
+  /* Esperamos a tener sesión antes de pedir los servicios.
+
+     Sin esta espera había un error silencioso y difícil de detectar: si la
+     consulta salía antes de que la sesión estuviera lista, la base devolvía
+     cero filas (correcto: sin sesión no hay nada que mostrar) y la pantalla
+     decía "todavía no hay nada acá" a alguien que sí tenía servicios.
+     No fallaba: mentía, que es peor.
+
+     El `vivo` evita escribir estado si la persona ya se fue de la pantalla
+     mientras la consulta estaba en camino. */
   useEffect(() => {
-    traer();
-  }, [traer]);
+    if (!sesion) return;
+    let vivo = true;
+
+    (async () => {
+      try {
+        const [srv, cats] = await Promise.all([listarServicios(), listarCategorias()]);
+        if (!vivo) return;
+        setServicios(srv);
+        setCategorias(cats);
+        setError(null);
+      } catch (e) {
+        if (!vivo) return;
+        setError(e instanceof Error ? e.message : "No pudimos cargar tu historial.");
+      } finally {
+        if (vivo) setCargando(false);
+      }
+    })();
+
+    return () => {
+      vivo = false;
+    };
+  }, [sesion, intento]);
 
   const delDomicilio = useMemo(
     () => (propiedad ? servicios.filter((s) => s.propiedadId === propiedad.id) : []),

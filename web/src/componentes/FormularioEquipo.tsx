@@ -29,15 +29,23 @@ export function FormularioEquipo({
   const [ultimaRevision, setUltimaRevision] = useState("");
   const [nuncaRevisado, setNuncaRevisado] = useState(false);
 
-  useEffect(() => {
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  /* Limpieza al abrir, durante el render y no en un efecto: así no se
+     ve un parpadeo con los datos de la vez anterior. */
+  const [estabaAbierto, setEstabaAbierto] = useState(abierto);
+  if (abierto !== estabaAbierto) {
+    setEstabaAbierto(abierto);
     if (abierto) {
       setTipo(null);
       setMarca("");
       setAnio("");
       setUltimaRevision("");
       setNuncaRevisado(false);
+      setErrorGuardar(null);
     }
-  }, [abierto]);
+  }
 
   useEffect(() => {
     if (!abierto) return;
@@ -54,9 +62,6 @@ export function FormularioEquipo({
     !anio || (Number.isInteger(anioNum) && anioNum! >= 1950 && anioNum! <= new Date().getFullYear());
 
   const valido = !!tipo && anioValido && (nuncaRevisado || !!ultimaRevision);
-
-  const [guardando, setGuardando] = useState(false);
-  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
