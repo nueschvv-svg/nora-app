@@ -69,7 +69,7 @@ export function HojaPropiedades({
 
           <div className="mt-4 space-y-2.5">
             {propiedades.map((p) => {
-              const activa = p.id === propiedad.id;
+              const activa = p.id === propiedad?.id;
               const score = calcularScore(equiposDe(p.id));
               const colorScore =
                 score.valor >= 80

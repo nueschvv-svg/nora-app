@@ -5,16 +5,22 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Plus, PackageOpen } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
+import { EsqueletoInicio } from "@/componentes/Esqueleto";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { FormularioEquipo } from "@/componentes/FormularioEquipo";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { mesAnio, textoVencimiento } from "@/lib/formato";
 
 export default function PaginaAgenda() {
-  const { propiedad, equiposDe } = useApp();
+  const { propiedad, equiposDe, cargando } = useApp();
   const [formAbierto, setFormAbierto] = useState(false);
-  const score = useMemo(() => calcularScore(equiposDe(propiedad.id)), [equiposDe, propiedad.id]);
+  const score = useMemo(
+    () => calcularScore(propiedad ? equiposDe(propiedad.id) : []),
+    [equiposDe, propiedad],
+  );
   const equipos = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
+
+  if (cargando || !propiedad) return <EsqueletoInicio />;
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">

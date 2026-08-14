@@ -55,17 +55,28 @@ export function FormularioEquipo({
 
   const valido = !!tipo && anioValido && (nuncaRevisado || !!ultimaRevision);
 
-  const guardar = (e: React.FormEvent) => {
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valido || !tipo) return;
-    agregarEquipo({
-      propiedadId: propiedad.id,
-      tipo,
-      marca: marca.trim() || undefined,
-      anioInstalacion: anioValido && anioNum ? anioNum : undefined,
-      ultimaRevision: nuncaRevisado ? undefined : ultimaRevision,
-    });
-    alCerrar();
+    if (!valido || !tipo || !propiedad || guardando) return;
+    setGuardando(true);
+    setErrorGuardar(null);
+    try {
+      await agregarEquipo({
+        propiedadId: propiedad.id,
+        tipo,
+        marca: marca.trim() || undefined,
+        anioInstalacion: anioValido && anioNum ? anioNum : undefined,
+        ultimaRevision: nuncaRevisado ? undefined : ultimaRevision,
+      });
+      alCerrar();
+    } catch (err) {
+      setErrorGuardar(err instanceof Error ? err.message : "No pudimos guardar el equipo.");
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const regla = tipo ? REGLAS_EQUIPO[tipo] : null;
@@ -93,7 +104,7 @@ export function FormularioEquipo({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-[18px] font-bold font-display text-ink">Agregar equipo</h2>
-              <p className="text-[12.5px] text-mute">{propiedad.nombre}</p>
+              <p className="text-[12.5px] text-mute">{propiedad?.nombre ?? ""}</p>
             </div>
             <button
               type="button"
@@ -226,12 +237,18 @@ export function FormularioEquipo({
             </p>
           )}
 
+          {errorGuardar && (
+            <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mt-4">
+              {errorGuardar}
+            </p>
+          )}
+
           <button
             type="submit"
-            disabled={!valido}
+            disabled={!valido || guardando}
             className="press mt-5 w-full rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab disabled:opacity-40"
           >
-            Guardar equipo
+            {guardando ? "Guardando…" : "Guardar equipo"}
           </button>
         </form>
       </div>

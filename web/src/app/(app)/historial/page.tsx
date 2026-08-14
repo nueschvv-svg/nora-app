@@ -1,75 +1,170 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { ArrowRight, Check, Wrench } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowRight, Check, Clock, Wrench } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
-import { categoriaPorSlug, serviciosDePropiedad } from "@/lib/datos-demo";
+import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { listarCategorias, listarServicios, type CategoriaBD } from "@/lib/datos";
+import { ETIQUETA_ESTADO, type Servicio } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
 
-export default function PaginaHistorial() {
-  const { propiedad } = useApp();
-  const servicios = useMemo(() => serviciosDePropiedad(propiedad.id), [propiedad.id]);
+/* Estos son los estados en los que el trabajo todavía está en curso.
+   Se muestran arriba y con otro color: es lo que la persona quiere ver
+   primero al abrir la pantalla. */
+const EN_CURSO = new Set([
+  "solicitado",
+  "buscando_tecnico",
+  "asignado",
+  "presupuestado",
+  "aceptado",
+  "en_camino",
+  "en_curso",
+]);
 
-  const total = servicios.reduce((t, s) => t + (s.montoArs ?? 0), 0);
-  const resueltos = servicios.filter((s) => s.estado === "calificado" || s.estado === "finalizado");
+export default function PaginaHistorial() {
+  const { propiedad, cargando: cargandoApp } = useApp();
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const traer = useCallback(async () => {
+    try {
+      setError(null);
+      setCargando(true);
+      const [srv, cats] = await Promise.all([listarServicios(), listarCategorias()]);
+      setServicios(srv);
+      setCategorias(cats);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos cargar tu historial.");
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    traer();
+  }, [traer]);
+
+  const delDomicilio = useMemo(
+    () => (propiedad ? servicios.filter((s) => s.propiedadId === propiedad.id) : []),
+    [servicios, propiedad],
+  );
+
+  const activos = delDomicilio.filter((s) => EN_CURSO.has(s.estado));
+  const cerrados = delDomicilio.filter((s) => !EN_CURSO.has(s.estado) && s.estado !== "cancelado");
+  const total = cerrados.reduce((t, s) => t + (s.montoArs ?? 0), 0);
+
+  const nombreCategoria = (slug: string) => categorias.find((c) => c.slug === slug);
+
+  if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
       <div className="px-5 pt-12 pb-2">
         <h1 className="text-[24px] font-bold font-display text-ink">Historial</h1>
         <p className="text-[13px] text-mute mt-0.5">
-          {propiedad.nombre} · todo lo que Nora resolvió
+          {propiedad ? `${propiedad.nombre} · todo lo que Nora resolvió` : "Tus servicios"}
         </p>
       </div>
 
-      {servicios.length === 0 ? (
+      {cargando || cargandoApp ? (
+        <div className="px-5 mt-3 space-y-3">
+          <Bloque className="h-[62px] w-full rounded-2xl" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
+        </div>
+      ) : delDomicilio.length === 0 ? (
         <EstadoVacio />
       ) : (
         <>
           <div className="px-5 grid grid-cols-3 gap-2.5">
-            <Tarjeta valor={String(servicios.length)} etiqueta="servicios" />
+            <Tarjeta valor={String(cerrados.length)} etiqueta="resueltos" />
             <Tarjeta valor={pesos(total)} etiqueta="invertido" />
             <Tarjeta
-              valor={`${Math.round((resueltos.length / servicios.length) * 100)}%`}
-              etiqueta="resuelto"
-              color="text-good"
+              valor={String(activos.length)}
+              etiqueta={activos.length === 1 ? "en curso" : "en curso"}
+              color={activos.length ? "text-brand-600" : "text-ink"}
             />
           </div>
 
-          <div className="px-5 mt-5 space-y-3">
-            <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
-              {servicios.map((s) => {
-                const cat = categoriaPorSlug(s.categoriaSlug);
-                return (
-                  <div key={s.id} className="w-full flex items-center gap-3.5 p-3.5 text-left">
-                    <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600">
-                      <IconoEquipo nombre={cat?.icono ?? "wrench"} className="w-[19px] h-[19px]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-semibold text-ink leading-tight">
-                        {cat?.nombre ?? "Servicio"}
-                      </p>
-                      <p className="text-[12.5px] text-faint mt-0.5 truncate">
-                        {s.tecnicoNombre} · {fechaCorta(s.creadoEl)}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="num text-[13px] font-semibold text-ink">{pesos(s.montoArs)}</p>
-                      <span className="inline-flex items-center gap-1 text-[11px] text-good font-medium">
-                        <Check className="w-3 h-3" /> Resuelto
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+          {activos.length > 0 && (
+            <div className="px-5 mt-5">
+              <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-2">
+                En curso
+              </p>
+              <div className="bg-surface rounded-xl2 border border-brand-200 shadow-card divide-y divide-line overflow-hidden">
+                {activos.map((s) => (
+                  <Fila key={s.id} servicio={s} categoria={nombreCategoria(s.categoriaSlug)} enCurso />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {cerrados.length > 0 && (
+            <div className="px-5 mt-5">
+              <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-2">
+                Resueltos
+              </p>
+              <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+                {cerrados.map((s) => (
+                  <Fila key={s.id} servicio={s} categoria={nombreCategoria(s.categoriaSlug)} />
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </main>
+  );
+}
+
+function Fila({
+  servicio,
+  categoria,
+  enCurso = false,
+}: {
+  servicio: Servicio;
+  categoria?: CategoriaBD;
+  enCurso?: boolean;
+}) {
+  return (
+    <div className="w-full flex items-center gap-3.5 p-3.5 text-left">
+      <span
+        className={`shrink-0 w-11 h-11 grid place-items-center rounded-2xl ${
+          enCurso ? "bg-brand-600 text-white" : "bg-brand-50 text-brand-600"
+        }`}
+      >
+        <IconoEquipo nombre={categoria?.icono ?? "wrench"} className="w-[19px] h-[19px]" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold text-ink leading-tight">
+          {categoria?.nombre ?? "Servicio"}
+        </p>
+        <p className="text-[12.5px] text-faint mt-0.5 truncate">
+          {servicio.descripcion.slice(0, 48)}
+          {servicio.descripcion.length > 48 ? "…" : ""}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        {enCurso ? (
+          <span className="inline-flex items-center gap-1 text-[11.5px] text-brand-600 font-semibold">
+            <Clock className="w-3 h-3" /> {ETIQUETA_ESTADO[servicio.estado]}
+          </span>
+        ) : (
+          <>
+            <p className="num text-[13px] font-semibold text-ink">{pesos(servicio.montoArs)}</p>
+            <span className="inline-flex items-center gap-1 text-[11px] text-good font-medium">
+              <Check className="w-3 h-3" /> Resuelto
+            </span>
+          </>
+        )}
+        <p className="text-[11px] text-faint mt-0.5">{fechaCorta(servicio.creadoEl)}</p>
+      </div>
+    </div>
   );
 }
 
@@ -90,7 +185,6 @@ function Tarjeta({
   );
 }
 
-/* Los estados vacíos importan: es lo primero que ve un usuario nuevo. */
 function EstadoVacio() {
   return (
     <div className="px-5 mt-10 flex flex-col items-center text-center">

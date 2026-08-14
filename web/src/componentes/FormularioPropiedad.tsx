@@ -92,15 +92,27 @@ export function FormularioPropiedad({
 
   const valido = Object.keys(errores).length === 0;
 
-  const enviar = (e: React.FormEvent) => {
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (guardando) return;
     if (!valido) {
       setTocados({ nombre: true, calle: true, numero: true, localidad: true });
       return;
     }
-    agregarPropiedad(datos);
-    alGuardar?.();
-    alCerrar();
+    setGuardando(true);
+    setErrorGuardar(null);
+    try {
+      await agregarPropiedad(datos);
+      alGuardar?.();
+      alCerrar();
+    } catch (err) {
+      setErrorGuardar(err instanceof Error ? err.message : "No pudimos guardar el domicilio.");
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const campo = (clave: keyof DatosNuevaPropiedad) => ({
@@ -215,12 +227,18 @@ export function FormularioPropiedad({
             </select>
           </div>
 
+          {errorGuardar && (
+            <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mt-4">
+              {errorGuardar}
+            </p>
+          )}
+
           <button
             type="submit"
             className="press mt-5 w-full rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab disabled:opacity-40"
-            disabled={!valido}
+            disabled={!valido || guardando}
           >
-            Guardar domicilio
+            {guardando ? "Guardando…" : "Guardar domicilio"}
           </button>
 
           <p className="text-[11.5px] text-faint text-center mt-3 leading-snug">

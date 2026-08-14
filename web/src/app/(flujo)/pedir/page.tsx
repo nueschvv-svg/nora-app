@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Camera, Check, Clock, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, Camera, Check, Clock, Loader2, X } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
-import { categorias } from "@/lib/datos-demo";
+import { Bloque } from "@/componentes/Esqueleto";
+import { crearServicio, listarCategorias, type CategoriaBD } from "@/lib/datos";
 
 /* FLUJO DE PEDIDO — versión MVP honesta.
 
@@ -41,6 +42,20 @@ export default function PaginaPedir() {
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
+  const [cargandoCats, setCargandoCats] = useState(true);
+
+  /* Los rubros salen de la base, no del código: así podés activar
+     "Gas" cuando consigas un gasista matriculado, sin tocar la app. */
+  useEffect(() => {
+    listarCategorias()
+      .then(setCategorias)
+      .catch(() => setError("No pudimos cargar los rubros. Probá de nuevo."))
+      .finally(() => setCargandoCats(false));
+  }, []);
 
   const proximosDias = obtenerProximosDias();
   const catElegida = categorias.find((c) => c.slug === categoria);
@@ -51,14 +66,49 @@ export default function PaginaPedir() {
     (paso === 2 && !!dia && !!franja) ||
     paso === 3;
 
-  const avanzar = () => {
-    if (!puedeAvanzar) return;
+  const avanzar = async () => {
+    if (!puedeAvanzar || enviando) return;
+
     if (paso === 3) {
-      setEnviado(true);
+      if (!propiedad || !categoria) return;
+      setEnviando(true);
+      setError(null);
+      try {
+        await crearServicio({
+          propiedadId: propiedad.id,
+          categoriaSlug: categoria,
+          descripcion,
+          fechaPreferida: dia,
+          franjaPreferida: franja,
+        });
+        setEnviado(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No pudimos enviar el pedido.");
+      } finally {
+        setEnviando(false);
+      }
       return;
     }
+
     setPaso(paso + 1);
   };
+
+  if (!propiedad) {
+    return (
+      <div className="absolute inset-0 z-40 bg-sand grid place-content-center px-8 text-center">
+        <p className="text-[15px] font-semibold text-ink">Primero cargá un domicilio</p>
+        <p className="text-[13.5px] text-mute mt-2 max-w-[280px]">
+          Necesitamos saber dónde mandar al técnico.
+        </p>
+        <Link
+          href="/inicio"
+          className="press mt-6 rounded-xl2 bg-brand-600 text-white px-6 py-3.5 text-[14.5px] font-semibold shadow-fab"
+        >
+          Ir al inicio
+        </Link>
+      </div>
+    );
+  }
 
   if (enviado) return <Confirmacion propiedad={propiedad.nombre} />;
 
@@ -110,6 +160,14 @@ export default function PaginaPedir() {
             <p className="text-[13px] text-mute mt-1.5">
               Arrancamos con estos rubros en {propiedad.localidad}. Vamos sumando más.
             </p>
+
+            {cargandoCats && (
+              <div className="grid grid-cols-3 gap-3 mt-5">
+                {Array.from({ length: 9 }, (_, i) => (
+                  <Bloque key={i} className="h-[92px] rounded-2xl" />
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-3 mt-5">
               {categorias.map((c) => {
@@ -291,14 +349,20 @@ export default function PaginaPedir() {
 
       {/* --- Pie con el botón de avance --- */}
       <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent">
+        {error && (
+          <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mb-2.5">
+            {error}
+          </p>
+        )}
         <button
           type="button"
           onClick={avanzar}
-          disabled={!puedeAvanzar}
+          disabled={!puedeAvanzar || enviando}
           className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab text-[15.5px] font-semibold disabled:opacity-40 disabled:pointer-events-none"
         >
-          {paso === 3 ? "Enviar pedido" : "Continuar"}
-          <ArrowRight className="w-[19px] h-[19px]" />
+          {enviando && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
+          {enviando ? "Enviando…" : paso === 3 ? "Enviar pedido" : "Continuar"}
+          {!enviando && <ArrowRight className="w-[19px] h-[19px]" />}
         </button>
       </div>
     </div>

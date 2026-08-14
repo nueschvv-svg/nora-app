@@ -1,91 +1,109 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { propiedades as propiedadesDemo, equipos as equiposDemo } from "@/lib/datos-demo";
 import { Equipo, Propiedad } from "@/lib/tipos";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { HAY_SUPABASE } from "@/lib/supabase/config";
+import {
+  crearEquipo,
+  crearPropiedad,
+  listarEquipos,
+  listarPropiedades,
+  NuevaPropiedad,
+} from "@/lib/datos";
 
-/* Estado de la app en el navegador.
+/* Estado compartido de la app: quién entró, sus domicilios y sus equipos.
 
-   Hoy guarda en localStorage. Mañana, en Supabase. Las pantallas usan
-   estas funciones (`agregarPropiedad`, `agregarEquipo`) y no saben
-   dónde terminan los datos — por eso el cambio va a tocar sólo este
-   archivo, no las pantallas. */
+   Todo esto vive ahora en la base de datos, no en el navegador. Cambió
+   sólo este archivo: las pantallas siguen llamando a las mismas funciones.
+
+   Lo único que se guarda localmente es cuál domicilio estabas mirando —
+   es una preferencia de pantalla, no un dato. */
 
 const CLAVE_ACTIVA = "nora:propiedad-activa";
-const CLAVE_PROPIEDADES = "nora:propiedades";
-const CLAVE_EQUIPOS = "nora:equipos";
 
-export type DatosNuevaPropiedad = {
-  nombre: string;
-  calle: string;
-  numero: string;
-  localidad: string;
-  provincia: string;
-  icono: Propiedad["icono"];
-};
+export type DatosNuevaPropiedad = NuevaPropiedad;
 
-/** Quién está usando la app ahora mismo. */
 export type Sesion = {
   id: string;
   email: string;
   nombre: string;
-  /** Primera letra del nombre, para el círculo del avatar. */
   inicial: string;
 };
 
 type Contexto = {
-  propiedad: Propiedad;
+  /** null mientras carga, o cuando la persona todavía no cargó ningún domicilio. */
+  propiedad: Propiedad | null;
   propiedades: Propiedad[];
   indice: number;
   elegirPropiedad: (id: string) => void;
-  agregarPropiedad: (datos: DatosNuevaPropiedad) => Propiedad;
+  agregarPropiedad: (datos: DatosNuevaPropiedad) => Promise<Propiedad>;
   equiposDe: (propiedadId: string) => Equipo[];
-  agregarEquipo: (equipo: Omit<Equipo, "id">) => Equipo;
-  /** Mientras es true, todavía no leímos lo guardado: no mostramos datos que después cambian. */
+  agregarEquipo: (equipo: Omit<Equipo, "id">) => Promise<Equipo>;
+  /** true mientras se están trayendo los datos. Las pantallas muestran
+   *  el esqueleto en vez de datos vacíos que después cambian. */
   cargando: boolean;
+  error: string | null;
   sesion: Sesion | null;
   cerrarSesion: () => Promise<void>;
+  recargar: () => Promise<void>;
 };
 
 const ContextoApp = createContext<Contexto | null>(null);
 
-function leerGuardado<T>(clave: string, porDefecto: T): T {
-  try {
-    const crudo = localStorage.getItem(clave);
-    return crudo ? (JSON.parse(crudo) as T) : porDefecto;
-  } catch {
-    // Si el JSON quedó corrupto, arrancamos limpio en vez de romper la app.
-    return porDefecto;
-  }
-}
-
 export function ProveedorApp({ children }: { children: React.ReactNode }) {
-  const [propiedades, setPropiedades] = useState<Propiedad[]>(propiedadesDemo);
-  const [equipos, setEquipos] = useState<Equipo[]>(equiposDemo);
-  const [id, setId] = useState(propiedadesDemo[0].id);
+  const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [idActiva, setIdActiva] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sesion, setSesion] = useState<Sesion | null>(null);
 
-  /* Quién entró. Escuchamos los cambios de sesión en vez de leerla una sola
-     vez: si se cierra sesión en otra pestaña, esta se entera. */
+  /* --- Traer los datos de la persona --- */
+  const traerDatos = useCallback(async () => {
+    if (!HAY_SUPABASE) {
+      setCargando(false);
+      return;
+    }
+    try {
+      setError(null);
+      // En paralelo: son dos consultas independientes, no tiene sentido
+      // esperar una para pedir la otra.
+      const [props, eqs] = await Promise.all([listarPropiedades(), listarEquipos()]);
+      setPropiedades(props);
+      setEquipos(eqs);
+
+      const guardada = localStorage.getItem(CLAVE_ACTIVA);
+      const valida = guardada && props.some((p) => p.id === guardada);
+      setIdActiva(valida ? guardada : (props[0]?.id ?? null));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos cargar tus datos.");
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  /* --- Quién entró --- */
   useEffect(() => {
-    if (!HAY_SUPABASE) return;
+    if (!HAY_SUPABASE) {
+      setCargando(false);
+      return;
+    }
     const supabase = supabaseNavegador();
 
-    const leer = async () => {
+    const leerSesion = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
         setSesion(null);
+        setPropiedades([]);
+        setEquipos([]);
+        setCargando(false);
         return;
       }
 
-      // El nombre está en el perfil; si todavía no se creó, usamos el del
-      // registro y, en última instancia, la parte del mail antes de la arroba.
       const { data: perfil } = await supabase
         .from("perfiles")
         .select("nombre")
@@ -104,70 +122,45 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         nombre,
         inicial: nombre.charAt(0).toUpperCase(),
       });
+
+      await traerDatos();
     };
 
-    leer();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => leer());
-    return () => sub.subscription.unsubscribe();
-  }, []);
+    leerSesion();
 
-  const cerrarSesion = useCallback(async () => {
-    if (HAY_SUPABASE) await supabaseNavegador().auth.signOut();
-    setSesion(null);
-    // Recarga completa: limpia todo el estado de la app, no queda nada
-    // del usuario anterior dando vueltas en memoria.
-    window.location.href = "/entrar";
-  }, []);
-
-  /* Se lee después del primer render, no durante: el servidor no tiene
-     localStorage, y si el HTML del servidor y el del cliente no coinciden,
-     React tira un error de hidratación. */
-  useEffect(() => {
-    const guardadas = leerGuardado<Propiedad[]>(CLAVE_PROPIEDADES, propiedadesDemo);
-    const guardados = leerGuardado<Equipo[]>(CLAVE_EQUIPOS, equiposDemo);
-    setPropiedades(guardadas.length ? guardadas : propiedadesDemo);
-    setEquipos(guardados);
-
-    const activa = localStorage.getItem(CLAVE_ACTIVA);
-    if (activa && guardadas.some((p) => p.id === activa)) setId(activa);
-    setCargando(false);
-  }, []);
-
-  const elegirPropiedad = useCallback((nuevo: string) => {
-    setId(nuevo);
-    localStorage.setItem(CLAVE_ACTIVA, nuevo);
-  }, []);
-
-  const agregarPropiedad = useCallback((datos: DatosNuevaPropiedad): Propiedad => {
-    const nueva: Propiedad = {
-      id: crypto.randomUUID(),
-      nombre: datos.nombre.trim(),
-      direccion: `${datos.calle.trim()} ${datos.numero.trim()}`.trim(),
-      localidad: datos.localidad.trim(),
-      provincia: datos.provincia.trim(),
-      icono: datos.icono,
-    };
-
-    setPropiedades((previas) => {
-      const siguiente = [...previas, nueva];
-      localStorage.setItem(CLAVE_PROPIEDADES, JSON.stringify(siguiente));
-      return siguiente;
+    /* Escuchamos los cambios en vez de leer una sola vez: si se cierra
+       sesión en otra pestaña, esta se entera y limpia lo que tenía. */
+    const { data: sub } = supabase.auth.onAuthStateChange((evento: string) => {
+      if (evento === "SIGNED_OUT") {
+        setSesion(null);
+        setPropiedades([]);
+        setEquipos([]);
+        setIdActiva(null);
+      } else if (evento === "SIGNED_IN" || evento === "TOKEN_REFRESHED") {
+        leerSesion();
+      }
     });
 
-    // La propiedad recién creada pasa a ser la activa: es lo que el
-    // usuario espera después de cargarla.
-    setId(nueva.id);
+    return () => sub.subscription.unsubscribe();
+  }, [traerDatos]);
+
+  const elegirPropiedad = useCallback((id: string) => {
+    setIdActiva(id);
+    localStorage.setItem(CLAVE_ACTIVA, id);
+  }, []);
+
+  const agregarPropiedad = useCallback(async (datos: DatosNuevaPropiedad): Promise<Propiedad> => {
+    const nueva = await crearPropiedad(datos);
+    setPropiedades((previas) => [...previas, nueva]);
+    // La recién creada pasa a ser la activa: es lo que uno espera.
+    setIdActiva(nueva.id);
     localStorage.setItem(CLAVE_ACTIVA, nueva.id);
     return nueva;
   }, []);
 
-  const agregarEquipo = useCallback((datos: Omit<Equipo, "id">): Equipo => {
-    const nuevo: Equipo = { ...datos, id: crypto.randomUUID() };
-    setEquipos((previos) => {
-      const siguiente = [...previos, nuevo];
-      localStorage.setItem(CLAVE_EQUIPOS, JSON.stringify(siguiente));
-      return siguiente;
-    });
+  const agregarEquipo = useCallback(async (datos: Omit<Equipo, "id">): Promise<Equipo> => {
+    const nuevo = await crearEquipo(datos);
+    setEquipos((previos) => [...previos, nuevo]);
     return nuevo;
   }, []);
 
@@ -176,14 +169,21 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [equipos],
   );
 
+  const cerrarSesion = useCallback(async () => {
+    if (HAY_SUPABASE) await supabaseNavegador().auth.signOut();
+    localStorage.removeItem(CLAVE_ACTIVA);
+    // Recarga completa: no queda nada del usuario anterior en memoria.
+    window.location.href = "/entrar";
+  }, []);
+
   const indice = Math.max(
     0,
-    propiedades.findIndex((p) => p.id === id),
+    propiedades.findIndex((p) => p.id === idActiva),
   );
 
   const valor = useMemo<Contexto>(
     () => ({
-      propiedad: propiedades[indice] ?? propiedades[0],
+      propiedad: propiedades[indice] ?? null,
       propiedades,
       indice,
       elegirPropiedad,
@@ -191,8 +191,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       equiposDe,
       agregarEquipo,
       cargando,
+      error,
       sesion,
       cerrarSesion,
+      recargar: traerDatos,
     }),
     [
       propiedades,
@@ -202,8 +204,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       equiposDe,
       agregarEquipo,
       cargando,
+      error,
       sesion,
       cerrarSesion,
+      traerDatos,
     ],
   );
 

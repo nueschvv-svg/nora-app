@@ -16,20 +16,30 @@ import { LogotipoNora } from "@/componentes/LogoNora";
 import { AnilloScore } from "@/componentes/AnilloScore";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
+import { PrimerDomicilio } from "@/componentes/PrimerDomicilio";
+import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
 import { useApp } from "@/componentes/ContextoApp";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { mesAnio, saludo, textoVencimiento } from "@/lib/formato";
 
 export default function PaginaInicio() {
-  const { propiedad, indice, propiedades, equiposDe, sesion } = useApp();
+  const { propiedad, indice, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
   const [hojaAbierta, setHojaAbierta] = useState(false);
 
   // El score se recalcula solo cuando cambia la propiedad.
-  const score = useMemo(() => calcularScore(equiposDe(propiedad.id)), [equiposDe, propiedad.id]);
+  const score = useMemo(
+    () => calcularScore(propiedad ? equiposDe(propiedad.id) : []),
+    [equiposDe, propiedad],
+  );
   const urgentes = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
 
   const critico = score.nivel === "critico";
   const proximo = urgentes[0];
+
+  if (cargando) return <EsqueletoInicio />;
+  if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
+  // Recién registrado: todavía no cargó ningún domicilio.
+  if (!propiedad) return <PrimerDomicilio />;
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">

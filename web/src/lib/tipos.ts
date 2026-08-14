@@ -102,27 +102,34 @@ export type Propiedad = {
   icono: "home" | "house" | "building-2";
 };
 
+/* Espeja exactamente el tipo `estado_servicio` de la base (db/01_esquema.sql).
+   Si se agrega un estado allá, hay que agregarlo acá: TypeScript avisa
+   apenas falte uno en ETIQUETA_ESTADO. */
 export type EstadoServicio =
-  | "borrador"
   | "solicitado"
   | "buscando_tecnico"
   | "asignado"
+  | "presupuestado"
+  | "aceptado"
   | "en_camino"
   | "en_curso"
   | "finalizado"
+  | "pagado"
   | "calificado"
   | "cancelado";
 
 /** Los estados que ve el cliente, con su texto. El panel de operaciones
  *  los mueve a mano en el MVP; después se automatizan. */
 export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
-  borrador: "Sin enviar",
   solicitado: "Pedido enviado",
   buscando_tecnico: "Buscando técnico",
   asignado: "Técnico asignado",
+  presupuestado: "Tenés un presupuesto",
+  aceptado: "Presupuesto aceptado",
   en_camino: "En camino",
   en_curso: "Trabajando",
   finalizado: "Terminado",
+  pagado: "Pagado",
   calificado: "Calificado",
   cancelado: "Cancelado",
 };

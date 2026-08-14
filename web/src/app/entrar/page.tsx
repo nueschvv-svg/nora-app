@@ -13,7 +13,7 @@ import { supabaseNavegador } from "@/lib/supabase/cliente";
    Quien se registra queda siempre como CLIENTE — el rol no sale de nada que
    mande el navegador, lo fija el disparador de la base de datos. */
 
-type Modo = "entrar" | "registrarse";
+type Modo = "entrar" | "registrarse" | "recuperar";
 
 export default function PaginaEntrar() {
   return (
@@ -34,13 +34,18 @@ function Formulario() {
   const [clave, setClave] = useState("");
   const [verClave, setVerClave] = useState(false);
   const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    params.get("error") ? traducirParametro(params.get("error")!) : null,
+  );
   const [revisarMail, setRevisarMail] = useState(false);
+  const [mailRecuperacion, setMailRecuperacion] = useState(false);
 
   const registrando = modo === "registrarse";
+  const recuperando = modo === "recuperar";
   const claveCorta = clave.length > 0 && clave.length < 8;
-  const valido =
-    email.includes("@") && clave.length >= 8 && (!registrando || nombre.trim().length >= 2);
+  const valido = recuperando
+    ? email.includes("@")
+    : email.includes("@") && clave.length >= 8 && (!registrando || nombre.trim().length >= 2);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -50,13 +55,28 @@ function Formulario() {
 
     const supabase = supabaseNavegador();
 
+    if (recuperando) {
+      /* Mandamos el link de recuperación. Siempre mostramos el mismo
+         mensaje, exista o no la cuenta: si dijéramos "ese mail no está
+         registrado", cualquiera podría averiguar quién tiene cuenta. */
+      await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/confirm?type=recovery`,
+      });
+      setMailRecuperacion(true);
+      setCargando(false);
+      return;
+    }
+
     if (registrando) {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password: clave,
-        // Este nombre lo lee el disparador para armar el perfil.
-        // Ojo: acá NO va el rol. Lo pone la base, no el navegador.
-        options: { data: { nombre: nombre.trim() } },
+        options: {
+          // Este nombre lo lee el disparador para armar el perfil.
+          // Ojo: acá NO va el rol. Lo pone la base, no el navegador.
+          data: { nombre: nombre.trim() },
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        },
       });
 
       if (error) {
@@ -88,7 +108,7 @@ function Formulario() {
     router.refresh();
   }
 
-  if (revisarMail) {
+  if (revisarMail || mailRecuperacion) {
     return (
       <Marco>
         <div className="text-center">
@@ -97,13 +117,23 @@ function Formulario() {
           </span>
           <h1 className="text-[22px] font-bold font-display text-ink mt-4">Revisá tu mail</h1>
           <p className="text-[14px] text-mute mt-2 leading-relaxed">
-            Te mandamos un link a <span className="font-semibold text-ink">{email}</span>. Tocalo
-            para confirmar tu cuenta y ya podés entrar.
+            {mailRecuperacion ? (
+              <>
+                Si hay una cuenta con <span className="font-semibold text-ink">{email}</span>, te
+                llega un link para elegir una contraseña nueva.
+              </>
+            ) : (
+              <>
+                Te mandamos un link a <span className="font-semibold text-ink">{email}</span>. Tocalo
+                para confirmar tu cuenta y ya podés entrar.
+              </>
+            )}
           </p>
           <button
             type="button"
             onClick={() => {
               setRevisarMail(false);
+              setMailRecuperacion(false);
               setModo("entrar");
               setClave("");
             }}
@@ -121,12 +151,14 @@ function Formulario() {
       <div className="flex flex-col items-center text-center">
         <IsotipoNora className="h-14 w-auto" />
         <h1 className="text-[24px] font-bold font-display text-ink mt-3">
-          {registrando ? "Creá tu cuenta" : "Hola de nuevo"}
+          {recuperando ? "Recuperar acceso" : registrando ? "Creá tu cuenta" : "Hola de nuevo"}
         </h1>
         <p className="text-[13.5px] text-mute mt-1.5 max-w-[280px]">
-          {registrando
-            ? "Tu casa, sus equipos y sus mantenimientos, en un solo lugar."
-            : "Entrá para ver el estado de tus propiedades."}
+          {recuperando
+            ? "Poné tu email y te mandamos un link para elegir una contraseña nueva."
+            : registrando
+              ? "Tu casa, sus equipos y sus mantenimientos, en un solo lugar."
+              : "Entrá para ver el estado de tus propiedades."}
         </p>
       </div>
 
@@ -153,7 +185,7 @@ function Formulario() {
           placeholder="vos@ejemplo.com"
         />
 
-        <div>
+        <div className={recuperando ? "hidden" : ""}>
           <label
             htmlFor="clave"
             className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5"
@@ -199,22 +231,50 @@ function Formulario() {
           className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab disabled:opacity-40 disabled:pointer-events-none"
         >
           {cargando && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
-          {registrando ? "Crear mi cuenta" : "Entrar"}
+          {recuperando ? "Mandame el link" : registrando ? "Crear mi cuenta" : "Entrar"}
         </button>
       </form>
 
-      <p className="text-[13.5px] text-mute text-center mt-5">
-        {registrando ? "¿Ya tenés cuenta?" : "¿Primera vez en Nora?"}{" "}
+      {modo === "entrar" && (
         <button
           type="button"
           onClick={() => {
-            setModo(registrando ? "entrar" : "registrarse");
+            setModo("recuperar");
             setError(null);
           }}
-          className="font-semibold text-brand-600 underline underline-offset-2"
+          className="w-full text-center text-[13px] text-mute mt-4 underline underline-offset-2"
         >
-          {registrando ? "Entrá" : "Creá tu cuenta"}
+          Me olvidé la contraseña
         </button>
+      )}
+
+      <p className="text-[13.5px] text-mute text-center mt-5">
+        {recuperando ? (
+          <button
+            type="button"
+            onClick={() => {
+              setModo("entrar");
+              setError(null);
+            }}
+            className="font-semibold text-brand-600 underline underline-offset-2"
+          >
+            Volver
+          </button>
+        ) : (
+          <>
+            {registrando ? "¿Ya tenés cuenta?" : "¿Primera vez en Nora?"}{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setModo(registrando ? "entrar" : "registrarse");
+                setError(null);
+              }}
+              className="font-semibold text-brand-600 underline underline-offset-2"
+            >
+              {registrando ? "Entrá" : "Creá tu cuenta"}
+            </button>
+          </>
+        )}
       </p>
 
       {registrando && (
@@ -273,4 +333,19 @@ function traducirError(mensaje: string): string {
   if (m.includes("unable to validate email") || m.includes("invalid email"))
     return "Ese email no parece válido.";
   return "No pudimos completar la operación. Probá de nuevo en un momento.";
+}
+
+/** Errores que llegan como parámetro en la URL, desde /auth/confirm. */
+function traducirParametro(codigo: string): string {
+  switch (codigo) {
+    case "link_vencido":
+      return "Ese link ya venció o se usó. Pedí uno nuevo.";
+    case "link_invalido":
+      return "El link no es válido. Probá pidiendo uno nuevo.";
+    case "no_pudimos_entrar":
+    case "sin_codigo":
+      return "No pudimos completar el ingreso. Probá de nuevo.";
+    default:
+      return "Algo salió mal. Probá de nuevo.";
+  }
 }
