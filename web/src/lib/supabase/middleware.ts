@@ -39,9 +39,18 @@ export async function actualizarSesion(request: NextRequest) {
 
   const ruta = request.nextUrl.pathname;
   const esPublica = PUBLICAS.some((p) => ruta.startsWith(p));
+  const esApi = ruta.startsWith("/api/");
 
-  // Sin sesión y en una ruta privada: al login, recordando a dónde iba.
+  /* Sin sesión, una API responde 401; una pantalla redirige al login.
+
+     Mandar a /entrar una llamada de la API rompe de una forma confusa: el
+     navegador sigue el redirect, hace un POST contra una página que no
+     acepta POST, y el cliente recibe un 404 sin ninguna pista de que lo
+     que faltaba era la sesión. */
   if (!user && !esPublica) {
+    if (esApi) {
+      return NextResponse.json({ error: "Necesitás iniciar sesión." }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/entrar";
     if (ruta !== "/") url.searchParams.set("volver", ruta);

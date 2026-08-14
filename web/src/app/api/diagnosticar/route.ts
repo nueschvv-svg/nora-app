@@ -3,6 +3,7 @@ import { supabaseServidor } from "@/lib/supabase/servidor";
 import {
   diagnosticar,
   esTipoImagenValido,
+  detectarTipoImagen,
   MAX_BYTES_IMAGEN,
   type TipoImagen,
 } from "@/lib/diagnostico";
@@ -25,18 +26,26 @@ export const maxDuration = 60;
 
 /* Límite por persona. En memoria: se pierde al reiniciar y no se comparte
    entre instancias — alcanza para frenar un descuido, no un ataque. Antes
-   de abrir al público hay que moverlo a la base o a un servicio dedicado. */
+   de abrir al público hay que moverlo a la base o a un servicio dedicado.
+
+   Se cuenta sólo lo que llega a costar plata, es decir las llamadas al
+   modelo. Un pedido mal formado (foto gigante, archivo que no es imagen)
+   se rechaza antes y no gasta cupo: la primera versión lo descontaba
+   igual, así que tres intentos fallidos con una foto pesada te dejaban
+   sin diagnósticos sin haber diagnosticado nada. */
 const LIMITE_POR_HORA = 10;
+const UNA_HORA = 3_600_000;
 const usos = new Map<string, number[]>();
 
-function superaElLimite(usuarioId: string): boolean {
+function estaEnElLimite(usuarioId: string): boolean {
   const ahora = Date.now();
-  const UNA_HORA = 3_600_000;
   const recientes = (usos.get(usuarioId) ?? []).filter((t) => ahora - t < UNA_HORA);
   usos.set(usuarioId, recientes);
-  if (recientes.length >= LIMITE_POR_HORA) return true;
-  recientes.push(ahora);
-  return false;
+  return recientes.length >= LIMITE_POR_HORA;
+}
+
+function registrarUso(usuarioId: string): void {
+  usos.set(usuarioId, [...(usos.get(usuarioId) ?? []), Date.now()]);
 }
 
 export async function POST(request: NextRequest) {
@@ -50,8 +59,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Necesitás iniciar sesión." }, { status: 401 });
   }
 
-  // --- Puerta 2: límite de uso ---
-  if (superaElLimite(user.id)) {
+  // --- Puerta 2: límite de uso (sólo se consulta; se descuenta más abajo) ---
+  if (estaEnElLimite(user.id)) {
     return NextResponse.json(
       { error: "Muchos diagnósticos seguidos. Probá de nuevo en un rato." },
       { status: 429 },
@@ -80,21 +89,35 @@ export async function POST(request: NextRequest) {
   let imagen: { base64: string; tipo: TipoImagen } | undefined;
 
   if (archivo instanceof File) {
-    const tipo = archivo.type;
-    if (!esTipoImagenValido(tipo)) {
-      return NextResponse.json(
-        { error: "Esa foto tiene que ser JPG, PNG o WEBP." },
-        { status: 400 },
-      );
-    }
+    /* El tamaño se mira primero: no tiene sentido cargar 40 MB en memoria
+       para después descubrir que no eran una foto. */
     if (archivo.size > MAX_BYTES_IMAGEN) {
       return NextResponse.json(
         { error: "La foto pesa demasiado. Probá con una de menos de 5 MB." },
         { status: 400 },
       );
     }
+    if (!esTipoImagenValido(archivo.type)) {
+      return NextResponse.json(
+        { error: "Esa foto tiene que ser JPG, PNG o WEBP." },
+        { status: 400 },
+      );
+    }
+
     const bytes = Buffer.from(await archivo.arrayBuffer());
-    imagen = { base64: bytes.toString("base64"), tipo };
+
+    /* Y ahora el tipo REAL, leyendo los primeros bytes. Lo que declara el
+       navegador sale de la extensión del archivo y miente seguido: un PNG
+       renombrado a .jpg llega anunciado como JPEG. */
+    const tipoReal = detectarTipoImagen(bytes);
+    if (!tipoReal) {
+      return NextResponse.json(
+        { error: "Ese archivo no parece una imagen. Mandá una foto en JPG, PNG o WEBP." },
+        { status: 400 },
+      );
+    }
+
+    imagen = { base64: bytes.toString("base64"), tipo: tipoReal };
   }
 
   /* Catálogo y tarifas se leen con la sesión de quien pide: ambos son
@@ -141,6 +164,9 @@ export async function POST(request: NextRequest) {
   }
 
   // --- El diagnóstico ---
+  // El cupo se descuenta acá: es la línea a partir de la cual cuesta plata.
+  registrarUso(user.id);
+
   let resultado;
   try {
     resultado = await diagnosticar({ descripcion, imagen, categoriaSlug }, catalogo);

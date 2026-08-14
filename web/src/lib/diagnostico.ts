@@ -35,6 +35,40 @@ export function esTipoImagenValido(tipo: string): tipo is TipoImagen {
   return (TIPOS_IMAGEN as readonly string[]).includes(tipo);
 }
 
+/* Detecta el tipo real leyendo los primeros bytes del archivo.
+
+   Por qué no alcanza con el `type` que manda el navegador: ese dato lo
+   pone el cliente y sale casi siempre de la extensión del archivo. Una
+   foto renombrada de .png a .jpg llega declarada como JPEG y la API la
+   rechaza — nos pasó con una imagen de prueba del propio proyecto.
+
+   Además, todo lo que declara el cliente es dato no confiable por
+   definición: acá lo verificamos contra el contenido real. */
+export function detectarTipoImagen(bytes: Buffer): TipoImagen | null {
+  if (bytes.length < 12) return null;
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  // JPEG: empieza con FF D8 FF
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // GIF: "GIF87a" o "GIF89a"
+  if (bytes.subarray(0, 3).toString("ascii") === "GIF") {
+    return "image/gif";
+  }
+  // WEBP: "RIFF" .... "WEBP"
+  if (
+    bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+    bytes.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
 /** 5 MB. Una foto de celular ronda 2-4 MB; más que esto es un archivo raro. */
 export const MAX_BYTES_IMAGEN = 5 * 1024 * 1024;
 
@@ -54,15 +88,22 @@ export type ResultadoDiagnostico = {
 /* El esquema de salida. Con `output_config.format` la respuesta viene
    siempre con esta forma: no hay que parsear prosa ni pedirle al modelo
    "devolveme JSON y nada más". */
+/* Valor que usa el modelo para decir "no sé".
+
+   Va como una opción más del enum y no como null: un enum que mezcla
+   strings con null es rechazado por la API ("Enum value X does not match
+   declared type"). Un centinela de texto entra en el mismo enum que los
+   slugs, y la validación de abajo lo convierte en null. */
+export const SIN_IDENTIFICAR = "ninguno";
+
 function construirEsquema(slugs: string[]) {
   return {
     type: "object" as const,
     properties: {
       slug: {
-        type: ["string", "null"],
-        enum: [...slugs, null],
-        description:
-          "El identificador del trabajo del catálogo que mejor corresponde. null si ninguno corresponde o si la foto no alcanza para decidir.",
+        type: "string",
+        enum: [...slugs, SIN_IDENTIFICAR],
+        description: `El identificador del trabajo del catálogo que mejor corresponde. Usá "${SIN_IDENTIFICAR}" si ninguno corresponde o si la foto no alcanza para decidir.`,
       },
       confianza: {
         type: "number",
@@ -232,7 +273,7 @@ function validar(crudo: string, candidatos: Trabajo[]): ResultadoDiagnostico {
       ? slugCrudo
       : null;
 
-  if (typeof slugCrudo === "string" && slugValido === null) {
+  if (typeof slugCrudo === "string" && slugValido === null && slugCrudo !== SIN_IDENTIFICAR) {
     console.warn(`[diagnostico] slug fuera del catálogo: ${slugCrudo}`);
   }
 
