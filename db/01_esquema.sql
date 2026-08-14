@@ -205,6 +205,19 @@ create table servicio_eventos (
 create index on servicio_eventos (servicio_id, ocurrio_el);
 
 -- Se llena solo: no depende de que nadie se acuerde de registrarlo.
+-- Son DOS disparadores porque son dos momentos distintos: actualizar la
+-- fecha modifica la fila (BEFORE), anotar el evento apunta a la fila y
+-- necesita que ya exista (AFTER).
+create or replace function tocar_servicio()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.actualizado_el := now();
+  return new;
+end;
+$$;
+
 create or replace function registrar_evento_servicio()
 returns trigger
 language plpgsql
@@ -218,13 +231,16 @@ begin
             case when tg_op = 'UPDATE' then old.estado else null end,
             auth.uid());
   end if;
-  new.actualizado_el := now();
-  return new;
+  return null;
 end;
 $$;
 
-create trigger trg_eventos_servicio
+create trigger trg_tocar_servicio
   before insert or update on servicios
+  for each row execute function tocar_servicio();
+
+create trigger trg_eventos_servicio
+  after insert or update on servicios
   for each row execute function registrar_evento_servicio();
 
 -- ---------- Fotos ----------
