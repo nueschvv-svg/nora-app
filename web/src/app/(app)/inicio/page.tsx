@@ -21,7 +21,7 @@ import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { mesAnio, saludo, textoVencimiento } from "@/lib/formato";
 
 export default function PaginaInicio() {
-  const { propiedad, indice, propiedades, equiposDe } = useApp();
+  const { propiedad, indice, propiedades, equiposDe, sesion } = useApp();
   const [hojaAbierta, setHojaAbierta] = useState(false);
 
   // El score se recalcula solo cuando cambia la propiedad.
@@ -46,14 +46,14 @@ export default function PaginaInicio() {
             </button>
             <Link href="/perfil" aria-label="Ir a mi perfil">
               <span className="w-10 h-10 grid place-items-center rounded-full bg-brand-600 text-white font-semibold text-[15px] ring-2 ring-white shadow-sm">
-                M
+                {sesion?.inicial ?? ""}
               </span>
             </Link>
           </div>
         </div>
 
         <h1 className="mt-4 text-[23px] font-bold font-display text-ink leading-tight">
-          {saludo()}, Mati
+          {saludo()}{sesion ? `, ${sesion.nombre.split(" ")[0]}` : ""}
         </h1>
       </header>
 

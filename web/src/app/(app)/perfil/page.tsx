@@ -9,8 +9,9 @@ import { FormularioPropiedad } from "@/componentes/FormularioPropiedad";
 import { calcularScore } from "@/lib/score";
 
 export default function PaginaPerfil() {
-  const { propiedades, equiposDe } = useApp();
+  const { propiedades, equiposDe, sesion, cerrarSesion } = useApp();
   const [formAbierto, setFormAbierto] = useState(false);
+  const [saliendo, setSaliendo] = useState(false);
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
@@ -28,11 +29,13 @@ export default function PaginaPerfil() {
       <div className="px-5 mt-2 space-y-3.5">
         <section className="flex items-center gap-4 bg-surface rounded-xl2 border border-line shadow-card p-4">
           <span className="w-16 h-16 grid place-items-center rounded-2xl bg-brand-600 text-white text-[24px] font-bold font-display">
-            M
+            {sesion?.inicial ?? "·"}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[17px] font-bold font-display text-ink">Mati Valdivia</p>
-            <p className="text-[12.5px] text-mute mt-0.5 truncate">mati@nora.app</p>
+            <p className="text-[17px] font-bold font-display text-ink">
+              {sesion?.nombre ?? "Cargando…"}
+            </p>
+            <p className="text-[12.5px] text-mute mt-0.5 truncate">{sesion?.email ?? ""}</p>
           </div>
         </section>
 
@@ -87,9 +90,15 @@ export default function PaginaPerfil() {
 
         <button
           type="button"
-          className="w-full flex items-center justify-center gap-2 text-[14px] font-semibold text-urgent py-3"
+          disabled={saliendo}
+          onClick={async () => {
+            setSaliendo(true);
+            await cerrarSesion();
+          }}
+          className="w-full flex items-center justify-center gap-2 text-[14px] font-semibold text-urgent py-3 disabled:opacity-50"
         >
-          <LogOut className="w-[17px] h-[17px]" /> Cerrar sesión
+          <LogOut className="w-[17px] h-[17px]" />
+          {saliendo ? "Cerrando sesión…" : "Cerrar sesión"}
         </button>
       </div>
 

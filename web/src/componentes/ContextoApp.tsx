@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { propiedades as propiedadesDemo, equipos as equiposDemo } from "@/lib/datos-demo";
 import { Equipo, Propiedad } from "@/lib/tipos";
+import { supabaseNavegador } from "@/lib/supabase/cliente";
+import { HAY_SUPABASE } from "@/lib/supabase/config";
 
 /* Estado de la app en el navegador.
 
@@ -24,6 +26,15 @@ export type DatosNuevaPropiedad = {
   icono: Propiedad["icono"];
 };
 
+/** Quién está usando la app ahora mismo. */
+export type Sesion = {
+  id: string;
+  email: string;
+  nombre: string;
+  /** Primera letra del nombre, para el círculo del avatar. */
+  inicial: string;
+};
+
 type Contexto = {
   propiedad: Propiedad;
   propiedades: Propiedad[];
@@ -34,6 +45,8 @@ type Contexto = {
   agregarEquipo: (equipo: Omit<Equipo, "id">) => Equipo;
   /** Mientras es true, todavía no leímos lo guardado: no mostramos datos que después cambian. */
   cargando: boolean;
+  sesion: Sesion | null;
+  cerrarSesion: () => Promise<void>;
 };
 
 const ContextoApp = createContext<Contexto | null>(null);
@@ -53,6 +66,58 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const [equipos, setEquipos] = useState<Equipo[]>(equiposDemo);
   const [id, setId] = useState(propiedadesDemo[0].id);
   const [cargando, setCargando] = useState(true);
+  const [sesion, setSesion] = useState<Sesion | null>(null);
+
+  /* Quién entró. Escuchamos los cambios de sesión en vez de leerla una sola
+     vez: si se cierra sesión en otra pestaña, esta se entera. */
+  useEffect(() => {
+    if (!HAY_SUPABASE) return;
+    const supabase = supabaseNavegador();
+
+    const leer = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setSesion(null);
+        return;
+      }
+
+      // El nombre está en el perfil; si todavía no se creó, usamos el del
+      // registro y, en última instancia, la parte del mail antes de la arroba.
+      const { data: perfil } = await supabase
+        .from("perfiles")
+        .select("nombre")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const nombre =
+        perfil?.nombre?.trim() ||
+        (user.user_metadata?.nombre as string | undefined)?.trim() ||
+        user.email?.split("@")[0] ||
+        "Vos";
+
+      setSesion({
+        id: user.id,
+        email: user.email ?? "",
+        nombre,
+        inicial: nombre.charAt(0).toUpperCase(),
+      });
+    };
+
+    leer();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => leer());
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const cerrarSesion = useCallback(async () => {
+    if (HAY_SUPABASE) await supabaseNavegador().auth.signOut();
+    setSesion(null);
+    // Recarga completa: limpia todo el estado de la app, no queda nada
+    // del usuario anterior dando vueltas en memoria.
+    window.location.href = "/entrar";
+  }, []);
 
   /* Se lee después del primer render, no durante: el servidor no tiene
      localStorage, y si el HTML del servidor y el del cliente no coinciden,
@@ -126,8 +191,20 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       equiposDe,
       agregarEquipo,
       cargando,
+      sesion,
+      cerrarSesion,
     }),
-    [propiedades, indice, elegirPropiedad, agregarPropiedad, equiposDe, agregarEquipo, cargando],
+    [
+      propiedades,
+      indice,
+      elegirPropiedad,
+      agregarPropiedad,
+      equiposDe,
+      agregarEquipo,
+      cargando,
+      sesion,
+      cerrarSesion,
+    ],
   );
 
   return <ContextoApp.Provider value={valor}>{children}</ContextoApp.Provider>;
