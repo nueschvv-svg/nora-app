@@ -2,8 +2,24 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Ban,
+  Banknote,
+  Calendar,
+  Camera,
+  ClipboardList,
+  History,
+  Loader2,
+  MapPin,
+  Radio,
+  StickyNote,
+  UserCog,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { BadgeEstado } from "@/componentes/BadgeEstado";
 import {
   actualizarServicioOperaciones,
   agregarNotaServicio,
@@ -107,16 +123,17 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
         <ArrowLeft className="w-4 h-4" /> Todos los pedidos
       </Link>
 
-      <div className="mt-4 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold font-display text-ink leading-tight">
+      <div className="mt-4 flex items-start gap-3">
+        <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+          {servicio.categoriaNombre.slice(0, 2).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[19px] font-bold font-display text-ink leading-tight truncate">
             {servicio.categoriaNombre}
           </h1>
-          <p className="text-[13px] text-mute mt-0.5">{fecha(servicio.creadoEl.slice(0, 10))}</p>
+          <p className="text-[12.5px] text-mute mt-0.5">{fecha(servicio.creadoEl.slice(0, 10))}</p>
+          <BadgeEstado estado={servicio.estado} className="mt-1.5" />
         </div>
-        <span className="text-[11.5px] font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1 shrink-0">
-          {ETIQUETA_ESTADO[servicio.estado]}
-        </span>
       </div>
 
       {avisoAccion && (
@@ -126,7 +143,7 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
       )}
 
       {/* ---------- Cliente y propiedad ---------- */}
-      <Seccion titulo="Cliente y ubicación">
+      <Seccion titulo="Cliente y ubicación" icono={MapPin}>
         <Fila etiqueta="Cliente" valor={servicio.cliente.nombre} />
         <Fila etiqueta="Teléfono" valor={servicio.cliente.telefono ?? "no cargado"} />
         <Fila etiqueta="Domicilio" valor={`${servicio.propiedad.nombre} · ${servicio.propiedad.direccion}`} />
@@ -135,12 +152,12 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
       </Seccion>
 
       {/* ---------- El problema ---------- */}
-      <Seccion titulo="El problema">
+      <Seccion titulo="El problema" icono={ClipboardList}>
         <p className="text-[13.5px] text-ink leading-relaxed whitespace-pre-line">{servicio.descripcion}</p>
       </Seccion>
 
       {servicio.fotos.length > 0 && (
-        <Seccion titulo="Fotos">
+        <Seccion titulo="Fotos" icono={Camera}>
           <div className="grid grid-cols-3 gap-2">
             {servicio.fotos.map((f) => (
               // eslint-disable-next-line @next/next/no-img-element -- URL firmada temporal
@@ -152,7 +169,7 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
 
       {/* ---------- Aviso a Telegram ---------- */}
       {servicio.enrutamientos.length > 0 && (
-        <Seccion titulo="Aviso enviado">
+        <Seccion titulo="Aviso enviado" icono={Radio}>
           {servicio.enrutamientos.map((e, i) => (
             <p key={i} className="text-[12.5px] text-mute">
               <span className={e.estado === "enviado" ? "text-good font-semibold" : "text-urgent font-semibold"}>
@@ -166,11 +183,12 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
       )}
 
       {/* ---------- Acciones ---------- */}
-      <Seccion titulo="Acciones">
+      <Seccion titulo="Acciones" icono={Wrench}>
         <div className="flex flex-wrap gap-2.5">
           {proximoEstado && (
             <BotonAccion
               texto={`Avanzar a "${ETIQUETA_ESTADO[proximoEstado]}"`}
+              icono={Radio}
               cargando={guardando === "estado"}
               onClick={() =>
                 conGuardado("estado", () => actualizarServicioOperaciones(id, { estado: proximoEstado }))
@@ -180,6 +198,7 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
           {puedeCancelar && (
             <BotonAccion
               texto="Cancelar pedido"
+              icono={Ban}
               variante="peligro"
               cargando={guardando === "cancelar"}
               onClick={() => {
@@ -224,7 +243,7 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
       </Seccion>
 
       {/* ---------- Bitácora ---------- */}
-      <Seccion titulo="Historial">
+      <Seccion titulo="Historial" icono={History}>
         {servicio.eventos.length === 0 ? (
           <p className="text-[12.5px] text-faint">Sin movimientos todavía.</p>
         ) : (
@@ -250,10 +269,20 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
 
 /* ---------- Piezas chicas ---------- */
 
-function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Seccion({
+  titulo,
+  icono: Icono,
+  children,
+}: {
+  titulo: string;
+  icono: LucideIcon;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mt-4">
-      <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">{titulo}</p>
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">
+        <Icono className="w-3.5 h-3.5" /> {titulo}
+      </p>
       <div className="bg-surface rounded-xl2 border border-line shadow-card p-4">{children}</div>
     </div>
   );
@@ -273,11 +302,13 @@ function BotonAccion({
   onClick,
   cargando,
   variante = "normal",
+  icono: Icono,
 }: {
   texto: string;
   onClick: () => void;
   cargando?: boolean;
   variante?: "normal" | "peligro";
+  icono?: LucideIcon;
 }) {
   return (
     <button
@@ -288,7 +319,7 @@ function BotonAccion({
         variante === "peligro" ? "bg-urgent/10 text-urgent" : "bg-brand-600 text-white"
       }`}
     >
-      {cargando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+      {cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : Icono && <Icono className="w-3.5 h-3.5" />}
       {texto}
     </button>
   );
@@ -318,6 +349,7 @@ function FormularioPrecio({
         />
         <BotonAccion
           texto="Guardar"
+          icono={Banknote}
           cargando={guardando}
           onClick={() => onGuardar(valor.trim() ? Number(valor) : null)}
         />
@@ -359,7 +391,7 @@ function FormularioTecnico({
               </option>
             ))}
           </select>
-          <BotonAccion texto="Guardar" cargando={guardando} onClick={() => onGuardar(valor || null)} />
+          <BotonAccion texto="Guardar" icono={UserCog} cargando={guardando} onClick={() => onGuardar(valor || null)} />
         </div>
       )}
     </div>
@@ -416,6 +448,7 @@ function FormularioReprogramar({
       <div className="mt-2">
         <BotonAccion
           texto="Guardar reprogramación"
+          icono={Calendar}
           cargando={guardando}
           onClick={() => puedeGuardar && onGuardar(dia, franja, nota)}
         />
@@ -450,6 +483,7 @@ function FormularioNota({
         />
         <BotonAccion
           texto="Agregar"
+          icono={StickyNote}
           cargando={guardando}
           onClick={() => {
             if (!texto.trim()) return;

@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clock, Loader2, LogOut, MapPin } from "lucide-react";
+import { ChevronRight, Inbox, ListChecks, Loader2, LogOut, MapPin, PackageSearch, Wrench } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { BadgeEstado } from "@/componentes/BadgeEstado";
+import { EstadoVacio } from "@/componentes/EstadoVacio";
 import {
   listarPedidosAbiertos,
   listarTrabajosAsignados,
@@ -14,7 +16,6 @@ import {
   type PedidoAbierto,
   type TrabajoAsignado,
 } from "@/lib/tecnico";
-import { ETIQUETA_ESTADO } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
 
 type Pestana = "disponibles" | "pendientes" | "en_curso" | "historial";
@@ -75,18 +76,23 @@ export default function PaginaTecnico() {
 
   if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
-  const filtrados = trabajos.filter((t) => {
-    if (pestana === "pendientes") return t.estado === "asignado" && !t.tecnicoConfirmadoEl;
-    if (pestana === "en_curso") return !!t.tecnicoConfirmadoEl && !TERMINADOS.has(t.estado);
-    return TERMINADOS.has(t.estado);
-  });
+  const pendientes = trabajos.filter((t) => t.estado === "asignado" && !t.tecnicoConfirmadoEl);
+  const enCurso = trabajos.filter((t) => !!t.tecnicoConfirmadoEl && !TERMINADOS.has(t.estado));
+  const historial = trabajos.filter((t) => TERMINADOS.has(t.estado));
+
+  const filtrados = pestana === "pendientes" ? pendientes : pestana === "en_curso" ? enCurso : historial;
 
   return (
     <main className="max-w-3xl mx-auto px-5 py-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-bold font-display text-ink">Tus trabajos</h1>
-          <p className="text-[13px] text-mute mt-0.5">Pedidos disponibles y los que ya tomaste.</p>
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-600 text-white shadow-fab">
+            <Wrench className="w-5 h-5" />
+          </span>
+          <div>
+            <h1 className="text-[20px] font-bold font-display text-ink leading-tight">Tus trabajos</h1>
+            <p className="text-[12.5px] text-mute mt-0.5">Pedidos disponibles y los que ya tomaste.</p>
+          </div>
         </div>
         <button
           type="button"
@@ -95,7 +101,7 @@ export default function PaginaTecnico() {
             router.replace("/entrar");
             router.refresh();
           }}
-          className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent"
+          className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent shrink-0"
         >
           <LogOut className="w-4 h-4" /> Salir
         </button>
@@ -104,24 +110,33 @@ export default function PaginaTecnico() {
       <div className="flex gap-2 mt-5 overflow-x-auto no-scrollbar">
         {(
           [
-            ["disponibles", `Disponibles${abiertos.length ? ` (${abiertos.length})` : ""}`],
-            ["pendientes", "Pendientes"],
-            ["en_curso", "En curso"],
-            ["historial", "Historial"],
-          ] as [Pestana, string][]
-        ).map(([valor, etiqueta]) => (
+            ["disponibles", "Disponibles", abiertos.length],
+            ["pendientes", "Pendientes", pendientes.length],
+            ["en_curso", "En curso", enCurso.length],
+            ["historial", "Historial", historial.length],
+          ] as [Pestana, string, number][]
+        ).map(([valor, etiqueta, cantidad]) => (
           <button
             key={valor}
             type="button"
             onClick={() => setPestana(valor)}
             aria-pressed={pestana === valor}
-            className={`press shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold border ${
+            className={`press shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold border ${
               pestana === valor
                 ? "bg-brand-600 text-white border-brand-600"
                 : "bg-surface text-mute border-line"
             }`}
           >
             {etiqueta}
+            {cantidad > 0 && (
+              <span
+                className={`text-[11px] font-bold rounded-full w-5 h-5 grid place-items-center ${
+                  pestana === valor ? "bg-white/20 text-white" : "bg-brand-50 text-brand-600"
+                }`}
+              >
+                {cantidad}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -134,25 +149,35 @@ export default function PaginaTecnico() {
 
       {cargando ? (
         <div className="mt-5 space-y-2.5">
-          <Bloque className="h-[70px] w-full rounded-xl2" />
-          <Bloque className="h-[70px] w-full rounded-xl2" />
+          <Bloque className="h-[86px] w-full rounded-xl2" />
+          <Bloque className="h-[86px] w-full rounded-xl2" />
         </div>
       ) : pestana === "disponibles" ? (
         abiertos.length === 0 ? (
-          <p className="text-[13.5px] text-faint mt-8 text-center">
-            No hay pedidos disponibles de tu rubro por ahora.
-          </p>
+          <EstadoVacio
+            icono={PackageSearch}
+            titulo="No hay pedidos disponibles"
+            texto="En cuanto aparezca uno de tu rubro y tu zona, lo vas a ver acá al instante."
+          />
         ) : (
-          <div className="mt-5 bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+          <div className="mt-5 space-y-2.5">
             {abiertos.map((p) => (
-              <div key={p.id} className="flex items-center gap-3.5 p-3.5">
-                <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+              <div
+                key={p.id}
+                className="flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border border-line shadow-card border-l-4 border-l-warn"
+              >
+                <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
                   {p.categoriaNombre.slice(0, 2).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-ink leading-tight truncate">
-                    {p.categoriaNombre}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[14px] font-semibold text-ink leading-tight truncate">
+                      {p.categoriaNombre}
+                    </p>
+                    <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-warn shrink-0">
+                      <span className="w-[6px] h-[6px] rounded-full bg-warn live-dot" /> Disponible
+                    </span>
+                  </div>
                   <p className="text-[12px] text-faint mt-0.5 truncate flex items-center gap-1">
                     <MapPin className="w-3 h-3 shrink-0" /> {p.propiedadLocalidad || "Zona sin cargar"}
                   </p>
@@ -172,16 +197,32 @@ export default function PaginaTecnico() {
           </div>
         )
       ) : filtrados.length === 0 ? (
-        <p className="text-[13.5px] text-faint mt-8 text-center">No hay nada acá.</p>
+        <EstadoVacio
+          icono={pestana === "pendientes" ? Inbox : pestana === "en_curso" ? Wrench : ListChecks}
+          titulo={
+            pestana === "pendientes"
+              ? "Nada pendiente de aceptar"
+              : pestana === "en_curso"
+                ? "No tenés trabajos en curso"
+                : "Todavía no cerraste ningún trabajo"
+          }
+          texto={
+            pestana === "pendientes"
+              ? "Cuando operaciones te asigne un pedido, aparece acá para que lo aceptes o lo rechaces."
+              : pestana === "en_curso"
+                ? "Los que aceptaste y todavía no terminaste van a estar acá."
+                : "Los trabajos que termines quedan guardados acá."
+          }
+        />
       ) : (
-        <div className="mt-5 bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+        <div className="mt-5 space-y-2.5">
           {filtrados.map((t) => (
             <Link
               key={t.id}
               href={`/tecnico/${t.id}`}
-              className="press flex items-center gap-3.5 p-3.5"
+              className="press flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border border-line shadow-card"
             >
-              <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+              <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
                 {t.categoriaNombre.slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
@@ -191,14 +232,13 @@ export default function PaginaTecnico() {
                 <p className="text-[12px] text-faint mt-0.5 truncate">
                   {t.propiedadNombre} · {t.propiedadLocalidad}
                 </p>
+                <BadgeEstado estado={t.estado} className="mt-1.5" />
               </div>
-              <div className="text-right shrink-0">
-                <span className="inline-flex items-center gap-1 text-[11.5px] text-brand-600 font-semibold">
-                  <Clock className="w-3 h-3" /> {ETIQUETA_ESTADO[t.estado]}
-                </span>
-                <p className="text-[11px] text-faint mt-0.5">
+              <div className="flex items-center gap-1 shrink-0">
+                <p className="text-[12px] font-semibold text-ink num">
                   {t.montoArs != null ? pesos(t.montoArs) : fechaCorta(t.creadoEl.slice(0, 10))}
                 </p>
+                <ChevronRight className="w-4 h-4 text-faint" />
               </div>
             </Link>
           ))}

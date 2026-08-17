@@ -2,9 +2,21 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, MapPin } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Camera,
+  Check,
+  Loader2,
+  type LucideIcon,
+  MapPin,
+  Navigation,
+  User,
+  X as IconoX,
+} from "lucide-react";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import { HiloChat } from "@/componentes/HiloChat";
+import { BadgeEstado } from "@/componentes/BadgeEstado";
 import {
   aceptarTrabajo,
   actualizarUbicacionTecnico,
@@ -15,7 +27,6 @@ import {
   rechazarTrabajo,
   type TrabajoDetalle,
 } from "@/lib/tecnico";
-import { ETIQUETA_ESTADO } from "@/lib/tipos";
 import { fecha } from "@/lib/formato";
 
 /* Distancia en metros entre dos puntos (haversine) — mismo espíritu que
@@ -30,6 +41,24 @@ function distanciaMetros(a: { lat: number; lng: number }, b: { lat: number; lng:
     Math.sin(dLat / 2) ** 2 +
     Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+/* El código de GeolocationPositionError distingue tres causas bien
+   distintas — el mensaje genérico de antes ("no pudimos acceder")
+   las mezclaba todas, y las tres primeras dos NO son un bug de la
+   app: son el navegador o el celular negando el permiso, o el GPS
+   sin señal. Sólo se puede pedir de nuevo, no forzar. */
+function mensajeErrorUbicacion(err: GeolocationPositionError): string {
+  switch (err.code) {
+    case err.PERMISSION_DENIED:
+      return "No diste permiso de ubicación. Activalo en Ajustes del celular → Nora (o el navegador) → Ubicación, y volvé a intentar.";
+    case err.POSITION_UNAVAILABLE:
+      return "El celular no pudo obtener tu ubicación ahora — probá salir a un lugar más despejado.";
+    case err.TIMEOUT:
+      return "Tardó demasiado en encontrar tu ubicación. Probá de nuevo.";
+    default:
+      return "No pudimos acceder a tu ubicación.";
+  }
 }
 
 export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id: string }> }) {
@@ -85,8 +114,8 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
           /* Un envío perdido no corta el seguimiento; el próximo tick lo reintenta. */
         });
       },
-      () => {
-        setErrorUbicacion("No pudimos acceder a tu ubicación.");
+      (err) => {
+        setErrorUbicacion(mensajeErrorUbicacion(err));
         setCompartiendoUbicacion(false);
       },
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 },
@@ -94,6 +123,15 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
 
     return () => navigator.geolocation.clearWatch(watchId);
   }, [compartiendoUbicacion, trabajo?.estado, id]);
+
+  /* Avisar por push nunca puede frenar ni deshacer el cambio de
+     estado: el técnico ya salió, eso ya pasó. Si el aviso falla
+     (suscripción vencida, claves mal configuradas), se ignora acá —
+     la ruta ya lo registra en su propio log del lado del servidor. */
+  const salirEnCamino = async () => {
+    await marcarEnCamino(id);
+    fetch(`/api/pedidos/${id}/notificar-en-camino`, { method: "POST" }).catch(() => {});
+  };
 
   const conGuardado = async (etiqueta: string, accion: () => Promise<void>) => {
     setGuardando(etiqueta);
@@ -133,9 +171,7 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
           <h1 className="text-[20px] font-bold font-display text-ink leading-tight">{trabajo.categoriaNombre}</h1>
           <p className="text-[13px] text-mute mt-0.5">{fecha(trabajo.creadoEl.slice(0, 10))}</p>
         </div>
-        <span className="text-[11.5px] font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1 shrink-0">
-          {ETIQUETA_ESTADO[trabajo.estado]}
-        </span>
+        <BadgeEstado estado={trabajo.estado} className="shrink-0" />
       </div>
 
       {avisoAccion && (
@@ -144,7 +180,7 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
         </p>
       )}
 
-      <Seccion titulo="Cliente y ubicación">
+      <Seccion titulo="Cliente y ubicación" icono={User}>
         <Fila etiqueta="Cliente" valor={trabajo.cliente.nombre} />
         <Fila etiqueta="Teléfono" valor={trabajo.cliente.telefono ?? "no cargado"} />
         {trabajo.propiedad ? (
@@ -157,12 +193,12 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
         )}
       </Seccion>
 
-      <Seccion titulo="El problema">
+      <Seccion titulo="El problema" icono={AlertCircle}>
         <p className="text-[13.5px] text-ink leading-relaxed whitespace-pre-line">{trabajo.descripcion}</p>
       </Seccion>
 
       {trabajo.fotos.length > 0 && (
-        <Seccion titulo="Fotos">
+        <Seccion titulo="Fotos" icono={Camera}>
           <div className="grid grid-cols-3 gap-2">
             {trabajo.fotos.map((f) => (
               // eslint-disable-next-line @next/next/no-img-element -- URL firmada temporal
@@ -172,16 +208,20 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
         </Seccion>
       )}
 
-      <Seccion titulo="Acciones">
+      <Seccion titulo="Acciones" icono={Navigation}>
         {pendienteDeAceptar && (
           <div className="flex gap-2.5">
             <BotonAccion
               texto="Aceptar"
+              icono={Check}
+              ancho="compartido"
               cargando={guardando === "aceptar"}
               onClick={() => conGuardado("aceptar", () => aceptarTrabajo(id))}
             />
             <BotonAccion
               texto="Rechazar"
+              icono={IconoX}
+              ancho="compartido"
               variante="peligro"
               cargando={guardando === "rechazar"}
               onClick={() => {
@@ -195,8 +235,10 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
         {trabajo.tecnicoConfirmadoEl && trabajo.estado === "asignado" && (
           <BotonAccion
             texto="Salgo en camino"
+            icono={Navigation}
+            ancho="completo"
             cargando={guardando === "en_camino"}
-            onClick={() => conGuardado("en_camino", () => marcarEnCamino(id))}
+            onClick={() => conGuardado("en_camino", salirEnCamino)}
           />
         )}
 
@@ -204,26 +246,42 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
           <div className="space-y-3">
             <BotonAccion
               texto="Llegué, empiezo el trabajo"
+              icono={Check}
+              ancho="completo"
               cargando={guardando === "en_curso"}
               onClick={() => conGuardado("en_curso", () => marcarEnCurso(id))}
             />
-            <label className="flex items-center gap-2.5 text-[13px] text-ink">
-              <input
-                type="checkbox"
-                checked={compartiendoUbicacion}
-                onChange={(e) => {
-                  if (e.target.checked && !("geolocation" in navigator)) {
-                    setErrorUbicacion("Tu navegador no puede compartir tu ubicación.");
-                    return;
-                  }
-                  setErrorUbicacion(null);
-                  setCompartiendoUbicacion(e.target.checked);
-                }}
-                className="w-[18px] h-[18px]"
-              />
-              <MapPin className="w-4 h-4 text-brand-600" />
-              Compartir mi ubicación con el cliente
-            </label>
+            <button
+              type="button"
+              onClick={() => {
+                const activar = !compartiendoUbicacion;
+                if (activar && !("geolocation" in navigator)) {
+                  setErrorUbicacion("Tu navegador no puede compartir tu ubicación.");
+                  return;
+                }
+                setErrorUbicacion(null);
+                setCompartiendoUbicacion(activar);
+              }}
+              className={`w-full flex items-center gap-2.5 rounded-xl2 border px-3.5 py-3 text-left ${
+                compartiendoUbicacion ? "bg-brand-50 border-brand-100" : "bg-sand border-line"
+              }`}
+            >
+              <MapPin className={`w-4 h-4 shrink-0 ${compartiendoUbicacion ? "text-brand-600" : "text-faint"}`} />
+              <span className="flex-1 text-[13px] font-medium text-ink">
+                Compartir mi ubicación con el cliente
+              </span>
+              <span
+                className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${
+                  compartiendoUbicacion ? "bg-brand-600" : "bg-line"
+                }`}
+              >
+                <span
+                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    compartiendoUbicacion ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </span>
+            </button>
             {errorUbicacion && <p className="text-[12px] text-urgent">{errorUbicacion}</p>}
           </div>
         )}
@@ -243,6 +301,8 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
             <div className="mt-2">
               <BotonAccion
                 texto="Terminar trabajo"
+                icono={Check}
+                ancho="completo"
                 cargando={guardando === "finalizar"}
                 onClick={() => {
                   if (reporte.trim().length < 10) {
@@ -271,10 +331,20 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
 
 /* ---------- Piezas chicas ---------- */
 
-function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Seccion({
+  titulo,
+  icono: Icono,
+  children,
+}: {
+  titulo: string;
+  icono: LucideIcon;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mt-4">
-      <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">{titulo}</p>
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">
+        <Icono className="w-3.5 h-3.5" /> {titulo}
+      </p>
       <div className="bg-surface rounded-xl2 border border-line shadow-card p-4 space-y-3">{children}</div>
     </div>
   );
@@ -293,11 +363,15 @@ function BotonAccion({
   texto,
   onClick,
   cargando,
+  icono: Icono,
+  ancho = "auto",
   variante = "normal",
 }: {
   texto: string;
   onClick: () => void;
   cargando?: boolean;
+  icono?: LucideIcon;
+  ancho?: "auto" | "completo" | "compartido";
   variante?: "normal" | "peligro";
 }) {
   return (
@@ -305,11 +379,11 @@ function BotonAccion({
       type="button"
       onClick={onClick}
       disabled={cargando}
-      className={`press flex items-center gap-2 rounded-xl2 px-4 py-2.5 text-[13px] font-semibold disabled:opacity-50 ${
-        variante === "peligro" ? "bg-urgent/10 text-urgent" : "bg-brand-600 text-white"
-      }`}
+      className={`press flex items-center justify-center gap-2 rounded-xl2 px-4 py-3 text-[13.5px] font-semibold disabled:opacity-50 ${
+        ancho === "completo" ? "w-full" : ancho === "compartido" ? "flex-1" : ""
+      } ${variante === "peligro" ? "bg-urgent/10 text-urgent" : "bg-brand-600 text-white shadow-fab"}`}
     >
-      {cargando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+      {cargando ? <Loader2 className="w-4 h-4 animate-spin" /> : Icono ? <Icono className="w-4 h-4" /> : null}
       {texto}
     </button>
   );

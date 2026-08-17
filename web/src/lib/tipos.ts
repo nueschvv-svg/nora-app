@@ -134,6 +134,40 @@ export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   cancelado: "Cancelado",
 };
 
+/** Un grupo por estado, no un color por estado: hay diez estados y sólo
+ *  cuatro situaciones que de verdad importa distinguir de un vistazo —
+ *  cancelado, resuelto, pasando ahora mismo, o esperando algo. Usa los
+ *  tokens de estado que ya existía en globals.css (warn/good/urgent),
+ *  ninguno inventado para esto. */
+export type GrupoEstado = "cancelado" | "resuelto" | "en_vivo" | "esperando";
+
+const GRUPO_ESTADO: Record<EstadoServicio, GrupoEstado> = {
+  solicitado: "esperando",
+  buscando_tecnico: "esperando",
+  asignado: "esperando",
+  presupuestado: "esperando",
+  aceptado: "esperando",
+  en_camino: "en_vivo",
+  en_curso: "en_vivo",
+  finalizado: "resuelto",
+  pagado: "resuelto",
+  calificado: "resuelto",
+  cancelado: "cancelado",
+};
+
+export type EstiloEstado = { badge: string; punto: string; vivo: boolean };
+
+const ESTILO_GRUPO: Record<GrupoEstado, EstiloEstado> = {
+  esperando: { badge: "bg-warn/10 text-warn", punto: "bg-warn", vivo: false },
+  en_vivo: { badge: "bg-brand-50 text-brand-600", punto: "bg-brand-600", vivo: true },
+  resuelto: { badge: "bg-good/10 text-good", punto: "bg-good", vivo: false },
+  cancelado: { badge: "bg-urgent/10 text-urgent", punto: "bg-urgent", vivo: false },
+};
+
+export function estiloEstado(estado: EstadoServicio): EstiloEstado {
+  return ESTILO_GRUPO[GRUPO_ESTADO[estado]];
+}
+
 export type Categoria = {
   slug: string;
   nombre: string;

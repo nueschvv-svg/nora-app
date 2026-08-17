@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Briefcase, ChevronRight, LogOut, Plus, Settings, Wrench } from "lucide-react";
+import { Bell, BellOff, Briefcase, ChevronRight, LogOut, Plus, Settings, Wrench } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
@@ -10,6 +10,12 @@ import { FormularioPropiedad } from "@/componentes/FormularioPropiedad";
 import { FormularioTrabajador } from "@/componentes/FormularioTrabajador";
 import { calcularScore } from "@/lib/score";
 import { miFichaTrabajador, type EstadoTrabajador, type MiFichaTrabajador } from "@/lib/trabajadores";
+import {
+  activarNotificaciones,
+  desactivarNotificaciones,
+  notificacionesActivas,
+  notificacionesSoportadas,
+} from "@/lib/push";
 
 const ETIQUETA_ESTADO_TRABAJADOR: Record<EstadoTrabajador, string> = {
   pendiente: "Pendiente de verificación",
@@ -41,6 +47,36 @@ export default function PaginaPerfil() {
         /* No es crítico: si falla, el botón se queda ofreciendo el alta. */
       });
   }, [sesion]);
+
+  const [notifOn, setNotifOn] = useState<boolean | null>(null);
+  const [notifCargando, setNotifCargando] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notificacionesSoportadas()) return;
+    notificacionesActivas()
+      .then(setNotifOn)
+      .catch(() => setNotifOn(false));
+  }, []);
+
+  const alternarNotificaciones = async () => {
+    if (notifCargando) return;
+    setNotifCargando(true);
+    setNotifError(null);
+    try {
+      if (notifOn) {
+        await desactivarNotificaciones();
+        setNotifOn(false);
+      } else {
+        await activarNotificaciones();
+        setNotifOn(true);
+      }
+    } catch (e) {
+      setNotifError(e instanceof Error ? e.message : "No pudimos cambiar las notificaciones.");
+    } finally {
+      setNotifCargando(false);
+    }
+  };
 
   const estadoTrabajador: EstadoTrabajador | null = fichaTrabajador?.estado ?? null;
 
@@ -159,13 +195,40 @@ export default function PaginaPerfil() {
 
         <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Cuenta</p>
         <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
-          {["Datos personales", "Notificaciones", "Ayuda", "Términos y privacidad"].map((t) => (
+          {["Datos personales", "Ayuda", "Términos y privacidad"].map((t) => (
             <button key={t} type="button" className="w-full flex items-center gap-3.5 p-3.5 press text-left">
               <span className="flex-1 text-[14px] font-semibold text-ink">{t}</span>
               <ChevronRight className="w-[18px] h-[18px] text-faint" />
             </button>
           ))}
+          {notificacionesSoportadas() && (
+            <button
+              type="button"
+              onClick={alternarNotificaciones}
+              disabled={notifCargando || notifOn === null}
+              className="w-full flex items-center gap-3.5 p-3.5 press text-left disabled:opacity-60"
+            >
+              {notifOn ? (
+                <Bell className="w-[18px] h-[18px] text-brand-600" />
+              ) : (
+                <BellOff className="w-[18px] h-[18px] text-faint" />
+              )}
+              <span className="flex-1 text-[14px] font-semibold text-ink">Notificaciones</span>
+              <span
+                className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${
+                  notifOn ? "bg-brand-600" : "bg-line"
+                }`}
+              >
+                <span
+                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    notifOn ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </span>
+            </button>
+          )}
         </div>
+        {notifError && <p className="text-[12px] text-urgent px-1 -mt-1">{notifError}</p>}
 
         <button
           type="button"

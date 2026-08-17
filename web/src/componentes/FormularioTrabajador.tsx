@@ -68,6 +68,7 @@ export function FormularioTrabajador({
   const [selfie, setSelfie] = useState<File | null>(null);
   const [matricula, setMatricula] = useState<File | null>(null);
   const [errorDocumentos, setErrorDocumentos] = useState<string | null>(null);
+  const [guardadoOk, setGuardadoOk] = useState(false);
 
   /* Los rubros son catálogo estático: se traen una sola vez al montar,
      sin esperar a que se abra la hoja. Antes se pedían recién al abrir,
@@ -105,6 +106,7 @@ export function FormularioTrabajador({
       setSelfie(null);
       setMatricula(null);
       setErrorDocumentos(null);
+      setGuardadoOk(false);
     }
   }
 
@@ -203,7 +205,7 @@ export function FormularioTrabajador({
       // se mantiene. Si es alta nueva, la política de la base lo crea
       // en "pendiente" — ver db/07_trabajadores.sql.
       alGuardar?.({ ...datosGuardados, estado: estado ?? "pendiente" });
-      alCerrar();
+      setGuardadoOk(true);
     } catch (err) {
       setErrorGuardar(err instanceof Error ? err.message : "No pudimos guardar tu ficha.");
     } finally {
@@ -230,6 +232,28 @@ export function FormularioTrabajador({
         }`}
       >
         <div className="w-10 h-1 rounded-full bg-line mx-auto mt-2.5" />
+
+        {guardadoOk ? (
+          <div className="px-5 pt-3 pb-9 text-center">
+            <span className="inline-grid place-items-center w-16 h-16 rounded-2xl bg-good/15 text-good mt-4">
+              <Check className="w-7 h-7" />
+            </span>
+            <h2 className="text-[18px] font-bold font-display text-ink mt-4">
+              Datos cargados correctamente
+            </h2>
+            <p className="text-[13.5px] text-mute mt-2 leading-relaxed max-w-[280px] mx-auto">
+              En breve recibirás respuesta. Nuestro equipo revisa tu ficha antes de que puedas
+              empezar a tomar trabajos.
+            </p>
+            <button
+              type="button"
+              onClick={alCerrar}
+              className="press mt-6 w-full rounded-xl2 bg-brand-600 text-white py-3.5 text-[14.5px] font-semibold shadow-fab"
+            >
+              Listo
+            </button>
+          </div>
+        ) : (
         <form onSubmit={enviar} className="px-5 pt-3 pb-7" noValidate>
           <div className="flex items-center justify-between">
             <div>
@@ -416,6 +440,7 @@ export function FormularioTrabajador({
             dónde.
           </p>
         </form>
+        )}
       </div>
     </>
   );
@@ -487,7 +512,6 @@ function CampoArchivo({
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="environment"
         onChange={(e) => {
           const f = e.target.files?.[0];
           e.target.value = "";

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clock, LogOut, UserCheck } from "lucide-react";
+import { ChevronRight, ClipboardList, LogOut, PackageOpen, UserCheck } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { BadgeEstado } from "@/componentes/BadgeEstado";
+import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { listarSolicitudesTecnico, listarTodosLosServicios, type ServicioLista } from "@/lib/operaciones";
-import { ETIQUETA_ESTADO, type EstadoServicio } from "@/lib/tipos";
+import { type EstadoServicio } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
 
 /* Mismo criterio que historial/page.tsx: qué está "en curso" y qué ya
@@ -64,18 +66,21 @@ export default function PaginaOperaciones() {
 
   if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
-  const filtrados = servicios.filter((s) => {
-    if (pestana === "en_curso") return EN_CURSO.has(s.estado);
-    if (pestana === "resueltos") return !EN_CURSO.has(s.estado) && s.estado !== "cancelado";
-    return true;
-  });
+  const enCurso = servicios.filter((s) => EN_CURSO.has(s.estado));
+  const resueltos = servicios.filter((s) => !EN_CURSO.has(s.estado) && s.estado !== "cancelado");
+  const filtrados = pestana === "en_curso" ? enCurso : pestana === "resueltos" ? resueltos : servicios;
 
   return (
     <main className="max-w-3xl mx-auto px-5 py-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-bold font-display text-ink">Panel de operaciones</h1>
-          <p className="text-[13px] text-mute mt-0.5">Todos los pedidos, de todos los clientes.</p>
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-600 text-white shadow-fab">
+            <ClipboardList className="w-5 h-5" />
+          </span>
+          <div>
+            <h1 className="text-[20px] font-bold font-display text-ink leading-tight">Panel de operaciones</h1>
+            <p className="text-[12.5px] text-mute mt-0.5">Todos los pedidos, de todos los clientes.</p>
+          </div>
         </div>
         <button
           type="button"
@@ -84,7 +89,7 @@ export default function PaginaOperaciones() {
             router.replace("/entrar");
             router.refresh();
           }}
-          className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent"
+          className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent shrink-0"
         >
           <LogOut className="w-4 h-4" /> Salir
         </button>
@@ -92,9 +97,9 @@ export default function PaginaOperaciones() {
 
       <Link
         href="/operaciones/tecnicos"
-        className="press mt-4 flex items-center gap-3 rounded-xl2 bg-brand-50 border border-brand-100 px-4 py-3"
+        className="press mt-4 flex items-center gap-3 rounded-xl2 bg-brand-50 border border-brand-100 px-4 py-3.5"
       >
-        <span className="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-brand-600 text-white">
+        <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-600 text-white">
           <UserCheck className="w-[18px] h-[18px]" />
         </span>
         <span className="flex-1 text-[13.5px] font-semibold text-brand-600">Solicitudes para ser técnico</span>
@@ -103,49 +108,59 @@ export default function PaginaOperaciones() {
             {solicitudesTecnico}
           </span>
         )}
+        <ChevronRight className="w-4 h-4 text-brand-600 shrink-0" />
       </Link>
 
       <div className="flex gap-2 mt-5">
         {(
           [
-            ["en_curso", "En curso"],
-            ["resueltos", "Resueltos"],
-            ["todos", "Todos"],
-          ] as [Pestana, string][]
-        ).map(([valor, etiqueta]) => (
+            ["en_curso", "En curso", enCurso.length],
+            ["resueltos", "Resueltos", resueltos.length],
+            ["todos", "Todos", servicios.length],
+          ] as [Pestana, string, number][]
+        ).map(([valor, etiqueta, cantidad]) => (
           <button
             key={valor}
             type="button"
             onClick={() => setPestana(valor)}
             aria-pressed={pestana === valor}
-            className={`press rounded-full px-4 py-2 text-[13px] font-semibold border ${
+            className={`press flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold border ${
               pestana === valor
                 ? "bg-brand-600 text-white border-brand-600"
                 : "bg-surface text-mute border-line"
             }`}
           >
             {etiqueta}
+            {cantidad > 0 && (
+              <span
+                className={`text-[11px] font-bold rounded-full w-5 h-5 grid place-items-center ${
+                  pestana === valor ? "bg-white/20 text-white" : "bg-brand-50 text-brand-600"
+                }`}
+              >
+                {cantidad}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {cargando ? (
         <div className="mt-5 space-y-2.5">
-          <Bloque className="h-[70px] w-full rounded-xl2" />
-          <Bloque className="h-[70px] w-full rounded-xl2" />
-          <Bloque className="h-[70px] w-full rounded-xl2" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
         </div>
       ) : filtrados.length === 0 ? (
-        <p className="text-[13.5px] text-faint mt-8 text-center">No hay pedidos acá.</p>
+        <EstadoVacio icono={PackageOpen} titulo="No hay pedidos acá" texto="Los pedidos que entren van a aparecer en esta lista." />
       ) : (
-        <div className="mt-5 bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+        <div className="mt-5 space-y-2.5">
           {filtrados.map((s) => (
             <Link
               key={s.id}
               href={`/operaciones/${s.id}`}
-              className="press flex items-center gap-3.5 p-3.5"
+              className="press flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border border-line shadow-card"
             >
-              <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+              <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
                 {s.categoriaNombre.slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
@@ -155,14 +170,13 @@ export default function PaginaOperaciones() {
                 <p className="text-[12px] text-faint mt-0.5 truncate">
                   {s.propiedadNombre} · {s.propiedadLocalidad}
                 </p>
+                <BadgeEstado estado={s.estado} className="mt-1.5" />
               </div>
-              <div className="text-right shrink-0">
-                <span className="inline-flex items-center gap-1 text-[11.5px] text-brand-600 font-semibold">
-                  <Clock className="w-3 h-3" /> {ETIQUETA_ESTADO[s.estado]}
-                </span>
-                <p className="text-[11px] text-faint mt-0.5">
+              <div className="flex items-center gap-1 shrink-0">
+                <p className="text-[12px] font-semibold text-ink num">
                   {s.montoArs != null ? pesos(s.montoArs) : fechaCorta(s.creadoEl.slice(0, 10))}
                 </p>
+                <ChevronRight className="w-4 h-4 text-faint" />
               </div>
             </Link>
           ))}

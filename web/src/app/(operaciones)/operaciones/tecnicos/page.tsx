@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight, UserCheck } from "lucide-react";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { listarSolicitudesTecnico, type SolicitudTecnico } from "@/lib/operaciones";
 import { fechaCorta } from "@/lib/formato";
 
@@ -40,27 +41,36 @@ export default function PaginaSolicitudesTecnico() {
         <ArrowLeft className="w-4 h-4" /> Todos los pedidos
       </Link>
 
-      <div className="mt-3">
-        <h1 className="text-[22px] font-bold font-display text-ink">Solicitudes para ser técnico</h1>
-        <p className="text-[13px] text-mute mt-0.5">Pendientes de verificación.</p>
+      <div className="mt-4 flex items-center gap-3">
+        <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-600 text-white shadow-fab">
+          <UserCheck className="w-5 h-5" />
+        </span>
+        <div>
+          <h1 className="text-[20px] font-bold font-display text-ink leading-tight">Solicitudes para ser técnico</h1>
+          <p className="text-[12.5px] text-mute mt-0.5">Pendientes de verificación.</p>
+        </div>
       </div>
 
       {cargando ? (
         <div className="mt-5 space-y-2.5">
-          <Bloque className="h-[70px] w-full rounded-xl2" />
-          <Bloque className="h-[70px] w-full rounded-xl2" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
+          <Bloque className="h-[76px] w-full rounded-xl2" />
         </div>
       ) : solicitudes.length === 0 ? (
-        <p className="text-[13.5px] text-faint mt-8 text-center">No hay solicitudes pendientes.</p>
+        <EstadoVacio
+          icono={UserCheck}
+          titulo="No hay solicitudes pendientes"
+          texto="Cuando alguien cargue su ficha de técnico, va a aparecer acá para que la revises."
+        />
       ) : (
-        <div className="mt-5 bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
+        <div className="mt-5 space-y-2.5">
           {solicitudes.map((s) => (
             <Link
               key={s.id}
               href={`/operaciones/tecnicos/${s.id}`}
-              className="press flex items-center gap-3.5 p-3.5"
+              className="press flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border border-line shadow-card"
             >
-              <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+              <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
                 {s.nombre.slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
@@ -68,8 +78,14 @@ export default function PaginaSolicitudesTecnico() {
                 <p className="text-[12px] text-faint mt-0.5 truncate">
                   {s.categorias.join(", ") || "Sin rubros"} · {s.zonaCobertura.join(", ") || "sin zona"}
                 </p>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 mt-1.5 text-[11.5px] font-semibold bg-warn/10 text-warn">
+                  <span className="w-[7px] h-[7px] rounded-full shrink-0 bg-warn" /> Pendiente de verificación
+                </span>
               </div>
-              <p className="text-[11px] text-faint shrink-0">{fechaCorta(s.creadoEl.slice(0, 10))}</p>
+              <div className="flex items-center gap-1 shrink-0">
+                <p className="text-[11px] text-faint">{fechaCorta(s.creadoEl.slice(0, 10))}</p>
+                <ChevronRight className="w-4 h-4 text-faint" />
+              </div>
             </Link>
           ))}
         </div>

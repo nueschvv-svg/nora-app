@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Ban, Check, FileText, Loader2, Phone, type LucideIcon } from "lucide-react";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import {
   obtenerSolicitudTecnico,
@@ -11,6 +11,12 @@ import {
   type SolicitudTecnicoDetalle,
 } from "@/lib/operaciones";
 import { fecha } from "@/lib/formato";
+
+const ESTILO_ESTADO_TECNICO: Record<string, { texto: string; clase: string }> = {
+  pendiente: { texto: "Pendiente de verificación", clase: "bg-warn/10 text-warn" },
+  verificado: { texto: "Verificado", clase: "bg-good/10 text-good" },
+  rechazado: { texto: "Rechazado", clase: "bg-urgent/10 text-urgent" },
+};
 
 const ETIQUETA_DOCUMENTO: Record<string, string> = {
   dni_frente: "DNI (frente)",
@@ -85,14 +91,22 @@ export default function PaginaDetalleSolicitudTecnico({ params }: { params: Prom
         <ArrowLeft className="w-4 h-4" /> Solicitudes
       </Link>
 
-      <div className="mt-4 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold font-display text-ink leading-tight">{solicitud.nombre}</h1>
-          <p className="text-[13px] text-mute mt-0.5">Postuló el {fecha(solicitud.creadoEl.slice(0, 10))}</p>
-        </div>
-        <span className="text-[11.5px] font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1 shrink-0">
-          {solicitud.estado === "pendiente" ? "Pendiente" : solicitud.estado}
+      <div className="mt-4 flex items-start gap-3">
+        <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+          {solicitud.nombre.slice(0, 2).toUpperCase()}
         </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[19px] font-bold font-display text-ink leading-tight truncate">{solicitud.nombre}</h1>
+          <p className="text-[12.5px] text-mute mt-0.5">Postuló el {fecha(solicitud.creadoEl.slice(0, 10))}</p>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 mt-1.5 text-[11.5px] font-semibold ${
+              (ESTILO_ESTADO_TECNICO[solicitud.estado] ?? ESTILO_ESTADO_TECNICO.pendiente).clase
+            }`}
+          >
+            <span className="w-[7px] h-[7px] rounded-full shrink-0 bg-current" />
+            {(ESTILO_ESTADO_TECNICO[solicitud.estado] ?? ESTILO_ESTADO_TECNICO.pendiente).texto}
+          </span>
+        </div>
       </div>
 
       {avisoAccion && (
@@ -101,13 +115,13 @@ export default function PaginaDetalleSolicitudTecnico({ params }: { params: Prom
         </p>
       )}
 
-      <Seccion titulo="Contacto">
+      <Seccion titulo="Contacto" icono={Phone}>
         <Fila etiqueta="Teléfono" valor={solicitud.telefono ?? "no cargado"} />
         <Fila etiqueta="Rubros" valor={solicitud.categorias.join(", ") || "—"} />
         <Fila etiqueta="Zona de cobertura" valor={solicitud.zonaCobertura.join(", ") || "—"} />
       </Seccion>
 
-      <Seccion titulo="Documentos">
+      <Seccion titulo="Documentos" icono={FileText}>
         {solicitud.documentos.length === 0 ? (
           <p className="text-[12.5px] text-faint">No subió ningún documento todavía.</p>
         ) : (
@@ -130,15 +144,17 @@ export default function PaginaDetalleSolicitudTecnico({ params }: { params: Prom
       </Seccion>
 
       {solicitud.estado === "pendiente" && (
-        <Seccion titulo="Acciones">
+        <Seccion titulo="Acciones" icono={Check}>
           <div className="flex gap-2.5">
             <BotonAccion
               texto="Verificar"
+              icono={Check}
               cargando={guardando === "verificar"}
               onClick={() => conGuardado("verificar", () => verificarTecnico(id))}
             />
             <BotonAccion
               texto="Rechazar"
+              icono={Ban}
               variante="peligro"
               cargando={guardando === "rechazar"}
               onClick={() => {
@@ -153,10 +169,20 @@ export default function PaginaDetalleSolicitudTecnico({ params }: { params: Prom
   );
 }
 
-function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Seccion({
+  titulo,
+  icono: Icono,
+  children,
+}: {
+  titulo: string;
+  icono: LucideIcon;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mt-4">
-      <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">{titulo}</p>
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">
+        <Icono className="w-3.5 h-3.5" /> {titulo}
+      </p>
       <div className="bg-surface rounded-xl2 border border-line shadow-card p-4 space-y-3">{children}</div>
     </div>
   );
@@ -176,11 +202,13 @@ function BotonAccion({
   onClick,
   cargando,
   variante = "normal",
+  icono: Icono,
 }: {
   texto: string;
   onClick: () => void;
   cargando?: boolean;
   variante?: "normal" | "peligro";
+  icono?: LucideIcon;
 }) {
   return (
     <button
@@ -191,7 +219,7 @@ function BotonAccion({
         variante === "peligro" ? "bg-urgent/10 text-urgent" : "bg-brand-600 text-white"
       }`}
     >
-      {cargando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+      {cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : Icono && <Icono className="w-3.5 h-3.5" />}
       {texto}
     </button>
   );
