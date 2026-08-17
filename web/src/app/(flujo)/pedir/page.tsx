@@ -145,11 +145,22 @@ export default function PaginaPedir() {
     (paso === 2 && !!dia && !!franja) ||
     paso === 3;
 
-  /* Lo que ve el técnico. La persona sigue viendo y editando sólo su
-     propio texto en el campo — esto se arma recién al mandar, para no
-     meterle a la textarea palabras que no escribió. */
+  /* Lo que ve operaciones (y el técnico). La persona sigue viendo y
+     editando sólo su propio texto en el campo — esto se arma recién al
+     mandar, para no meterle a la textarea palabras que no escribió.
+
+     El estimado de precio se suma acá aparte: antes se le mostraba al
+     cliente en pantalla y se perdía — operaciones no lo veía nunca y
+     tenía que recalcularlo a mano desde cero. Ahora queda escrito en el
+     mismo lugar donde operaciones ya mira ("El problema"), con las
+     mismas palabras que ya vio el cliente, sin reformatear nada. */
+  const lineaEstimado =
+    diagnostico?.estimado && diagnostico.trabajo
+      ? `[Estimado de Nora] ${diagnostico.trabajo.nombre}: ${diagnostico.estimado.titulo} — ${diagnostico.estimado.aclaracion}`
+      : null;
+
   const descripcionFinal = diagnostico?.observaciones
-    ? [descripcion.trim(), `[Foto analizada por Nora] ${diagnostico.observaciones}`]
+    ? [descripcion.trim(), `[Foto analizada por Nora] ${diagnostico.observaciones}`, lineaEstimado]
         .filter(Boolean)
         .join("\n\n")
     : descripcion;

@@ -242,27 +242,30 @@ export type PedidoAbierto = {
 type FilaPedidoAbierto = {
   id: string;
   categoria_slug: string;
+  categoria_nombre: string | null;
+  propiedad_localidad: string | null;
   descripcion: string;
   creado_el: string;
-  categorias: { nombre: string } | null;
-  propiedades: { localidad: string } | null;
 };
 
+/* Antes esto era un select directo a `servicios` con join a
+   `propiedades(localidad)` — pero la política de RLS que deja ver la
+   dirección sólo se activa DESPUÉS de tomar el pedido (tecnico_id =
+   auth.uid()), así que el join siempre volvía null acá y la app
+   mostraba "Zona sin cargar" para todo. Se usa un RPC en su lugar
+   (db/20_zona_bolsa_tecnico.sql): misma autorización que la política
+   de la bolsa, pero expone sólo localidad — nunca calle ni número —
+   antes de aceptar el trabajo. */
 export async function listarPedidosAbiertos(): Promise<PedidoAbierto[]> {
-  const { data, error } = await supabaseNavegador()
-    .from("servicios")
-    .select("id, categoria_slug, descripcion, creado_el, categorias(nombre), propiedades(localidad)")
-    .eq("estado", "buscando_tecnico")
-    .is("tecnico_id", null)
-    .order("creado_el", { ascending: false });
+  const { data, error } = await supabaseNavegador().rpc("pedidos_abiertos_para_tecnico");
 
   if (error) fallar("cargar los pedidos disponibles", error);
 
   return ((data ?? []) as FilaPedidoAbierto[]).map((f) => ({
     id: f.id,
     categoriaSlug: f.categoria_slug,
-    categoriaNombre: f.categorias?.nombre ?? f.categoria_slug,
-    propiedadLocalidad: f.propiedades?.localidad ?? "",
+    categoriaNombre: f.categoria_nombre ?? f.categoria_slug,
+    propiedadLocalidad: f.propiedad_localidad ?? "",
     descripcion: f.descripcion,
     creadoEl: f.creado_el,
   }));
