@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
 
@@ -39,6 +39,23 @@ function Formulario() {
   );
   const [revisarMail, setRevisarMail] = useState(false);
   const [mailRecuperacion, setMailRecuperacion] = useState(false);
+
+  /* Si tocás "Continuar con Google" y volvés atrás con el botón del
+     navegador antes de terminar (te arrepentiste, cerraste la pestaña
+     de Google, lo que sea), el navegador no recarga esta página de
+     cero: la restaura tal cual estaba, con `cargando` todavía en true
+     — porque ese estado sólo se apaga si Google devuelve un error, y
+     acá no llegó a pasar nada. El resultado es un botón "cargando"
+     para siempre, sin ningún pedido de verdad en curso. El evento
+     `pageshow` con `persisted` es la señal de que la página volvió
+     así (bfcache), no de una carga nueva. */
+  useEffect(() => {
+    const alRestaurar = (e: PageTransitionEvent) => {
+      if (e.persisted) setCargando(false);
+    };
+    window.addEventListener("pageshow", alRestaurar);
+    return () => window.removeEventListener("pageshow", alRestaurar);
+  }, []);
 
   const registrando = modo === "registrarse";
   const recuperando = modo === "recuperar";

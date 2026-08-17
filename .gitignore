@@ -37,3 +37,6 @@ _archivo/
 
 # Variables de entorno locales (claves de Supabase)
 web/.env.local
+
+# Local Netlify folder
+.netlify
