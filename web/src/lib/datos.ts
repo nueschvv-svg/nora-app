@@ -109,9 +109,23 @@ function fallar(contexto: string, error: { message: string }): never {
 /* ---------- Propiedades ---------- */
 
 export async function listarPropiedades(): Promise<Propiedad[]> {
-  const { data, error } = await supabaseNavegador()
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  /* Excepción deliberada a "nunca filtrar a mano" (ver encabezado del
+     archivo): `propiedades` tiene una política extra que además le
+     deja ver la dirección al técnico con un trabajo activo ahí. Sin
+     este filtro, "Tus domicilios" le mezclaría a un técnico la
+     dirección ajena de un pedido que tiene asignado — no es suya, y
+     un pedido nuevo con esa dirección la base lo rechaza (RLS bien
+     hecho, pero un error confuso en pantalla). Encontrado en vivo. */
+  const { data, error } = await supabase
     .from("propiedades")
     .select("id, nombre, calle, numero, localidad, provincia, icono")
+    .eq("dueno_id", user.id)
     .order("creado_el");
 
   if (error) fallar("cargar tus domicilios", error);
