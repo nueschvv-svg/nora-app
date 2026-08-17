@@ -208,7 +208,19 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
               variante="peligro"
               cargando={guardando === "cancelar"}
               onClick={() => {
-                if (!window.confirm("¿Cancelar este pedido?")) return;
+                /* Del análisis de Rappi: cancelar cuesta más cuanto más
+                   avanzado está el pedido — acá todavía no hay costo real
+                   (Nora no maneja la plata salvo en efectivo), pero el
+                   aviso ya distingue la gravedad para que operaciones no
+                   cancele a la ligera un trabajo que el técnico ya
+                   confirmó o está haciendo. */
+                const mensaje =
+                  servicio.estado === "en_camino" || servicio.estado === "en_curso"
+                    ? "El técnico ya está en camino o trabajando en esto. ¿Seguro que querés cancelar?"
+                    : servicio.estado === "asignado" || servicio.estado === "aceptado"
+                      ? "Ya hay un técnico confirmado para este pedido. ¿Seguro que querés cancelar?"
+                      : "¿Cancelar este pedido?";
+                if (!window.confirm(mensaje)) return;
                 conGuardado("cancelar", () => actualizarServicioOperaciones(id, { estado: "cancelado" }));
               }}
             />

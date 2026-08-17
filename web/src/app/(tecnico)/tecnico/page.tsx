@@ -231,6 +231,9 @@ export default function PaginaTecnico() {
                   </div>
                   <p className="text-[12px] text-faint mt-0.5 truncate flex items-center gap-1">
                     <MapPin className="w-3 h-3 shrink-0" /> {p.propiedadLocalidad || "Zona sin cargar"}
+                    {p.distanciaKm != null && (
+                      <span className="text-brand-600 font-semibold shrink-0">· {p.distanciaKm} km</span>
+                    )}
                   </p>
                   <p className="text-[11.5px] text-mute mt-1 line-clamp-2">{p.descripcion}</p>
                 </div>

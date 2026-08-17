@@ -98,6 +98,7 @@ export type TrabajoDetalle = {
   ubicacionLng: number | null;
   ubicacionActualizadaEl: string | null;
   creadoEl: string;
+  clienteId: string;
   cliente: { nombre: string; telefono: string | null };
   /* null cuando el trabajo ya está "finalizado": la política de la base
      deja de mostrar la dirección en cuanto termina, a propósito (ver
@@ -155,6 +156,7 @@ export async function obtenerTrabajoTecnico(id: string): Promise<TrabajoDetalle 
     ubicacionLng: servicio.ubicacion_lng,
     ubicacionActualizadaEl: servicio.ubicacion_actualizada_el,
     creadoEl: servicio.creado_el,
+    clienteId: servicio.cliente_id,
     cliente: { nombre: perfil?.nombre ?? "—", telefono: perfil?.telefono ?? null },
     propiedad: propiedad
       ? {
@@ -212,12 +214,24 @@ export async function marcarEnCurso(id: string): Promise<void> {
   if (error) fallar("marcar que empezaste el trabajo", error);
 }
 
-export async function marcarFinalizado(id: string, reporte: string): Promise<void> {
-  const { error } = await supabaseNavegador()
+/* El código lo dicta el cliente (lo tiene en su pantalla desde que hay
+   técnico asignado, ver db/32_codigo_confirmacion.sql) — es la forma
+   de que finalizar el trabajo no dependa sólo de que el técnico "diga"
+   que terminó. Se valida acá mismo, sin trigger ni función aparte:
+   sumamos el código al WHERE del UPDATE — si no coincide, no hay fila
+   que matchee, la actualización afecta 0 filas y lo tratamos como
+   código incorrecto. */
+export async function marcarFinalizado(id: string, reporte: string, codigoConfirmacion: string): Promise<void> {
+  const { data, error } = await supabaseNavegador()
     .from("servicios")
     .update({ estado: "finalizado", reporte: reporte.trim() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("codigo_confirmacion", codigoConfirmacion.trim())
+    .select("id");
   if (error) fallar("cerrar el trabajo", error);
+  if (!data || data.length === 0) {
+    throw new Error("Ese código no coincide. Pedíselo de nuevo al cliente.");
+  }
 }
 
 export async function actualizarUbicacionTecnico(id: string, lat: number, lng: number): Promise<void> {
@@ -249,6 +263,8 @@ export type PedidoAbierto = {
   propiedadLocalidad: string;
   descripcion: string;
   creadoEl: string;
+  /** null si a vos o al pedido les falta ubicación cargada — igual se muestra, al final de la lista. */
+  distanciaKm: number | null;
 };
 
 type FilaPedidoAbierto = {
@@ -258,6 +274,7 @@ type FilaPedidoAbierto = {
   propiedad_localidad: string | null;
   descripcion: string;
   creado_el: string;
+  distancia_km: number | null;
 };
 
 /* Antes esto era un select directo a `servicios` con join a
@@ -280,6 +297,7 @@ export async function listarPedidosAbiertos(): Promise<PedidoAbierto[]> {
     propiedadLocalidad: f.propiedad_localidad ?? "",
     descripcion: f.descripcion,
     creadoEl: f.creado_el,
+    distanciaKm: f.distancia_km,
   }));
 }
 

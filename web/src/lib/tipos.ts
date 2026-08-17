@@ -198,7 +198,9 @@ export type Servicio = {
   estado: EstadoServicio;
   creadoEl: string;
   /** Día y franja que eligió el cliente al pedir — no una hora de llegada
-   *  calculada (no hay con qué: los domicilios no tienen coordenadas). */
+   *  calculada (para eso hace falta un servicio de ruteo con tránsito en
+   *  vivo, no sólo coordenadas — las coordenadas del domicilio ya existen
+   *  y se usan para ordenar la bolsa del técnico por distancia). */
   fechaPreferida: string | null;
   franjaPreferida: string | null;
   /** Monto en pesos argentinos. Null mientras no haya presupuesto aceptado. */
@@ -221,4 +223,7 @@ export type Servicio = {
   ubicacionLat?: number;
   ubicacionLng?: number;
   ubicacionActualizadaEl?: string;
+  /** Código de 4 dígitos que el cliente le dicta al técnico para poder
+   *  finalizar el trabajo — ver db/32_codigo_confirmacion.sql. */
+  codigoConfirmacion?: string;
 };

@@ -82,6 +82,7 @@ type FilaServicio = {
   ubicacion_lat: number | null;
   ubicacion_lng: number | null;
   ubicacion_actualizada_el: string | null;
+  codigo_confirmacion: string | null;
 };
 
 function aServicio(f: FilaServicio): Servicio {
@@ -102,6 +103,7 @@ function aServicio(f: FilaServicio): Servicio {
     tecnicoConfirmadoEl: f.tecnico_confirmado_el ?? undefined,
     ubicacionLat: f.ubicacion_lat ?? undefined,
     ubicacionLng: f.ubicacion_lng ?? undefined,
+    codigoConfirmacion: f.codigo_confirmacion ?? undefined,
     ubicacionActualizadaEl: f.ubicacion_actualizada_el ?? undefined,
   };
 }
@@ -149,6 +151,29 @@ export type NuevaPropiedad = {
   icono: Propiedad["icono"];
 };
 
+/* Best-effort: si Nominatim no responde o no encuentra nada, seguimos
+   sin lat/lng — nunca por esto se frena el alta de un domicilio. Ver
+   api/geocodificar/route.ts. */
+async function geocodificar(datos: NuevaPropiedad): Promise<{ lat: number | null; lng: number | null }> {
+  try {
+    const r = await fetch("/api/geocodificar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        calle: datos.calle,
+        numero: datos.numero,
+        localidad: datos.localidad,
+        provincia: datos.provincia,
+      }),
+    });
+    if (!r.ok) return { lat: null, lng: null };
+    const { lat, lng } = (await r.json()) as { lat: number | null; lng: number | null };
+    return { lat, lng };
+  } catch {
+    return { lat: null, lng: null };
+  }
+}
+
 export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> {
   const supabase = supabaseNavegador();
 
@@ -161,6 +186,8 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Tenés que iniciar sesión.");
 
+  const { lat, lng } = await geocodificar(datos);
+
   const { data, error } = await supabase
     .from("propiedades")
     .insert({
@@ -171,6 +198,8 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
       localidad: datos.localidad.trim(),
       provincia: datos.provincia.trim(),
       icono: datos.icono,
+      latitud: lat,
+      longitud: lng,
     })
     .select("id, nombre, calle, numero, localidad, provincia, icono")
     .single();
@@ -245,7 +274,7 @@ export async function listarServicios(): Promise<Servicio[]> {
   const { data, error } = await supabase
     .from("servicios")
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
     )
     .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
@@ -284,7 +313,7 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
       franja_preferida: datos.franjaPreferida,
     })
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
     )
     .single();
 
@@ -309,7 +338,7 @@ export async function confirmarPagoEfectivo(servicioId: string): Promise<Servici
     })
     .eq("id", servicioId)
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
     )
     .single();
 
@@ -328,7 +357,7 @@ export async function aceptarPresupuesto(servicioId: string): Promise<Servicio> 
     .update({ estado: "aceptado" })
     .eq("id", servicioId)
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
     )
     .single();
 
@@ -342,7 +371,7 @@ export async function rechazarPresupuesto(servicioId: string): Promise<Servicio>
     .update({ estado: "buscando_tecnico", tecnico_id: null, monto_ars: null })
     .eq("id", servicioId)
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
     )
     .single();
 

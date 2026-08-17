@@ -483,6 +483,28 @@ export function HojaServicio({
                 )}
               </div>
 
+              {/* Se lo dictás al técnico cuando termine — sin esto no puede
+                  cerrar el trabajo. Visible desde que hay técnico asignado
+                  y hasta que el trabajo se cierra; después ya cumplió su
+                  función. Ver db/32_codigo_confirmacion.sql. */}
+              {servicio.tecnicoId &&
+                servicio.codigoConfirmacion &&
+                !["finalizado", "pagado", "calificado", "cancelado"].includes(estadoMostrado ?? servicio.estado) && (
+                  <div className="relative mt-3 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-3.5 py-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold tracking-wide uppercase text-brand-100">
+                        Código para tu técnico
+                      </p>
+                      <p className="text-[11.5px] text-brand-100 leading-snug mt-0.5">
+                        Se lo dictás cuando termine, para cerrar el trabajo
+                      </p>
+                    </div>
+                    <span className="shrink-0 num text-[22px] font-bold text-white tracking-[0.25em]">
+                      {servicio.codigoConfirmacion}
+                    </span>
+                  </div>
+                )}
+
               {!ESTADOS_SIN_PROGRESO.has(estadoMostrado ?? servicio.estado) && (
                 <Progreso pasoActual={pasoActual} oscuro />
               )}

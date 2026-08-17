@@ -13,6 +13,7 @@ import {
   type LucideIcon,
   MapPin,
   Navigation,
+  Star,
   User,
   X as IconoX,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import {
   rechazarTrabajo,
   type TrabajoDetalle,
 } from "@/lib/tecnico";
+import { calificarComoTecnico, miCalificacionComoTecnico, type MiCalificacion } from "@/lib/trabajadores";
 import { fecha, pesos } from "@/lib/formato";
 
 /* Distancia en metros entre dos puntos (haversine) — mismo espíritu que
@@ -77,8 +79,15 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
   const [compartiendoUbicacion, setCompartiendoUbicacion] = useState(false);
   const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
   const [reporte, setReporte] = useState("");
+  const [codigoConfirmacion, setCodigoConfirmacion] = useState("");
   const [ofertando, setOfertando] = useState(false);
   const [montoOferta, setMontoOferta] = useState("");
+  const [calificacion, setCalificacion] = useState<MiCalificacion | null>(null);
+  const [calificacionDeTrabajo, setCalificacionDeTrabajo] = useState<string | null>(null);
+  const [estrellas, setEstrellas] = useState(0);
+  const [comentarioCalificacion, setComentarioCalificacion] = useState("");
+  const [guardandoCalificacion, setGuardandoCalificacion] = useState(false);
+  const [errorCalificacion, setErrorCalificacion] = useState<string | null>(null);
 
   const traer = useCallback(() => setIntento((n) => n + 1), []);
 
@@ -149,6 +158,36 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
       setAvisoAccion(e instanceof Error ? e.message : "No pudimos guardar el cambio.");
     } finally {
       setGuardando(null);
+    }
+  };
+
+  /* Calificar al cliente: mismo criterio que el lado cliente en
+     HojaServicio.tsx (id-tracking en vez de un booleano de carga, para
+     no tocar estado de forma síncrona apenas arranca el efecto). */
+  useEffect(() => {
+    if (!["finalizado", "pagado", "calificado"].includes(trabajo?.estado ?? "")) return;
+    miCalificacionComoTecnico(id)
+      .then((c) => {
+        setCalificacion(c);
+        setCalificacionDeTrabajo(id);
+      })
+      .catch(() => {
+        setCalificacion(null);
+        setCalificacionDeTrabajo(id);
+      });
+  }, [id, trabajo?.estado]);
+
+  const enviarCalificacion = async () => {
+    if (!trabajo || estrellas === 0 || guardandoCalificacion) return;
+    setGuardandoCalificacion(true);
+    setErrorCalificacion(null);
+    try {
+      await calificarComoTecnico(id, trabajo.clienteId, estrellas, comentarioCalificacion);
+      setCalificacion({ estrellas, comentario: comentarioCalificacion.trim() || null });
+    } catch (e) {
+      setErrorCalificacion(e instanceof Error ? e.message : "No pudimos guardar tu calificación.");
+    } finally {
+      setGuardandoCalificacion(false);
     }
   };
 
@@ -361,6 +400,19 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
               rows={3}
               className="w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
             />
+
+            <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mt-3 mb-1.5">
+              Código del cliente
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={codigoConfirmacion}
+              onChange={(e) => setCodigoConfirmacion(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="Pedíselo antes de cerrar"
+              className="w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300 tracking-[0.3em]"
+            />
+
             <div className="mt-2">
               <BotonAccion
                 texto="Terminar trabajo"
@@ -372,7 +424,11 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
                     setAvisoAccion("Contanos qué hiciste antes de cerrar el trabajo.");
                     return;
                   }
-                  conGuardado("finalizar", () => marcarFinalizado(id, reporte));
+                  if (codigoConfirmacion.length !== 4) {
+                    setAvisoAccion("Pedile al cliente el código de 4 dígitos para poder cerrar.");
+                    return;
+                  }
+                  conGuardado("finalizar", () => marcarFinalizado(id, reporte, codigoConfirmacion));
                 }}
               />
             </div>
@@ -386,6 +442,61 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
           </div>
         )}
       </Seccion>
+
+      {/* Calificar al cliente — de ida y vuelta, como el análisis de
+          Rappi: hasta ahora sólo el cliente calificaba. */}
+      {calificacionDeTrabajo === id &&
+        ["finalizado", "pagado", "calificado"].includes(trabajo.estado) &&
+        (calificacion ? (
+          <Seccion titulo="Tu calificación al cliente" icono={Star}>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star
+                  key={n}
+                  className={`w-4 h-4 ${n <= calificacion.estrellas ? "fill-warn text-warn" : "text-line"}`}
+                />
+              ))}
+            </div>
+            {calificacion.comentario && (
+              <p className="text-[13px] text-ink leading-relaxed mt-2">{calificacion.comentario}</p>
+            )}
+          </Seccion>
+        ) : (
+          <Seccion titulo={`¿Cómo te fue con ${trabajo.cliente.nombre}?`} icono={Star}>
+            <div className="flex items-center gap-1.5">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" onClick={() => setEstrellas(n)} aria-label={`${n} estrellas`}>
+                  <Star className={`w-7 h-7 ${n <= estrellas ? "fill-warn text-warn" : "text-line"}`} />
+                </button>
+              ))}
+            </div>
+            {estrellas > 0 && (
+              <>
+                <textarea
+                  value={comentarioCalificacion}
+                  onChange={(e) => setComentarioCalificacion(e.target.value)}
+                  placeholder="Contanos cómo te fue (opcional)"
+                  rows={2}
+                  className="mt-3 w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+                />
+                {errorCalificacion && (
+                  <p role="alert" className="text-[12.5px] text-urgent mt-1.5">
+                    {errorCalificacion}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={enviarCalificacion}
+                  disabled={guardandoCalificacion}
+                  className="press mt-2.5 w-full flex items-center justify-center gap-1.5 rounded-xl2 bg-brand-600 text-white py-3 text-[13px] font-semibold disabled:opacity-60"
+                >
+                  {guardandoCalificacion && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Enviar calificación
+                </button>
+              </>
+            )}
+          </Seccion>
+        ))}
 
       <HiloChat
         idAncla={id}

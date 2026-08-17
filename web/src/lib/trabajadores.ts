@@ -229,16 +229,23 @@ export async function tecnicoDeServicio(servicioId: string): Promise<TecnicoDeSe
    La tabla y sus permisos ya existían desde el principio
    (01_esquema.sql, 02_permisos.sql): sólo el cliente, sólo sobre un
    servicio propio, sólo cuando terminó de verdad. Nunca se había
-   conectado del lado de ninguna pantalla — ver db/24_calificaciones.sql. */
+   conectado del lado de ninguna pantalla — ver db/24_calificaciones.sql.
+
+   Ahora es de ida y vuelta (db/33_calificacion_bidireccional.sql): un
+   servicio puede tener hasta dos filas, una por `calificador`
+   ("cliente" o "tecnico"). Por eso las consultas de acá filtran ese
+   valor explícito — antes alcanzaba con servicio_id solo porque nunca
+   podía haber más de una fila. */
 
 export type MiCalificacion = { estrellas: number; comentario: string | null };
 
-/** null si todavía no calificó este servicio. */
+/** null si el cliente todavía no calificó este servicio. */
 export async function miCalificacion(servicioId: string): Promise<MiCalificacion | null> {
   const { data, error } = await supabaseNavegador()
     .from("calificaciones")
     .select("estrellas, comentario")
     .eq("servicio_id", servicioId)
+    .eq("calificador", "cliente")
     .maybeSingle();
   if (error) fallar("cargar tu calificación", error);
   return data;
@@ -262,6 +269,42 @@ export async function calificarServicio(
     tecnico_id: tecnicoId,
     estrellas,
     comentario: comentario.trim() || null,
+    calificador: "cliente",
+  });
+  if (error) fallar("guardar tu calificación", error);
+}
+
+/** null si el técnico todavía no calificó a este cliente. */
+export async function miCalificacionComoTecnico(servicioId: string): Promise<MiCalificacion | null> {
+  const { data, error } = await supabaseNavegador()
+    .from("calificaciones")
+    .select("estrellas, comentario")
+    .eq("servicio_id", servicioId)
+    .eq("calificador", "tecnico")
+    .maybeSingle();
+  if (error) fallar("cargar tu calificación", error);
+  return data;
+}
+
+export async function calificarComoTecnico(
+  servicioId: string,
+  clienteId: string,
+  estrellas: number,
+  comentario: string,
+): Promise<void> {
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  const { error } = await supabase.from("calificaciones").insert({
+    servicio_id: servicioId,
+    cliente_id: clienteId,
+    tecnico_id: user.id,
+    estrellas,
+    comentario: comentario.trim() || null,
+    calificador: "tecnico",
   });
   if (error) fallar("guardar tu calificación", error);
 }
