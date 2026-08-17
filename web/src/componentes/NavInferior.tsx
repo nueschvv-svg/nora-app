@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { History, House, Plus, UserRound } from "lucide-react";
+import { Hammer, History, House, Plus, UserRound } from "lucide-react";
 
 /* A diferencia del prototipo, cada pestaña es una URL real.
    Eso arregla el botón "atrás" del celular, permite compartir links
@@ -10,6 +10,7 @@ import { History, House, Plus, UserRound } from "lucide-react";
 const PESTANAS = [
   { href: "/inicio", etiqueta: "Inicio", Icono: House },
   { href: "/historial", etiqueta: "Historial", Icono: History },
+  { href: "/obras", etiqueta: "Obras", Icono: Hammer },
   { href: "/perfil", etiqueta: "Perfil", Icono: UserRound },
 ];
 
@@ -36,9 +37,8 @@ export function NavInferior() {
             </Link>
           </div>
 
-          <Pestana {...PESTANAS[2]} activa={ruta.startsWith("/perfil")} />
-          {/* Cuarto hueco para que el botón central quede centrado */}
-          <span className="w-14" aria-hidden="true" />
+          <Pestana {...PESTANAS[2]} activa={ruta.startsWith("/obras")} />
+          <Pestana {...PESTANAS[3]} activa={ruta.startsWith("/perfil")} />
         </div>
       </div>
     </nav>

@@ -78,8 +78,12 @@ export default function PaginaTecnico() {
 
   if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
-  const pendientes = trabajos.filter((t) => t.estado === "asignado" && !t.tecnicoConfirmadoEl);
-  const enCurso = trabajos.filter((t) => !!t.tecnicoConfirmadoEl && !TERMINADOS.has(t.estado));
+  const pendientes = trabajos.filter(
+    (t) => (t.estado === "asignado" && !t.tecnicoConfirmadoEl) || t.estado === "presupuestado",
+  );
+  const enCurso = trabajos.filter(
+    (t) => (!!t.tecnicoConfirmadoEl || t.estado === "aceptado") && !TERMINADOS.has(t.estado),
+  );
   const historial = trabajos.filter((t) => TERMINADOS.has(t.estado));
   const totalCobrado = trabajos
     .filter((t) => COMPLETADOS.has(t.estado))

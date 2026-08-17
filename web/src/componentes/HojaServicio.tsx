@@ -2,12 +2,25 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { CalendarClock, UserRound, X } from "lucide-react";
+import { Banknote, CalendarClock, Check, Loader2, QrCode, Star, UserRound, X, XCircle } from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
 import { HiloChat } from "./HiloChat";
-import { listarFotosServicio, type FotoServicio } from "@/lib/datos";
+import { useApp } from "./ContextoApp";
+import {
+  aceptarPresupuesto,
+  confirmarPagoEfectivo,
+  listarFotosServicio,
+  rechazarPresupuesto,
+  type FotoServicio,
+} from "@/lib/datos";
 import { suscribirseAServicio } from "@/lib/tiempoReal";
-import { tecnicoDeServicio, type TecnicoDeServicio } from "@/lib/trabajadores";
+import {
+  calificarServicio,
+  miCalificacion,
+  tecnicoDeServicio,
+  type MiCalificacion,
+  type TecnicoDeServicio,
+} from "@/lib/trabajadores";
 import { ETIQUETA_ESTADO, ETIQUETA_FRANJA, type EstadoServicio, type Servicio } from "@/lib/tipos";
 import { fecha, pesos } from "@/lib/formato";
 import type { CategoriaBD } from "@/lib/datos";
@@ -18,6 +31,89 @@ const MapaSeguimiento = dynamic(
   () => import("./MapaSeguimiento").then((m) => m.MapaSeguimiento),
   { ssr: false },
 );
+
+/* Stepper de progreso: sólo tiene sentido una vez que hay un técnico
+   trabajando de verdad en esto — antes de eso (buscando, presupuesto
+   sin responder) no hay nada que "progrese" todavía. */
+const PASOS_PROGRESO = ["Confirmado", "En camino", "Trabajando", "Terminado"];
+const ESTADOS_CON_PROGRESO = new Set<EstadoServicio>([
+  "asignado",
+  "aceptado",
+  "en_camino",
+  "en_curso",
+  "finalizado",
+  "pagado",
+  "calificado",
+]);
+
+function pasoDeEstado(estado: EstadoServicio): number {
+  if (estado === "en_camino") return 1;
+  if (estado === "en_curso") return 2;
+  if (estado === "finalizado" || estado === "pagado" || estado === "calificado") return 3;
+  return 0; // asignado (ya confirmado) o aceptado
+}
+
+function Progreso({ pasoActual }: { pasoActual: number }) {
+  // El último paso ("Terminado") ya no tiene nada "en curso" después:
+  // apenas se llega ahí, se muestra completo como los anteriores, no
+  // pulsando como si algo siguiera pasando.
+  const completo = pasoActual >= PASOS_PROGRESO.length - 1;
+
+  return (
+    <div className="mt-4 flex items-center">
+      {PASOS_PROGRESO.map((etiqueta, i) => {
+        const hecho = i < pasoActual || (completo && i === pasoActual);
+        const actual = !completo && i === pasoActual;
+        return (
+          <div key={etiqueta} className="flex-1 flex items-center last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              <span
+                className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-bold ${
+                  hecho ? "bg-good text-white" : actual ? "bg-brand-600 text-white live-dot" : "bg-line text-faint"
+                }`}
+              >
+                {hecho ? <Check className="w-3 h-3" /> : i + 1}
+              </span>
+              <span
+                className={`text-[9.5px] font-medium text-center leading-tight ${
+                  i <= pasoActual ? "text-ink" : "text-faint"
+                }`}
+              >
+                {etiqueta}
+              </span>
+            </div>
+            {i < PASOS_PROGRESO.length - 1 && (
+              <span className={`flex-1 h-[2px] mb-4 ${i < pasoActual ? "bg-good" : "bg-line"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FilaResumen({
+  etiqueta,
+  valor,
+  destacado,
+}: {
+  etiqueta: string;
+  valor: string;
+  destacado?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <span className="text-[13px] text-mute">{etiqueta}</span>
+      <span
+        className={
+          destacado ? "num text-[15px] font-bold text-ink" : "text-[13px] font-semibold text-ink text-right"
+        }
+      >
+        {valor}
+      </span>
+    </div>
+  );
+}
 
 /* Detalle de un servicio. Antes no existía: los pedidos se veían en
    Historial pero no se podían abrir — ni para leer el diagnóstico
@@ -35,6 +131,12 @@ export function HojaServicio({
   abierto: boolean;
   alCerrar: () => void;
 }) {
+  /* El domicilio de "Resumen" es el mismo que ya tiene cargado el
+     contexto: tanto Inicio como Historial ya filtran sus listas al
+     domicilio elegido, así que cualquier servicio que llega acá es de
+     esa misma propiedad — no hace falta pasarla como prop aparte. */
+  const { propiedad } = useApp();
+
   const [fotos, setFotos] = useState<FotoServicio[]>([]);
   /* id del servicio cuyas fotos ya están en `fotos`. Mientras no
      coincida con el servicio abierto, se está cargando — derivado en
@@ -57,6 +159,88 @@ export function HojaServicio({
   } | null>(null);
   const overrideVigente = !!servicio && overrideServicioId === servicio.id;
   const estadoMostrado = (overrideVigente ? estadoEnVivo : null) ?? servicio?.estado;
+
+  /* Confirmar pago en efectivo. Al confirmar, se reusa el mismo
+     mecanismo de "estado en vivo" de arriba en vez de esperar a que el
+     padre vuelva a pedir la lista — así el paso de pago desaparece al
+     toque, sin depender de un refetch externo. */
+  const [confirmandoPago, setConfirmandoPago] = useState(false);
+  const [errorPago, setErrorPago] = useState<string | null>(null);
+
+  const confirmarEfectivo = async () => {
+    if (!servicio || confirmandoPago) return;
+    setConfirmandoPago(true);
+    setErrorPago(null);
+    try {
+      await confirmarPagoEfectivo(servicio.id);
+      setOverrideServicioId(servicio.id);
+      setEstadoEnVivo("pagado");
+    } catch (e) {
+      setErrorPago(e instanceof Error ? e.message : "No pudimos confirmar el pago.");
+    } finally {
+      setConfirmandoPago(false);
+    }
+  };
+
+  /* Responder a una oferta del técnico. Mismo mecanismo que el pago:
+     al resolver, se pisa el estado en vivo para que la tarjeta
+     desaparezca al toque. */
+  const [respondiendoOferta, setRespondiendoOferta] = useState<"aceptar" | "rechazar" | null>(null);
+  const [errorOferta, setErrorOferta] = useState<string | null>(null);
+
+  const responderOferta = async (accion: "aceptar" | "rechazar") => {
+    if (!servicio || respondiendoOferta) return;
+    setRespondiendoOferta(accion);
+    setErrorOferta(null);
+    try {
+      const actualizado =
+        accion === "aceptar" ? await aceptarPresupuesto(servicio.id) : await rechazarPresupuesto(servicio.id);
+      setOverrideServicioId(servicio.id);
+      setEstadoEnVivo(actualizado.estado);
+    } catch (e) {
+      setErrorOferta(e instanceof Error ? e.message : "No pudimos responder la oferta.");
+    } finally {
+      setRespondiendoOferta(null);
+    }
+  };
+
+  /* Calificar al técnico. Sólo se puede una vez por servicio (la base
+     lo exige con un unique en servicio_id) — se trae la calificación
+     existente para no mostrar el formulario dos veces. */
+  const [calificacion, setCalificacion] = useState<MiCalificacion | null>(null);
+  const [calificacionDeServicio, setCalificacionDeServicio] = useState<string | null>(null);
+  const [estrellas, setEstrellas] = useState(0);
+  const [comentarioCalificacion, setComentarioCalificacion] = useState("");
+  const [guardandoCalificacion, setGuardandoCalificacion] = useState(false);
+  const [errorCalificacion, setErrorCalificacion] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!abierto || !servicio?.tecnicoId) return;
+    miCalificacion(servicio.id)
+      .then((c) => {
+        setCalificacion(c);
+        setCalificacionDeServicio(servicio.id);
+      })
+      .catch(() => {
+        setCalificacion(null);
+        setCalificacionDeServicio(servicio.id);
+      });
+  }, [abierto, servicio]);
+
+  const enviarCalificacion = async () => {
+    if (!servicio?.tecnicoId || estrellas === 0 || guardandoCalificacion) return;
+    setGuardandoCalificacion(true);
+    setErrorCalificacion(null);
+    try {
+      await calificarServicio(servicio.id, servicio.tecnicoId, estrellas, comentarioCalificacion);
+      setCalificacion({ estrellas, comentario: comentarioCalificacion.trim() || null });
+    } catch (e) {
+      setErrorCalificacion(e instanceof Error ? e.message : "No pudimos guardar tu calificación.");
+    } finally {
+      setGuardandoCalificacion(false);
+    }
+  };
+
   const ubicacionMostrada = overrideVigente
     ? ubicacionEnVivo
     : servicio?.ubicacionLat != null && servicio?.ubicacionLng != null
@@ -177,6 +361,73 @@ export function HojaServicio({
               </p>
             )}
 
+            {servicio.tecnicoId &&
+              ESTADOS_CON_PROGRESO.has(estadoMostrado ?? servicio.estado) &&
+              !((estadoMostrado ?? servicio.estado) === "asignado" && !servicio.tecnicoConfirmadoEl) && (
+                <Progreso pasoActual={pasoDeEstado(estadoMostrado ?? servicio.estado)} />
+              )}
+
+            <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
+              <FilaResumen etiqueta="Servicio" valor={categoria?.nombre ?? "Servicio"} />
+              {propiedad && (
+                <FilaResumen etiqueta="Domicilio" valor={`${propiedad.nombre} · ${propiedad.direccion}`} />
+              )}
+              <FilaResumen
+                etiqueta="Total"
+                valor={servicio.montoArs != null ? pesos(servicio.montoArs) : "A confirmar"}
+                destacado
+              />
+            </div>
+
+            {/* El técnico ofertó un precio propio en vez de aceptar tal
+                cual: no puede salir hasta que el cliente responda. */}
+            {estadoMostrado === "presupuestado" && (
+              <div className="mt-3 rounded-xl2 bg-brand-50 border border-brand-100 p-4">
+                <p className="text-[11px] font-bold tracking-wide uppercase text-brand-600">
+                  Tu técnico te ofrece hacer el trabajo por
+                </p>
+                {servicio.montoArs != null && (
+                  <p className="num text-[22px] font-bold text-ink mt-1">{pesos(servicio.montoArs)}</p>
+                )}
+                {errorOferta && (
+                  <p role="alert" className="text-[12.5px] text-urgent mt-1.5">
+                    {errorOferta}
+                  </p>
+                )}
+                <div className="mt-3 grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => responderOferta("aceptar")}
+                    disabled={!!respondiendoOferta}
+                    className="press flex items-center justify-center gap-1.5 rounded-xl2 bg-brand-600 text-white py-3 text-[13px] font-semibold disabled:opacity-60"
+                  >
+                    {respondiendoOferta === "aceptar" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    Aceptar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!window.confirm("¿Rechazar esta oferta? El pedido vuelve a la bolsa para otro técnico.")) return;
+                      responderOferta("rechazar");
+                    }}
+                    disabled={!!respondiendoOferta}
+                    className="flex items-center justify-center gap-1.5 rounded-xl2 bg-urgent/10 text-urgent py-3 text-[13px] font-semibold disabled:opacity-60"
+                  >
+                    {respondiendoOferta === "rechazar" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    Rechazar
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
               <p className="text-[11px] font-bold tracking-wide uppercase text-faint">El problema</p>
               <p className="text-[13.5px] text-ink leading-relaxed mt-1.5 whitespace-pre-line">
@@ -184,19 +435,71 @@ export function HojaServicio({
               </p>
             </div>
 
-            {servicio.montoArs != null && (
-              <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4 flex items-center justify-between">
-                <p className="text-[11px] font-bold tracking-wide uppercase text-faint">Monto</p>
-                <p className="num text-[15px] font-bold text-ink">{pesos(servicio.montoArs)}</p>
-              </div>
-            )}
-
             {servicio.reporte && (
               <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
                 <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
                   Reporte del técnico
                 </p>
                 <p className="text-[13.5px] text-ink leading-relaxed mt-1.5">{servicio.reporte}</p>
+              </div>
+            )}
+
+            {/* Pago: sólo aparece cuando el técnico ya terminó y todavía
+                nadie confirmó cómo se pagó. Efectivo cierra el pedido en
+                el momento; Mercado Pago está a la vista pero apagado
+                hasta tener credenciales reales de una Aplicación de
+                Mercado Pago Developers — ver db/22_confirmar_pago.sql. */}
+            {estadoMostrado === "finalizado" && !servicio.metodoPago && (
+              <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
+                <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
+                  ¿Cómo pagás?
+                </p>
+                {servicio.montoArs != null && (
+                  <p className="num text-[19px] font-bold text-ink mt-1">{pesos(servicio.montoArs)}</p>
+                )}
+                {errorPago && (
+                  <p role="alert" className="text-[12.5px] text-urgent mt-1.5">
+                    {errorPago}
+                  </p>
+                )}
+                <div className="mt-3 grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={confirmarEfectivo}
+                    disabled={confirmandoPago}
+                    className="press flex flex-col items-center gap-1.5 rounded-xl2 bg-brand-600 text-white py-3.5 text-[13px] font-semibold disabled:opacity-60"
+                  >
+                    {confirmandoPago ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Banknote className="w-5 h-5" />
+                    )}
+                    Efectivo
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="relative flex flex-col items-center gap-1.5 rounded-xl2 border border-dashed border-line text-faint py-3.5 text-[13px] font-semibold opacity-70 cursor-not-allowed"
+                  >
+                    <QrCode className="w-5 h-5" />
+                    Mercado Pago
+                    <span className="absolute -top-2 right-2 text-[9px] font-bold uppercase tracking-wide bg-warn/15 text-warn rounded-full px-1.5 py-0.5">
+                      Próximamente
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {servicio.metodoPago && (
+              <div className="mt-3 flex items-center gap-2.5 rounded-xl2 bg-good/10 px-3.5 py-3">
+                <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-good/15 text-good">
+                  <Check className="w-4 h-4" />
+                </span>
+                <p className="text-[12.5px] text-ink leading-snug">
+                  Pagado {servicio.metodoPago === "efectivo" ? "en efectivo" : "con Mercado Pago"}
+                  {servicio.montoArs != null ? ` · ${pesos(servicio.montoArs)}` : ""}
+                </p>
               </div>
             )}
 
@@ -231,13 +534,19 @@ export function HojaServicio({
                         <UserRound className="w-6 h-6 text-brand-300" />
                       )}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-[10.5px] font-bold tracking-wide uppercase text-faint">
                         Tu técnico
                       </p>
                       <p className="text-[14.5px] font-semibold text-ink truncate mt-0.5">
                         {tecnico?.nombre ?? "Asignado"}
                       </p>
+                      {tecnico?.promedio != null && (
+                        <p className="flex items-center gap-1 text-[12px] text-mute mt-0.5">
+                          <Star className="w-3 h-3 fill-warn text-warn" />
+                          {tecnico.promedio} · {tecnico.trabajos} {tecnico.trabajos === 1 ? "trabajo" : "trabajos"}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -254,6 +563,72 @@ export function HojaServicio({
                     />
                   </>
                 )}
+
+                {/* Calificar: sólo cuando el trabajo ya terminó y todavía
+                    no hay calificación para este servicio puntual. */}
+                {calificacionDeServicio === servicio.id &&
+                  ["finalizado", "pagado", "calificado"].includes(estadoMostrado ?? servicio.estado) &&
+                  (calificacion ? (
+                    <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card p-4">
+                      <p className="text-[11px] font-bold tracking-wide uppercase text-faint">Tu calificación</p>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star
+                            key={n}
+                            className={`w-4 h-4 ${n <= calificacion.estrellas ? "fill-warn text-warn" : "text-line"}`}
+                          />
+                        ))}
+                      </div>
+                      {calificacion.comentario && (
+                        <p className="text-[13px] text-ink leading-relaxed mt-2">{calificacion.comentario}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card p-4">
+                      <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
+                        ¿Cómo te fue con {tecnico?.nombre ?? "el técnico"}?
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setEstrellas(n)}
+                            aria-label={`${n} estrellas`}
+                            className="press"
+                          >
+                            <Star className={`w-7 h-7 ${n <= estrellas ? "fill-warn text-warn" : "text-line"}`} />
+                          </button>
+                        ))}
+                      </div>
+                      {estrellas > 0 && (
+                        <>
+                          <textarea
+                            value={comentarioCalificacion}
+                            onChange={(e) => setComentarioCalificacion(e.target.value)}
+                            placeholder="Contanos cómo te fue (opcional)"
+                            rows={2}
+                            className="mt-3 w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+                          />
+                          {errorCalificacion && (
+                            <p role="alert" className="text-[12.5px] text-urgent mt-1.5">
+                              {errorCalificacion}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={enviarCalificacion}
+                            disabled={guardandoCalificacion}
+                            className="press mt-2.5 w-full flex items-center justify-center gap-1.5 rounded-xl2 bg-brand-600 text-white py-3 text-[13px] font-semibold disabled:opacity-60"
+                          >
+                            {guardandoCalificacion && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Enviar calificación
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+
                 <HiloChat servicioId={servicio.id} />
               </>
             )}

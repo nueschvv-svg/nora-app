@@ -188,6 +188,8 @@ export type Categoria = {
   activa: boolean;
 };
 
+export type MetodoPago = "efectivo" | "mercado_pago";
+
 export type Servicio = {
   id: string;
   propiedadId: string;
@@ -201,6 +203,11 @@ export type Servicio = {
   franjaPreferida: string | null;
   /** Monto en pesos argentinos. Null mientras no haya presupuesto aceptado. */
   montoArs: number | null;
+  /** Null hasta que el cliente confirma cómo pagó (sólo posible una vez
+   *  "finalizado"). "mercado_pago" todavía no es seleccionable — ver
+   *  db/22_confirmar_pago.sql. */
+  metodoPago: MetodoPago | null;
+  pagoConfirmadoEl: string | null;
   tecnicoNombre?: string;
   tecnicoCalificacion?: number;
   /** Qué se hizo, cargado por el técnico al terminar. */

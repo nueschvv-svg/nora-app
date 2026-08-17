@@ -182,6 +182,18 @@ export async function aceptarTrabajo(id: string): Promise<void> {
   if (error) fallar("aceptar el trabajo", error);
 }
 
+/** Tercer camino además de aceptar/rechazar: ofertar un precio propio.
+ *  El pedido pasa a "presupuestado" — el cliente lo tiene que aceptar
+ *  antes de que el técnico pueda salir (ver db/23_ofertar_precio.sql).
+ *  Sólo se puede desde "asignado", antes de aceptar. */
+export async function ofertarPrecio(id: string, montoArs: number): Promise<void> {
+  const { error } = await supabaseNavegador()
+    .from("servicios")
+    .update({ estado: "presupuestado", monto_ars: montoArs })
+    .eq("id", id);
+  if (error) fallar("enviar tu oferta", error);
+}
+
 export async function rechazarTrabajo(id: string): Promise<void> {
   const { error } = await supabaseNavegador()
     .from("servicios")

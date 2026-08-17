@@ -149,6 +149,12 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
         <Fila etiqueta="Domicilio" valor={`${servicio.propiedad.nombre} · ${servicio.propiedad.direccion}`} />
         <Fila etiqueta="Localidad" valor={`${servicio.propiedad.localidad}, ${servicio.propiedad.provincia}`} />
         {servicio.propiedad.notasAcceso && <Fila etiqueta="Notas de acceso" valor={servicio.propiedad.notasAcceso} />}
+        {servicio.metodoPago && (
+          <Fila
+            etiqueta="Pago"
+            valor={servicio.metodoPago === "efectivo" ? "Efectivo" : "Mercado Pago"}
+          />
+        )}
       </Seccion>
 
       {/* ---------- El problema ---------- */}

@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
+  Banknote,
   Camera,
   Check,
+  Clock,
   Loader2,
   type LucideIcon,
   MapPin,
@@ -24,10 +26,11 @@ import {
   marcarEnCurso,
   marcarFinalizado,
   obtenerTrabajoTecnico,
+  ofertarPrecio,
   rechazarTrabajo,
   type TrabajoDetalle,
 } from "@/lib/tecnico";
-import { fecha } from "@/lib/formato";
+import { fecha, pesos } from "@/lib/formato";
 
 /* Distancia en metros entre dos puntos (haversine) — mismo espíritu que
    tecnicos_cercanos() del lado de la base, sólo que acá es para decidir
@@ -73,6 +76,8 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
   const [compartiendoUbicacion, setCompartiendoUbicacion] = useState(false);
   const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
   const [reporte, setReporte] = useState("");
+  const [ofertando, setOfertando] = useState(false);
+  const [montoOferta, setMontoOferta] = useState("");
 
   const traer = useCallback(() => setIntento((n) => n + 1), []);
 
@@ -210,29 +215,86 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
 
       <Seccion titulo="Acciones" icono={Navigation}>
         {pendienteDeAceptar && (
-          <div className="flex gap-2.5">
-            <BotonAccion
-              texto="Aceptar"
-              icono={Check}
-              ancho="compartido"
-              cargando={guardando === "aceptar"}
-              onClick={() => conGuardado("aceptar", () => aceptarTrabajo(id))}
-            />
-            <BotonAccion
-              texto="Rechazar"
-              icono={IconoX}
-              ancho="compartido"
-              variante="peligro"
-              cargando={guardando === "rechazar"}
-              onClick={() => {
-                if (!window.confirm("¿Rechazar este trabajo? Vuelve a la bolsa para que operaciones lo reasigne.")) return;
-                conGuardado("rechazar", () => rechazarTrabajo(id));
-              }}
-            />
+          <>
+            <div className="flex gap-2.5">
+              <BotonAccion
+                texto="Aceptar"
+                icono={Check}
+                ancho="compartido"
+                cargando={guardando === "aceptar"}
+                onClick={() => conGuardado("aceptar", () => aceptarTrabajo(id))}
+              />
+              <BotonAccion
+                texto="Rechazar"
+                icono={IconoX}
+                ancho="compartido"
+                variante="peligro"
+                cargando={guardando === "rechazar"}
+                onClick={() => {
+                  if (!window.confirm("¿Rechazar este trabajo? Vuelve a la bolsa para que operaciones lo reasigne.")) return;
+                  conGuardado("rechazar", () => rechazarTrabajo(id));
+                }}
+              />
+            </div>
+
+            {!ofertando ? (
+              <button
+                type="button"
+                onClick={() => setOfertando(true)}
+                className="press mt-2.5 w-full flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-brand-600"
+              >
+                <Banknote className="w-3.5 h-3.5" />
+                O hacé tu propia oferta de precio
+              </button>
+            ) : (
+              <div className="mt-3 pt-3 border-t border-line">
+                <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">
+                  Tu precio para este trabajo (ARS)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={montoOferta}
+                    onChange={(e) => setMontoOferta(e.target.value)}
+                    placeholder="Ej: 45000"
+                    className="flex-1 rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+                  />
+                  <BotonAccion
+                    texto="Ofertar"
+                    icono={Banknote}
+                    cargando={guardando === "ofertar"}
+                    onClick={() => {
+                      const monto = Number(montoOferta);
+                      if (!monto || monto <= 0) {
+                        setAvisoAccion("Poné un precio válido para tu oferta.");
+                        return;
+                      }
+                      conGuardado("ofertar", () => ofertarPrecio(id, monto));
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-faint mt-1.5 px-1">
+                  El cliente tiene que aceptarlo antes de que puedas salir.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {trabajo.estado === "presupuestado" && (
+          <div className="flex items-start gap-2.5 rounded-xl2 bg-warn/10 px-3.5 py-3">
+            <Clock className="w-4 h-4 text-warn shrink-0 mt-0.5" />
+            <p className="text-[12.5px] text-ink leading-snug">
+              Ofertaste{" "}
+              <span className="font-semibold">{trabajo.montoArs != null ? pesos(trabajo.montoArs) : "—"}</span>.
+              Esperando que el cliente lo acepte para poder salir.
+            </p>
           </div>
         )}
 
-        {trabajo.tecnicoConfirmadoEl && trabajo.estado === "asignado" && (
+        {((trabajo.tecnicoConfirmadoEl && trabajo.estado === "asignado") || trabajo.estado === "aceptado") && (
           <BotonAccion
             texto="Salgo en camino"
             icono={Navigation}

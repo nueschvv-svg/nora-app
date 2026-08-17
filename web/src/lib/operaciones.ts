@@ -92,6 +92,7 @@ export type ServicioDetalle = {
   descripcion: string;
   estado: EstadoServicio;
   montoArs: number | null;
+  metodoPago: "efectivo" | "mercado_pago" | null;
   fechaPreferida: string | null;
   franjaPreferida: string | null;
   tecnicoId: string | null;
@@ -117,7 +118,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
   const { data: servicio, error: errServicio } = await supabase
     .from("servicios")
     .select(
-      "id, categoria_slug, descripcion, estado, monto_ars, fecha_preferida, franja_preferida, tecnico_id, creado_el, propiedad_id, cliente_id",
+      "id, categoria_slug, descripcion, estado, monto_ars, metodo_pago, fecha_preferida, franja_preferida, tecnico_id, creado_el, propiedad_id, cliente_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -165,6 +166,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
     descripcion: servicio.descripcion,
     estado: servicio.estado,
     montoArs: servicio.monto_ars,
+    metodoPago: servicio.metodo_pago,
     fechaPreferida: servicio.fecha_preferida,
     franjaPreferida: servicio.franja_preferida,
     tecnicoId: servicio.tecnico_id,

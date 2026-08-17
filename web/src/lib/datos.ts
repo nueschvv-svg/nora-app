@@ -74,6 +74,8 @@ type FilaServicio = {
   fecha_preferida: string | null;
   franja_preferida: string | null;
   monto_ars: number | null;
+  metodo_pago: string | null;
+  pago_confirmado_el: string | null;
   reporte: string | null;
   tecnico_id: string | null;
   tecnico_confirmado_el: string | null;
@@ -93,6 +95,8 @@ function aServicio(f: FilaServicio): Servicio {
     fechaPreferida: f.fecha_preferida,
     franjaPreferida: f.franja_preferida,
     montoArs: f.monto_ars,
+    metodoPago: f.metodo_pago as Servicio["metodoPago"],
+    pagoConfirmadoEl: f.pago_confirmado_el,
     reporte: f.reporte ?? undefined,
     tecnicoId: f.tecnico_id ?? undefined,
     tecnicoConfirmadoEl: f.tecnico_confirmado_el ?? undefined,
@@ -241,7 +245,7 @@ export async function listarServicios(): Promise<Servicio[]> {
   const { data, error } = await supabase
     .from("servicios")
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
     )
     .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
@@ -280,11 +284,69 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
       franja_preferida: datos.franjaPreferida,
     })
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
     )
     .single();
 
   if (error) fallar("enviar el pedido", error);
+  return aServicio(data as FilaServicio);
+}
+
+/* Confirmar que se pagó en efectivo. Sólo esta transición puntual —
+   "finalizado" con metodo_pago vacío pasa a "pagado" con
+   metodo_pago='efectivo' — tiene permiso desde el navegador (ver
+   db/22_confirmar_pago.sql); cualquier otro cambio a estos campos lo
+   sigue rechazando la base, cliente no puede tocar precio ni marcarse
+   pagado por otra vía. Mercado Pago todavía no llama a esta función:
+   ese pago lo confirma un webhook de servidor, no el cliente. */
+export async function confirmarPagoEfectivo(servicioId: string): Promise<Servicio> {
+  const { data, error } = await supabaseNavegador()
+    .from("servicios")
+    .update({
+      estado: "pagado",
+      metodo_pago: "efectivo",
+      pago_confirmado_el: new Date().toISOString(),
+    })
+    .eq("id", servicioId)
+    .select(
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+    )
+    .single();
+
+  if (error) fallar("confirmar el pago", error);
+  return aServicio(data as FilaServicio);
+}
+
+/* Responder al presupuesto que ofertó el técnico (ver
+   db/23_ofertar_precio.sql). Aceptar deja el pedido listo para que el
+   técnico salga; rechazar lo devuelve a la bolsa tal cual estaba antes
+   de que este técnico lo tomara — cualquier otro lo puede tomar u
+   ofertar de nuevo. */
+export async function aceptarPresupuesto(servicioId: string): Promise<Servicio> {
+  const { data, error } = await supabaseNavegador()
+    .from("servicios")
+    .update({ estado: "aceptado" })
+    .eq("id", servicioId)
+    .select(
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+    )
+    .single();
+
+  if (error) fallar("aceptar el presupuesto", error);
+  return aServicio(data as FilaServicio);
+}
+
+export async function rechazarPresupuesto(servicioId: string): Promise<Servicio> {
+  const { data, error } = await supabaseNavegador()
+    .from("servicios")
+    .update({ estado: "buscando_tecnico", tecnico_id: null, monto_ars: null })
+    .eq("id", servicioId)
+    .select(
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+    )
+    .single();
+
+  if (error) fallar("rechazar el presupuesto", error);
   return aServicio(data as FilaServicio);
 }
 

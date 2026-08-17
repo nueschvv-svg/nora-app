@@ -195,14 +195,24 @@ export async function subirDocumentoTecnico(tipo: TipoDocumentoTecnico, archivo:
    algo si quien llama es el cliente dueño de ESE pedido, y sólo si ya
    tiene técnico asignado. Ver db/21_foto_perfil_tecnico.sql. */
 
-export type TecnicoDeServicio = { nombre: string; fotoUrl: string | null };
+export type TecnicoDeServicio = {
+  nombre: string;
+  fotoUrl: string | null;
+  /** null hasta que tenga al menos una calificación. */
+  promedio: number | null;
+  trabajos: number;
+};
 
 export async function tecnicoDeServicio(servicioId: string): Promise<TecnicoDeServicio | null> {
   const supabase = supabaseNavegador();
   const { data, error } = await supabase.rpc("tecnico_de_mi_servicio", { p_servicio_id: servicioId });
   if (error) fallar("cargar los datos del técnico", error);
 
-  const fila = (data as { nombre: string; foto_perfil_path: string | null }[] | null)?.[0];
+  const fila = (
+    data as
+      | { nombre: string; foto_perfil_path: string | null; promedio: number | null; trabajos: number }[]
+      | null
+  )?.[0];
   if (!fila) return null;
 
   return {
@@ -210,7 +220,50 @@ export async function tecnicoDeServicio(servicioId: string): Promise<TecnicoDeSe
     fotoUrl: fila.foto_perfil_path
       ? supabase.storage.from(BUCKET_FOTO_PERFIL).getPublicUrl(fila.foto_perfil_path).data.publicUrl
       : null,
+    promedio: fila.promedio,
+    trabajos: fila.trabajos,
   };
+}
+
+/* ---------- Calificaciones ----------
+   La tabla y sus permisos ya existían desde el principio
+   (01_esquema.sql, 02_permisos.sql): sólo el cliente, sólo sobre un
+   servicio propio, sólo cuando terminó de verdad. Nunca se había
+   conectado del lado de ninguna pantalla — ver db/24_calificaciones.sql. */
+
+export type MiCalificacion = { estrellas: number; comentario: string | null };
+
+/** null si todavía no calificó este servicio. */
+export async function miCalificacion(servicioId: string): Promise<MiCalificacion | null> {
+  const { data, error } = await supabaseNavegador()
+    .from("calificaciones")
+    .select("estrellas, comentario")
+    .eq("servicio_id", servicioId)
+    .maybeSingle();
+  if (error) fallar("cargar tu calificación", error);
+  return data;
+}
+
+export async function calificarServicio(
+  servicioId: string,
+  tecnicoId: string,
+  estrellas: number,
+  comentario: string,
+): Promise<void> {
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  const { error } = await supabase.from("calificaciones").insert({
+    servicio_id: servicioId,
+    cliente_id: user.id,
+    tecnico_id: tecnicoId,
+    estrellas,
+    comentario: comentario.trim() || null,
+  });
+  if (error) fallar("guardar tu calificación", error);
 }
 
 /* ---------- Matching por cercanía ---------- */
