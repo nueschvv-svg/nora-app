@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Bell,
   CalendarCheck,
+  ChevronRight,
   ChevronsUpDown,
   MessageCircle,
   ShieldCheck,
@@ -15,12 +16,29 @@ import {
 import { LogotipoNora } from "@/componentes/LogoNora";
 import { AnilloScore } from "@/componentes/AnilloScore";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
+import { BadgeEstado } from "@/componentes/BadgeEstado";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
+import { HojaServicio } from "@/componentes/HojaServicio";
 import { PrimerDomicilio } from "@/componentes/PrimerDomicilio";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
 import { useApp } from "@/componentes/ContextoApp";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
+import { listarCategorias, listarServicios, type CategoriaBD } from "@/lib/datos";
+import { type EstadoServicio, type Servicio } from "@/lib/tipos";
 import { mesAnio, saludo, textoVencimiento } from "@/lib/formato";
+
+/* Mismo criterio que historial/page.tsx: qué está "en curso". Está
+   duplicado a propósito y no importado desde ahí — ver el comentario
+   en ese archivo, la razón es la misma acá. */
+const EN_CURSO = new Set<EstadoServicio>([
+  "solicitado",
+  "buscando_tecnico",
+  "asignado",
+  "presupuestado",
+  "aceptado",
+  "en_camino",
+  "en_curso",
+]);
 
 export default function PaginaInicio() {
   const { propiedad, indice, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
@@ -35,6 +53,41 @@ export default function PaginaInicio() {
 
   const critico = score.nivel === "critico";
   const proximo = urgentes[0];
+
+  /* Pedido en curso, arriba y grande — antes esto sólo se veía adentro
+     de Historial. La idea (pedida explícitamente): que al entrar se
+     vea de una si hay algo pasando ahora mismo, como el seguimiento de
+     pedido de Rappi. Se pide acá y no en ContextoApp porque Historial
+     ya hace exactamente este mismo fetch por su cuenta — mismo criterio
+     de "no compartir entre pantallas distintas" documentado ahí. */
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
+  const [seleccionado, setSeleccionado] = useState<Servicio | null>(null);
+
+  useEffect(() => {
+    if (!sesion) return;
+    let vivo = true;
+    Promise.all([listarServicios(), listarCategorias()])
+      .then(([srv, cats]) => {
+        if (!vivo) return;
+        setServicios(srv);
+        setCategorias(cats);
+      })
+      .catch(() => {
+        /* No es crítico: el resto de Inicio sigue andando sin esto. */
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [sesion]);
+
+  const enCurso = propiedad
+    ? servicios.filter((s) => s.propiedadId === propiedad.id && EN_CURSO.has(s.estado))
+    : [];
+  const pedidoActivo = enCurso[0];
+  const categoriaActiva = pedidoActivo
+    ? categorias.find((c) => c.slug === pedidoActivo.categoriaSlug)
+    : undefined;
 
   if (cargando) return <EsqueletoInicio />;
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
@@ -92,6 +145,35 @@ export default function PaginaInicio() {
             <ChevronsUpDown className="w-[18px] h-[18px] text-faint" />
           </span>
         </button>
+
+        {/* --- Pedido en curso: lo primero que hay que ver, si hay algo
+            pasando ahora mismo --- */}
+        {pedidoActivo && (
+          <button
+            type="button"
+            onClick={() => setSeleccionado(pedidoActivo)}
+            className="press w-full flex items-center gap-3.5 text-left bg-surface rounded-xl3 border-2 border-brand-200 shadow-hero p-4"
+          >
+            <span className="shrink-0 w-12 h-12 grid place-items-center rounded-2xl bg-brand-50 text-brand-600">
+              <IconoEquipo nombre={categoriaActiva?.icono ?? "wrench"} className="w-6 h-6" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10.5px] font-bold tracking-wide uppercase text-brand-600">
+                Pedido en curso
+              </p>
+              <p className="text-[15px] font-bold font-display text-ink leading-tight mt-0.5 truncate">
+                {categoriaActiva?.nombre ?? "Servicio"}
+              </p>
+              <BadgeEstado estado={pedidoActivo.estado} className="mt-1.5" />
+            </div>
+            {enCurso.length > 1 && (
+              <span className="shrink-0 text-[11px] font-semibold text-faint self-start mt-1">
+                +{enCurso.length - 1}
+              </span>
+            )}
+            <ChevronRight className="w-5 h-5 text-faint shrink-0" />
+          </button>
+        )}
 
         {/* --- Hero: score --- */}
         <section
@@ -236,6 +318,12 @@ export default function PaginaInicio() {
       </div>
 
       <HojaPropiedades abierta={hojaAbierta} alCerrar={() => setHojaAbierta(false)} />
+      <HojaServicio
+        servicio={seleccionado}
+        categoria={seleccionado ? categorias.find((c) => c.slug === seleccionado.categoriaSlug) : undefined}
+        abierto={!!seleccionado}
+        alCerrar={() => setSeleccionado(null)}
+      />
     </main>
   );
 }

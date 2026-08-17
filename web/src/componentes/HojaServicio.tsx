@@ -49,13 +49,17 @@ export function HojaServicio({
      el nuevo. */
   const [overrideServicioId, setOverrideServicioId] = useState<string | null>(null);
   const [estadoEnVivo, setEstadoEnVivo] = useState<EstadoServicio | null>(null);
-  const [ubicacionEnVivo, setUbicacionEnVivo] = useState<{ lat: number; lng: number } | null>(null);
+  const [ubicacionEnVivo, setUbicacionEnVivo] = useState<{
+    lat: number;
+    lng: number;
+    actualizadoEl: string | null;
+  } | null>(null);
   const overrideVigente = !!servicio && overrideServicioId === servicio.id;
   const estadoMostrado = (overrideVigente ? estadoEnVivo : null) ?? servicio?.estado;
   const ubicacionMostrada = overrideVigente
     ? ubicacionEnVivo
     : servicio?.ubicacionLat != null && servicio?.ubicacionLng != null
-      ? { lat: servicio.ubicacionLat, lng: servicio.ubicacionLng }
+      ? { lat: servicio.ubicacionLat, lng: servicio.ubicacionLng, actualizadoEl: servicio.ubicacionActualizadaEl ?? null }
       : null;
 
   useEffect(() => {
@@ -79,7 +83,11 @@ export function HojaServicio({
       if (typeof fila.estado === "string") setEstadoEnVivo(fila.estado as EstadoServicio);
       setUbicacionEnVivo(
         typeof fila.ubicacion_lat === "number" && typeof fila.ubicacion_lng === "number"
-          ? { lat: fila.ubicacion_lat, lng: fila.ubicacion_lng }
+          ? {
+              lat: fila.ubicacion_lat,
+              lng: fila.ubicacion_lng,
+              actualizadoEl: typeof fila.ubicacion_actualizada_el === "string" ? fila.ubicacion_actualizada_el : null,
+            }
           : null,
       );
     });
@@ -190,7 +198,11 @@ export function HojaServicio({
                     <p className="text-[11px] font-bold tracking-wide uppercase text-faint mt-4 px-0.5">
                       El técnico está en camino
                     </p>
-                    <MapaSeguimiento lat={ubicacionMostrada.lat} lng={ubicacionMostrada.lng} />
+                    <MapaSeguimiento
+                      lat={ubicacionMostrada.lat}
+                      lng={ubicacionMostrada.lng}
+                      actualizadoEl={ubicacionMostrada.actualizadoEl}
+                    />
                   </>
                 )}
                 <HiloChat servicioId={servicio.id} />
