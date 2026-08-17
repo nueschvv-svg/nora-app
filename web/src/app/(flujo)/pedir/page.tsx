@@ -2,22 +2,34 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Camera, Check, Clock, Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  Check,
+  Clock,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { Bloque } from "@/componentes/Esqueleto";
-import { crearServicio, listarCategorias, type CategoriaBD } from "@/lib/datos";
+import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } from "@/lib/datos";
+import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
+import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 
 /* FLUJO DE PEDIDO — versión MVP honesta.
 
    Diferencias a propósito con el prototipo:
-   · No hay chat con IA. El prototipo simulaba una IA que en realidad
-     respondía siempre lo mismo. Acá el usuario describe el problema
-     en un campo de texto y listo.
-   · No hay presupuesto instantáneo. No podemos dar precio fijo sin
-     historial de trabajos. Prometemos presupuesto antes de empezar.
+   · No hay presupuesto instantáneo garantizado. Cuando Nora identifica
+     el trabajo con confianza, sí mostramos un rango — lo calcula
+     lib/precios.ts con las tarifas de la base, no lo inventa el modelo.
+     Cuando no puede identificarlo, prometemos presupuesto antes de
+     empezar, como siempre.
    · No hay pago acá. Se cobra al terminar, con link de Mercado Pago.
 
    Todo eso vuelve en fase 3, cuando haya datos que lo sostengan. */
@@ -38,7 +50,6 @@ export default function PaginaPedir() {
   const [paso, setPaso] = useState(0);
   const [categoria, setCategoria] = useState<string | null>(null);
   const [descripcion, setDescripcion] = useState("");
-  const [fotos, setFotos] = useState<string[]>([]);
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
@@ -47,6 +58,71 @@ export default function PaginaPedir() {
 
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
   const [cargandoCats, setCargandoCats] = useState(true);
+
+  /* Foto + diagnóstico. La foto vive sólo acá (en memoria del navegador)
+     hasta que se manda a analizar — no se sube a ningún lado todavía:
+     el almacenamiento de fotos (bucket privado de Supabase) sigue
+     pendiente, ver ESTADO.md. Lo que SÍ es real es el análisis: pega
+     contra /api/diagnosticar, el mismo endpoint probado con Claude. */
+  const inputFotoRef = useRef<HTMLInputElement>(null);
+  const [foto, setFoto] = useState<File | null>(null);
+  const [analizando, setAnalizando] = useState(false);
+  const [errorFoto, setErrorFoto] = useState<string | null>(null);
+  const [diagnostico, setDiagnostico] = useState<ResultadoDiagnostico | null>(null);
+
+  const elegirFoto = () => inputFotoRef.current?.click();
+
+  const alCambiarFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    e.target.value = ""; // permite volver a elegir el mismo archivo después
+    if (!archivo) return;
+
+    setFoto(archivo);
+    setDiagnostico(null);
+    setErrorFoto(null);
+    setAnalizando(true);
+    try {
+      const resultado = await diagnosticarFoto({ foto: archivo, descripcion, categoriaSlug: categoria });
+      setDiagnostico(resultado);
+    } catch (err) {
+      setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar la foto.");
+    } finally {
+      setAnalizando(false);
+    }
+  };
+
+  const quitarFoto = () => {
+    setFoto(null);
+    setDiagnostico(null);
+    setErrorFoto(null);
+  };
+
+  /* Antes esto sólo pasaba si mandabas una foto — la mitad de la gracia
+     de Nora (contarle qué pasa y que te tire un estimado ahí mismo) no
+     andaba para quien sólo escribe. Se dispara solo, con un respiro
+     después de dejar de tipear, y sólo si no hay foto puesta (la foto
+     ya dispara su propio análisis en alCambiarFoto — no tiene sentido
+     duplicar la llamada). Si el rubro no tiene catálogo de IA todavía,
+     el endpoint devuelve identificado:false — no se inventa nada, se
+     lo decimos de frente más abajo (ResultadoAnalisis). */
+  useEffect(() => {
+    if (foto) return;
+    const texto = descripcion.trim();
+    if (texto.length < 10) return;
+
+    const espera = setTimeout(() => {
+      setAnalizando(true);
+      setErrorFoto(null);
+      diagnosticarFoto({ descripcion: texto, categoriaSlug: categoria })
+        .then(setDiagnostico)
+        .catch((err) => {
+          setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar el problema.");
+        })
+        .finally(() => setAnalizando(false));
+    }, 900);
+
+    return () => clearTimeout(espera);
+  }, [descripcion, foto, categoria]);
 
   /* Los rubros salen de la base, no del código: así podés activar
      "Gas" cuando consigas un gasista matriculado, sin tocar la app. */
@@ -60,11 +136,23 @@ export default function PaginaPedir() {
   const proximosDias = obtenerProximosDias();
   const catElegida = categorias.find((c) => c.slug === categoria);
 
+  /* Igual que el endpoint: alcanza con la foto, no hace falta escribir
+     nada. Antes de esto el paso 1 exigía 10 caracteres pase lo que
+     pase, lo que no tenía sentido si ya mandaste una foto. */
   const puedeAvanzar =
     (paso === 0 && !!categoria) ||
-    (paso === 1 && descripcion.trim().length >= 10) ||
+    (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
     (paso === 2 && !!dia && !!franja) ||
     paso === 3;
+
+  /* Lo que ve el técnico. La persona sigue viendo y editando sólo su
+     propio texto en el campo — esto se arma recién al mandar, para no
+     meterle a la textarea palabras que no escribió. */
+  const descripcionFinal = diagnostico?.observaciones
+    ? [descripcion.trim(), `[Foto analizada por Nora] ${diagnostico.observaciones}`]
+        .filter(Boolean)
+        .join("\n\n")
+    : descripcion;
 
   const avanzar = async () => {
     if (!puedeAvanzar || enviando) return;
@@ -74,13 +162,34 @@ export default function PaginaPedir() {
       setEnviando(true);
       setError(null);
       try {
-        await crearServicio({
+        const nuevoServicio = await crearServicio({
           propiedadId: propiedad.id,
           categoriaSlug: categoria,
-          descripcion,
+          descripcion: descripcionFinal,
           fechaPreferida: dia,
           franjaPreferida: franja,
         });
+
+        /* La foto es un plus, no un requisito: si falla la subida, el
+           pedido ya está adentro y no tiene sentido mostrarle un error
+           a la persona por algo que no la afecta a ella. Queda
+           registrado en la consola para poder revisarlo. */
+        if (foto) {
+          try {
+            await subirFotoServicio(nuevoServicio.id, foto);
+          } catch (e) {
+            console.error("[pedir] no se pudo guardar la foto:", e);
+          }
+        }
+
+        /* Después de la foto: si hay imagen, que ya esté subida antes
+           de avisar, para que el mensaje incluya la URL firmada. */
+        try {
+          await enrutarPedido(nuevoServicio.id, diagnostico);
+        } catch (e) {
+          console.error("[pedir] no se pudo avisar del pedido:", e);
+        }
+
         setEnviado(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No pudimos enviar el pedido.");
@@ -242,20 +351,74 @@ export default function PaginaPedir() {
               className="mt-3 w-full rounded-2xl bg-surface border border-line shadow-card p-4 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
             />
             <p className="text-[11.5px] text-faint mt-1.5 px-1">
-              {descripcion.trim().length < 10
-                ? "Escribí al menos unas palabras para poder ayudarte."
-                : "Perfecto, con eso alcanza."}
+              {descripcion.trim().length >= 10 || foto
+                ? "Perfecto, con eso alcanza."
+                : "Escribí unas palabras o mandá una foto — con cualquiera de las dos alcanza."}
             </p>
 
-            {/* Las fotos son lo que más ayuda al técnico a venir preparado. */}
-            <button
-              type="button"
-              onClick={() => setFotos([...fotos, `foto-${fotos.length + 1}`])}
-              className="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
-            >
-              <Camera className="w-[17px] h-[17px]" />
-              {fotos.length === 0 ? "Sumar una foto (opcional)" : `${fotos.length} foto(s) agregada(s)`}
-            </button>
+            {/* La foto se manda a analizar apenas se elige: es lo que
+                más ayuda al técnico a venir preparado, y de paso le
+                muestra a la persona qué ve Nora en el momento. */}
+            <input
+              ref={inputFotoRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              onChange={alCambiarFoto}
+              className="hidden"
+              aria-label="Sacar o elegir una foto del problema"
+            />
+
+            {!foto ? (
+              <button
+                type="button"
+                onClick={elegirFoto}
+                className="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
+              >
+                <Camera className="w-[17px] h-[17px]" />
+                Sumar una foto (opcional)
+              </button>
+            ) : (
+              <div className="mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
+                    <Camera className="w-4 h-4" />
+                  </span>
+                  <p className="flex-1 min-w-0 text-[13px] font-medium text-ink truncate">
+                    {foto.name}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={quitarFoto}
+                    className="press shrink-0 w-7 h-7 grid place-items-center rounded-full bg-sand border border-line text-faint"
+                    aria-label="Quitar foto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Estado del análisis: aplica tanto si mandaste foto como si
+                sólo escribiste — Nora mira lo que tenga, foto o texto. */}
+            {(analizando || errorFoto || diagnostico) && (
+              <div className="mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
+                {analizando && (
+                  <p className="flex items-center gap-1.5 text-[12.5px] text-brand-600">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {foto ? "Nora está mirando la foto…" : "Nora está analizando…"}
+                  </p>
+                )}
+
+                {errorFoto && (
+                  <p role="alert" className="text-[12.5px] text-urgent">
+                    {errorFoto}
+                  </p>
+                )}
+
+                {diagnostico && <ResultadoAnalisis resultado={diagnostico} />}
+              </div>
+            )}
           </section>
         )}
 
@@ -321,24 +484,29 @@ export default function PaginaPedir() {
               <Fila etiqueta="Domicilio" valor={`${propiedad.nombre} · ${propiedad.direccion}`} />
               <Fila
                 etiqueta="Cuándo"
-                valor={`${proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—"} · ${
-                  FRANJAS.find((f) => f.id === franja)?.texto.split(" · ")[1] ?? ""
-                }`}
+                valor={(() => {
+                  const diaTxt = proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—";
+                  const franjaTxt = FRANJAS.find((f) => f.id === franja)?.texto ?? "";
+                  const franjaCorta = franjaTxt.includes(" · ") ? franjaTxt.split(" · ")[1] : franjaTxt;
+                  return `${diaTxt} · ${franjaCorta}`;
+                })()}
               />
-              {fotos.length > 0 && <Fila etiqueta="Fotos" valor={`${fotos.length} adjunta(s)`} />}
+              {foto && <Fila etiqueta="Foto" valor={diagnostico ? "Analizada por Nora" : foto.name} />}
             </div>
 
             <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
               <p className="text-[11px] font-bold tracking-wide uppercase text-faint">El problema</p>
-              <p className="text-[13.5px] text-ink leading-relaxed mt-1.5">{descripcion}</p>
+              <p className="text-[13.5px] text-ink leading-relaxed mt-1.5 whitespace-pre-line">
+                {descripcionFinal}
+              </p>
             </div>
 
             {/* Ser claro con el precio evita el 90% de los problemas después. */}
             <div className="mt-3 flex items-start gap-2.5 rounded-xl2 bg-brand-50 border border-brand-100 px-3.5 py-3">
               <Clock className="w-[18px] h-[18px] text-brand-600 shrink-0 mt-0.5" />
               <p className="text-[12.5px] text-ink leading-snug">
-                Te contactamos por WhatsApp en menos de <span className="font-semibold">2 horas</span>{" "}
-                con el técnico asignado. El presupuesto lo confirmás vos{" "}
+                En menos de <span className="font-semibold">2 horas</span> vas a ver en tu Historial el
+                estado de tu pedido y el precio confirmado — todo en Nora,{" "}
                 <span className="font-semibold">antes</span> de que arranque el trabajo: no se cobra
                 nada hasta entonces.
               </p>
@@ -369,6 +537,52 @@ export default function PaginaPedir() {
   );
 }
 
+/* Lo que Nora vio en la foto. Sin inventar nada que el endpoint no haya
+   devuelto: si no identificó el trabajo, se lo decimos de frente y
+   mostramos las preguntas en vez de forzar un diagnóstico. */
+function ResultadoAnalisis({ resultado }: { resultado: ResultadoDiagnostico }) {
+  return (
+    <div className="space-y-2.5">
+      {resultado.riesgoInmediato && (
+        <div className="flex items-start gap-2 rounded-xl2 bg-urgent/10 px-3 py-2.5">
+          <AlertTriangle className="w-4 h-4 text-urgent shrink-0 mt-0.5" />
+          <p className="text-[12.5px] text-urgent font-medium leading-snug">
+            Esto puede necesitar atención inmediata. Si hay riesgo real (agua cerca de instalación
+            eléctrica, olor a gas), priorizalo.
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-start gap-2">
+        <Sparkles className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
+        <p className="text-[13px] text-ink leading-snug">{resultado.observaciones}</p>
+      </div>
+
+      {resultado.identificado && resultado.trabajo && (
+        <div className="rounded-xl2 bg-brand-50 border border-brand-100 px-3 py-2.5">
+          <p className="text-[13px] font-semibold text-ink">{resultado.trabajo.nombre}</p>
+          {resultado.estimado && (
+            <>
+              <p className="text-[13px] font-bold text-brand-600 mt-0.5">{resultado.estimado.titulo}</p>
+              <p className="text-[11px] text-faint mt-0.5">{resultado.estimado.aclaracion}</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {resultado.preguntas.length > 0 && (
+        <ul className="space-y-1">
+          {resultado.preguntas.map((p) => (
+            <li key={p} className="text-[12px] text-mute pl-3 relative before:content-['·'] before:absolute before:left-0">
+              {p}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="flex items-start justify-between gap-4 px-4 py-3">
@@ -386,8 +600,8 @@ function Confirmacion({ propiedad }: { propiedad: string }) {
       </div>
       <h1 className="text-[24px] font-bold font-display text-ink mt-6">¡Pedido enviado!</h1>
       <p className="text-[13.5px] text-mute mt-2.5 max-w-[290px] leading-relaxed">
-        Ya lo estamos viendo. Te escribimos por WhatsApp en menos de 2 horas con el técnico asignado
-        para {propiedad}.
+        Ya lo estamos viendo. En menos de 2 horas vas a ver en tu Historial el estado y el precio
+        confirmado para {propiedad}.
       </p>
       <Link
         href="/inicio"

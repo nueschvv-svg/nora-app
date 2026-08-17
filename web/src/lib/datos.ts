@@ -73,6 +73,11 @@ type FilaServicio = {
   creado_el: string;
   monto_ars: number | null;
   reporte: string | null;
+  tecnico_id: string | null;
+  tecnico_confirmado_el: string | null;
+  ubicacion_lat: number | null;
+  ubicacion_lng: number | null;
+  ubicacion_actualizada_el: string | null;
 };
 
 function aServicio(f: FilaServicio): Servicio {
@@ -85,6 +90,11 @@ function aServicio(f: FilaServicio): Servicio {
     creadoEl: f.creado_el.slice(0, 10),
     montoArs: f.monto_ars,
     reporte: f.reporte ?? undefined,
+    tecnicoId: f.tecnico_id ?? undefined,
+    tecnicoConfirmadoEl: f.tecnico_confirmado_el ?? undefined,
+    ubicacionLat: f.ubicacion_lat ?? undefined,
+    ubicacionLng: f.ubicacion_lng ?? undefined,
+    ubicacionActualizadaEl: f.ubicacion_actualizada_el ?? undefined,
   };
 }
 
@@ -197,9 +207,25 @@ export async function borrarEquipo(id: string): Promise<void> {
 /* ---------- Servicios ---------- */
 
 export async function listarServicios(): Promise<Servicio[]> {
-  const { data, error } = await supabaseNavegador()
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  /* Excepción deliberada a la regla de este archivo (nunca filtrar a
+     mano): `servicios` tiene DOS políticas de SELECT que se combinan
+     con OR (cliente_id = auth.uid(), tecnico_id = auth.uid()). Sin este
+     filtro, una cuenta que también es técnico vería acá los trabajos
+     que le asignaron, no sólo los que ella pidió como cliente — bug
+     real, encontrado y corregido en esta misma sesión. Esos trabajos
+     van en /tecnico, no en este Historial personal. */
+  const { data, error } = await supabase
     .from("servicios")
-    .select("id, propiedad_id, categoria_slug, descripcion, estado, creado_el, monto_ars, reporte")
+    .select(
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+    )
+    .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
 
   if (error) fallar("cargar tu historial", error);
@@ -235,11 +261,92 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
       fecha_preferida: datos.fechaPreferida,
       franja_preferida: datos.franjaPreferida,
     })
-    .select("id, propiedad_id, categoria_slug, descripcion, estado, creado_el, monto_ars, reporte")
+    .select(
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+    )
     .single();
 
   if (error) fallar("enviar el pedido", error);
   return aServicio(data as FilaServicio);
+}
+
+/* ---------- Fotos de servicio ---------- */
+/* La tabla y sus permisos ya existían (01/02); lo que faltaba era el
+   bucket real — ver db/08_fotos_storage.sql. Bucket privado: nunca se
+   arma una URL fija, siempre se pide una firmada de corta duración. */
+
+const BUCKET_FOTOS = "fotos-servicios";
+
+export async function subirFotoServicio(servicioId: string, archivo: File): Promise<void> {
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  /* El primer tramo del path ES el permiso: las políticas de Storage
+     (08_fotos_servicios.sql) leen storage.foldername(name)[1] como el
+     id del servicio para decidir quién puede subir y ver el archivo. */
+  const extension = archivo.name.split(".").pop()?.toLowerCase() || "jpg";
+  const ruta = `${servicioId}/${crypto.randomUUID()}.${extension}`;
+
+  const { error: errorSubida } = await supabase.storage
+    .from(BUCKET_FOTOS)
+    .upload(ruta, archivo, { contentType: archivo.type });
+  if (errorSubida) fallar("subir la foto", errorSubida);
+
+  const { error: errorFila } = await supabase.from("servicio_fotos").insert({
+    servicio_id: servicioId,
+    archivo_path: ruta,
+    subida_por: user.id,
+    momento: "antes",
+  });
+  if (errorFila) fallar("guardar la foto en el servicio", errorFila);
+}
+
+export type FotoServicio = {
+  id: string;
+  url: string;
+  momento: "antes" | "despues";
+};
+
+type FilaFotoServicio = {
+  id: string;
+  archivo_path: string;
+  momento: string;
+};
+
+/* Una hora de vigencia: alcanza para que la persona abra el detalle y
+   la mire, y no queda un link picoteable dando vueltas para siempre. */
+const VIGENCIA_URL_FOTO = 3600;
+
+export async function listarFotosServicio(servicioId: string): Promise<FotoServicio[]> {
+  const supabase = supabaseNavegador();
+  const { data, error } = await supabase
+    .from("servicio_fotos")
+    .select("id, archivo_path, momento")
+    .eq("servicio_id", servicioId)
+    .order("creado_el");
+
+  if (error) fallar("cargar las fotos del servicio", error);
+  const filas = (data ?? []) as FilaFotoServicio[];
+  if (filas.length === 0) return [];
+
+  const { data: firmadas, error: errorFirma } = await supabase.storage
+    .from(BUCKET_FOTOS)
+    .createSignedUrls(
+      filas.map((f) => f.archivo_path),
+      VIGENCIA_URL_FOTO,
+    );
+  if (errorFirma) fallar("preparar las fotos del servicio", errorFirma);
+
+  return filas
+    .map((f, i) => ({
+      id: f.id,
+      url: firmadas?.[i]?.signedUrl ?? "",
+      momento: f.momento as "antes" | "despues",
+    }))
+    .filter((f) => f.url);
 }
 
 /* ---------- Categorías ---------- */

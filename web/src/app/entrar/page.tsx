@@ -47,6 +47,25 @@ function Formulario() {
     ? email.includes("@")
     : email.includes("@") && clave.length >= 8 && (!registrando || nombre.trim().length >= 2);
 
+  async function entrarConGoogle() {
+    setCargando(true);
+    setError(null);
+    const supabase = supabaseNavegador();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(volverA)}`,
+      },
+    });
+    // Si signInWithOAuth arranca bien, el navegador ya está yéndose a
+    // Google — este error sólo salta si ni siquiera pudo iniciar el viaje
+    // (por ejemplo, Google no está habilitado del lado de Supabase).
+    if (error) {
+      setError("No pudimos abrir el ingreso con Google. Probá de nuevo en un momento.");
+      setCargando(false);
+    }
+  }
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     if (!valido || cargando) return;
@@ -235,6 +254,26 @@ function Formulario() {
         </button>
       </form>
 
+      {!recuperando && (
+        <>
+          <div className="flex items-center gap-3 mt-5">
+            <span className="h-px flex-1 bg-line" />
+            <span className="text-[12px] text-faint">o</span>
+            <span className="h-px flex-1 bg-line" />
+          </div>
+
+          <button
+            type="button"
+            onClick={entrarConGoogle}
+            disabled={cargando}
+            className="press mt-4 w-full flex items-center justify-center gap-2.5 rounded-xl2 bg-surface border border-line shadow-card py-3.5 text-[14.5px] font-semibold text-ink disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <IconoGoogle className="w-[18px] h-[18px]" />
+            Continuar con Google
+          </button>
+        </>
+      )}
+
       {modo === "entrar" && (
         <button
           type="button"
@@ -291,6 +330,29 @@ function Marco({ children }: { children: React.ReactNode }) {
     <div className="relative w-full max-w-[440px] min-h-dvh bg-sand overflow-y-auto no-scrollbar">
       <div className="px-6 pt-16 pb-10">{children}</div>
     </div>
+  );
+}
+
+function IconoGoogle({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
+      <path
+        fill="#FFC107"
+        d="M43.6 20.5H42V20.4H24v7.2h11.3c-1.6 4.6-6 7.9-11.3 7.9-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.1-5.1C33.5 6.2 29 4.4 24 4.4 13.2 4.4 4.4 13.2 4.4 24S13.2 43.6 24 43.6 43.6 34.8 43.6 24c0-1.2-.1-2.4-.4-3.5z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.3 14.7l5.9 4.3C13.9 15.4 18.6 12.4 24 12.4c3.1 0 5.8 1.2 7.9 3.1l5.1-5.1C33.5 6.2 29 4.4 24 4.4c-7.6 0-14.1 4.3-17.7 10.3z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 43.6c4.9 0 9.4-1.9 12.8-4.9l-5.9-5c-2 1.5-4.5 2.4-6.9 2.4-5.3 0-9.7-3.3-11.3-7.9l-5.9 4.5C10 39.3 16.5 43.6 24 43.6z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.5H42V20.4H24v7.2h11.3c-.8 2.3-2.2 4.2-4.1 5.6l5.9 5c-.4.4 6.4-4.7 6.4-14.2 0-1.2-.1-2.4-.4-3.5z"
+      />
+    </svg>
   );
 }
 

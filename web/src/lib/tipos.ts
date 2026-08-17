@@ -158,4 +158,12 @@ export type Servicio = {
   /** Qué se hizo, cargado por el técnico al terminar. */
   reporte?: string;
   calificacion?: number;
+  /** Id del técnico asignado, si hay. Determina si mostrar chat/ubicación. */
+  tecnicoId?: string;
+  /** Cuándo el técnico aceptó el trabajo. Null/undefined = todavía no. */
+  tecnicoConfirmadoEl?: string;
+  /** Última posición que compartió el técnico mientras estaba "en_camino". */
+  ubicacionLat?: number;
+  ubicacionLng?: number;
+  ubicacionActualizadaEl?: string;
 };

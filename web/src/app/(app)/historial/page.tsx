@@ -7,6 +7,7 @@ import { ArrowRight, Check, Clock, Wrench } from "lucide-react";
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { HojaServicio } from "@/componentes/HojaServicio";
 import { listarCategorias, listarServicios, type CategoriaBD } from "@/lib/datos";
 import { ETIQUETA_ESTADO, type Servicio } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
@@ -33,6 +34,8 @@ export default function PaginaHistorial() {
 
   const [intento, setIntento] = useState(0);
   const traer = useCallback(() => setIntento((n) => n + 1), []);
+
+  const [seleccionado, setSeleccionado] = useState<Servicio | null>(null);
 
   /* Esperamos a tener sesión antes de pedir los servicios.
 
@@ -117,7 +120,13 @@ export default function PaginaHistorial() {
               </p>
               <div className="bg-surface rounded-xl2 border border-brand-200 shadow-card divide-y divide-line overflow-hidden">
                 {activos.map((s) => (
-                  <Fila key={s.id} servicio={s} categoria={nombreCategoria(s.categoriaSlug)} enCurso />
+                  <Fila
+                    key={s.id}
+                    servicio={s}
+                    categoria={nombreCategoria(s.categoriaSlug)}
+                    enCurso
+                    onClick={() => setSeleccionado(s)}
+                  />
                 ))}
               </div>
             </div>
@@ -130,13 +139,25 @@ export default function PaginaHistorial() {
               </p>
               <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
                 {cerrados.map((s) => (
-                  <Fila key={s.id} servicio={s} categoria={nombreCategoria(s.categoriaSlug)} />
+                  <Fila
+                    key={s.id}
+                    servicio={s}
+                    categoria={nombreCategoria(s.categoriaSlug)}
+                    onClick={() => setSeleccionado(s)}
+                  />
                 ))}
               </div>
             </div>
           )}
         </>
       )}
+
+      <HojaServicio
+        servicio={seleccionado}
+        categoria={seleccionado ? nombreCategoria(seleccionado.categoriaSlug) : undefined}
+        abierto={!!seleccionado}
+        alCerrar={() => setSeleccionado(null)}
+      />
     </main>
   );
 }
@@ -145,13 +166,15 @@ function Fila({
   servicio,
   categoria,
   enCurso = false,
+  onClick,
 }: {
   servicio: Servicio;
   categoria?: CategoriaBD;
   enCurso?: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div className="w-full flex items-center gap-3.5 p-3.5 text-left">
+    <button type="button" onClick={onClick} className="press w-full flex items-center gap-3.5 p-3.5 text-left">
       <span
         className={`shrink-0 w-11 h-11 grid place-items-center rounded-2xl ${
           enCurso ? "bg-brand-600 text-white" : "bg-brand-50 text-brand-600"
@@ -183,7 +206,7 @@ function Fila({
         )}
         <p className="text-[11px] text-faint mt-0.5">{fechaCorta(servicio.creadoEl)}</p>
       </div>
-    </div>
+    </button>
   );
 }
 
