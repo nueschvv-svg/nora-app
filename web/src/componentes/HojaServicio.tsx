@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { X } from "lucide-react";
+import { CalendarClock, UserRound, X } from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
 import { HiloChat } from "./HiloChat";
 import { listarFotosServicio, type FotoServicio } from "@/lib/datos";
 import { suscribirseAServicio } from "@/lib/tiempoReal";
-import { ETIQUETA_ESTADO, type EstadoServicio, type Servicio } from "@/lib/tipos";
+import { tecnicoDeServicio, type TecnicoDeServicio } from "@/lib/trabajadores";
+import { ETIQUETA_ESTADO, ETIQUETA_FRANJA, type EstadoServicio, type Servicio } from "@/lib/tipos";
 import { fecha, pesos } from "@/lib/formato";
 import type { CategoriaBD } from "@/lib/datos";
 
@@ -61,6 +62,25 @@ export function HojaServicio({
     : servicio?.ubicacionLat != null && servicio?.ubicacionLng != null
       ? { lat: servicio.ubicacionLat, lng: servicio.ubicacionLng, actualizadoEl: servicio.ubicacionActualizadaEl ?? null }
       : null;
+
+  /* Quién es mi técnico: nombre y foto, para que el pedido deje de
+     sentirse vacío apenas hay alguien asignado — antes esto no se
+     mostraba en ningún lado del lado cliente. */
+  const [tecnico, setTecnico] = useState<TecnicoDeServicio | null>(null);
+  const [tecnicoDeServicioId, setTecnicoDeServicioId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!abierto || !servicio?.tecnicoId) return;
+    tecnicoDeServicio(servicio.id)
+      .then((t) => {
+        setTecnico(t);
+        setTecnicoDeServicioId(servicio.id);
+      })
+      .catch(() => {
+        setTecnico(null);
+        setTecnicoDeServicioId(servicio.id);
+      });
+  }, [abierto, servicio]);
 
   useEffect(() => {
     if (!abierto || !servicio) return;
@@ -149,6 +169,14 @@ export function HojaServicio({
               {ETIQUETA_ESTADO[estadoMostrado ?? servicio.estado]}
             </span>
 
+            {servicio.fechaPreferida && (
+              <p className="flex items-center gap-1.5 text-[13px] text-mute mt-2.5">
+                <CalendarClock className="w-[15px] h-[15px] text-faint shrink-0" />
+                {fecha(servicio.fechaPreferida)}
+                {servicio.franjaPreferida && ` · ${ETIQUETA_FRANJA[servicio.franjaPreferida] ?? servicio.franjaPreferida}`}
+              </p>
+            )}
+
             <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
               <p className="text-[11px] font-bold tracking-wide uppercase text-faint">El problema</p>
               <p className="text-[13.5px] text-ink leading-relaxed mt-1.5 whitespace-pre-line">
@@ -193,6 +221,27 @@ export function HojaServicio({
 
             {servicio.tecnicoId && (
               <>
+                {tecnicoDeServicioId === servicio.id && (
+                  <div className="mt-4 flex items-center gap-3 rounded-xl2 bg-surface border border-line shadow-card p-3.5">
+                    <span className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-brand-50 grid place-items-center">
+                      {tecnico?.fotoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- URL pública, no vale next/image acá
+                        <img src={tecnico.fotoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserRound className="w-6 h-6 text-brand-300" />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10.5px] font-bold tracking-wide uppercase text-faint">
+                        Tu técnico
+                      </p>
+                      <p className="text-[14.5px] font-semibold text-ink truncate mt-0.5">
+                        {tecnico?.nombre ?? "Asignado"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {estadoMostrado === "en_camino" && ubicacionMostrada && (
                   <>
                     <p className="text-[11px] font-bold tracking-wide uppercase text-faint mt-4 px-0.5">

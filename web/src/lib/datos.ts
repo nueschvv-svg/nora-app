@@ -71,6 +71,8 @@ type FilaServicio = {
   descripcion: string;
   estado: string;
   creado_el: string;
+  fecha_preferida: string | null;
+  franja_preferida: string | null;
   monto_ars: number | null;
   reporte: string | null;
   tecnico_id: string | null;
@@ -88,6 +90,8 @@ function aServicio(f: FilaServicio): Servicio {
     descripcion: f.descripcion,
     estado: f.estado as Servicio["estado"],
     creadoEl: f.creado_el.slice(0, 10),
+    fechaPreferida: f.fecha_preferida,
+    franjaPreferida: f.franja_preferida,
     montoArs: f.monto_ars,
     reporte: f.reporte ?? undefined,
     tecnicoId: f.tecnico_id ?? undefined,
@@ -237,7 +241,7 @@ export async function listarServicios(): Promise<Servicio[]> {
   const { data, error } = await supabase
     .from("servicios")
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
     )
     .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
@@ -276,7 +280,7 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
       franja_preferida: datos.franjaPreferida,
     })
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el",
     )
     .single();
 

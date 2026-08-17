@@ -31,6 +31,8 @@ export type DatosTrabajador = {
 
 export type MiFichaTrabajador = DatosTrabajador & {
   estado: EstadoTrabajador;
+  /** URL pública (bucket fotos-perfil-tecnico) o null si todavía no cargó una. */
+  fotoPerfilUrl: string | null;
 };
 
 type FilaTecnico = {
@@ -40,6 +42,7 @@ type FilaTecnico = {
   disponible: boolean;
   latitud: number | null;
   longitud: number | null;
+  foto_perfil_path: string | null;
 };
 
 /** null si la persona todavía no se dio de alta como trabajador. */
@@ -54,7 +57,7 @@ export async function miFichaTrabajador(): Promise<MiFichaTrabajador | null> {
     await Promise.all([
       supabase
         .from("tecnicos")
-        .select("estado, zona_cobertura, radio_km, disponible, latitud, longitud")
+        .select("estado, zona_cobertura, radio_km, disponible, latitud, longitud, foto_perfil_path")
         .maybeSingle(),
       supabase.from("tecnico_categorias").select("categoria_slug"),
       supabase.from("perfiles").select("telefono").eq("id", user.id).maybeSingle(),
@@ -74,6 +77,9 @@ export async function miFichaTrabajador(): Promise<MiFichaTrabajador | null> {
     disponible: f.disponible,
     latitud: f.latitud,
     longitud: f.longitud,
+    fotoPerfilUrl: f.foto_perfil_path
+      ? supabase.storage.from(BUCKET_FOTO_PERFIL).getPublicUrl(f.foto_perfil_path).data.publicUrl
+      : null,
   };
 }
 
@@ -128,6 +134,40 @@ export type TipoDocumentoTecnico = "dni_frente" | "dni_dorso" | "selfie" | "matr
 
 const BUCKET_DOCUMENTOS = "documentos-tecnicos";
 
+/* ---------- Foto de perfil (pública) ----------
+   Distinta de la selfie de arriba: esa es privada, sólo para que
+   operaciones verifique identidad. Esta es la que el cliente ve en su
+   pedido cuando le asignan técnico — bucket público, ver
+   db/21_foto_perfil_tecnico.sql. */
+
+const BUCKET_FOTO_PERFIL = "fotos-perfil-tecnico";
+
+/** Siempre el mismo nombre de archivo por técnico ({id}/perfil.ext):
+ *  subir una foto nueva reemplaza la anterior, no acumula huérfanas. */
+export async function subirFotoPerfilTecnico(archivo: File): Promise<string> {
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  const extension = archivo.name.split(".").pop()?.toLowerCase() || "jpg";
+  const ruta = `${user.id}/perfil.${extension}`;
+
+  const { error: errorSubida } = await supabase.storage
+    .from(BUCKET_FOTO_PERFIL)
+    .upload(ruta, archivo, { contentType: archivo.type, upsert: true });
+  if (errorSubida) fallar("subir tu foto de perfil", errorSubida);
+
+  const { error: errorFila } = await supabase
+    .from("tecnicos")
+    .update({ foto_perfil_path: ruta })
+    .eq("id", user.id);
+  if (errorFila) fallar("guardar tu foto de perfil", errorFila);
+
+  return supabase.storage.from(BUCKET_FOTO_PERFIL).getPublicUrl(ruta).data.publicUrl;
+}
+
 export async function subirDocumentoTecnico(tipo: TipoDocumentoTecnico, archivo: File): Promise<void> {
   const supabase = supabaseNavegador();
   const {
@@ -147,6 +187,30 @@ export async function subirDocumentoTecnico(tipo: TipoDocumentoTecnico, archivo:
     .from("tecnico_documentos")
     .insert({ tecnico_id: user.id, tipo, archivo_path: ruta });
   if (errorFila) fallar("guardar el documento", errorFila);
+}
+
+/* ---------- Quién es mi técnico (lado cliente) ---------- */
+/* `perfiles` no se puede leer de nadie más que uno mismo (02_permisos.sql,
+   a propósito) — este RPC es la excepción autorizada: sólo devuelve
+   algo si quien llama es el cliente dueño de ESE pedido, y sólo si ya
+   tiene técnico asignado. Ver db/21_foto_perfil_tecnico.sql. */
+
+export type TecnicoDeServicio = { nombre: string; fotoUrl: string | null };
+
+export async function tecnicoDeServicio(servicioId: string): Promise<TecnicoDeServicio | null> {
+  const supabase = supabaseNavegador();
+  const { data, error } = await supabase.rpc("tecnico_de_mi_servicio", { p_servicio_id: servicioId });
+  if (error) fallar("cargar los datos del técnico", error);
+
+  const fila = (data as { nombre: string; foto_perfil_path: string | null }[] | null)?.[0];
+  if (!fila) return null;
+
+  return {
+    nombre: fila.nombre,
+    fotoUrl: fila.foto_perfil_path
+      ? supabase.storage.from(BUCKET_FOTO_PERFIL).getPublicUrl(fila.foto_perfil_path).data.publicUrl
+      : null,
+  };
 }
 
 /* ---------- Matching por cercanía ---------- */

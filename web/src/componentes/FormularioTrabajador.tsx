@@ -7,6 +7,7 @@ import { listarCategorias, type CategoriaBD } from "@/lib/datos";
 import {
   guardarTrabajador,
   subirDocumentoTecnico,
+  subirFotoPerfilTecnico,
   type DatosTrabajador,
   type EstadoTrabajador,
   type MiFichaTrabajador,
@@ -201,10 +202,24 @@ export function FormularioTrabajador({
         }
       }
 
+      // La selfie de verificación es también la foto pública que ve el
+      // cliente cuando le asignan este técnico — no se le pide una
+      // segunda foto. No bloquea el alta si falla: la verificación de
+      // operaciones (con la copia privada de arriba) sigue en pie
+      // igual, la foto pública se puede reintentar después.
+      let fotoPerfilUrl: string | null = fichaInicial?.fotoPerfilUrl ?? null;
+      if (selfie) {
+        try {
+          fotoPerfilUrl = await subirFotoPerfilTecnico(selfie);
+        } catch {
+          setErrorDocumentos("No pudimos guardar tu foto de perfil pública. Podés reintentarlo después.");
+        }
+      }
+
       // Sin verificación no cambia el estado; si ya tenía uno (edición),
       // se mantiene. Si es alta nueva, la política de la base lo crea
       // en "pendiente" — ver db/07_trabajadores.sql.
-      alGuardar?.({ ...datosGuardados, estado: estado ?? "pendiente" });
+      alGuardar?.({ ...datosGuardados, estado: estado ?? "pendiente", fotoPerfilUrl });
       setGuardadoOk(true);
     } catch (err) {
       setErrorGuardar(err instanceof Error ? err.message : "No pudimos guardar tu ficha.");
@@ -404,8 +419,9 @@ export function FormularioTrabajador({
             </div>
             {esAltaNueva && (
               <p className="text-[11.5px] text-faint mt-1.5 px-1 leading-snug">
-                DNI y selfie son obligatorios para que operaciones pueda verificarte. El título o
-                matrícula lo podés sumar ahora o después.
+                DNI y selfie son obligatorios para que operaciones pueda verificarte. Tu selfie
+                también es la foto que van a ver tus clientes cuando les asignen un pedido — el DNI
+                nunca se les muestra. El título o matrícula lo podés sumar ahora o después.
               </p>
             )}
             {errorDocumentos && <p className="text-[12px] text-urgent mt-1.5 px-1">{errorDocumentos}</p>}

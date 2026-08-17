@@ -134,6 +134,16 @@ export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   cancelado: "Cancelado",
 };
 
+/** Mismas cuatro franjas que ofrece /pedir al elegir día y hora — acá
+ *  sólo para mostrar de vuelta lo que el cliente ya eligió (no una
+ *  hora de llegada calculada, ver Servicio.franjaPreferida). */
+export const ETIQUETA_FRANJA: Record<string, string> = {
+  manana: "Mañana · 8 a 12 h",
+  "tarde-1": "Tarde · 13 a 17 h",
+  "tarde-2": "Tarde · 17 a 20 h",
+  urgente: "Lo antes posible",
+};
+
 /** Un grupo por estado, no un color por estado: hay diez estados y sólo
  *  cuatro situaciones que de verdad importa distinguir de un vistazo —
  *  cancelado, resuelto, pasando ahora mismo, o esperando algo. Usa los
@@ -185,6 +195,10 @@ export type Servicio = {
   descripcion: string;
   estado: EstadoServicio;
   creadoEl: string;
+  /** Día y franja que eligió el cliente al pedir — no una hora de llegada
+   *  calculada (no hay con qué: los domicilios no tienen coordenadas). */
+  fechaPreferida: string | null;
+  franjaPreferida: string | null;
   /** Monto en pesos argentinos. Null mientras no haya presupuesto aceptado. */
   montoArs: number | null;
   tecnicoNombre?: string;
