@@ -150,7 +150,7 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
 
   if (cargando || !trabajo) {
     return (
-      <main className="max-w-2xl mx-auto px-5 py-8 space-y-3">
+      <main className="px-5 pt-12 space-y-3">
         <Bloque className="h-8 w-40" />
         <Bloque className="h-[120px] w-full rounded-xl2" />
         <Bloque className="h-[200px] w-full rounded-xl2" />
@@ -161,7 +161,7 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
   const pendienteDeAceptar = trabajo.estado === "asignado" && !trabajo.tecnicoConfirmadoEl;
 
   return (
-    <main className="max-w-2xl mx-auto px-5 py-8 pb-20">
+    <main className="h-dvh overflow-y-auto no-scrollbar px-5 pt-12 pb-28">
       <Link href="/tecnico" className="press inline-flex items-center gap-1.5 text-[13px] font-semibold text-mute">
         <ArrowLeft className="w-4 h-4" /> Tus trabajos
       </Link>

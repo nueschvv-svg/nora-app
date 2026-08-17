@@ -18,6 +18,8 @@ import {
 } from "@/lib/tecnico";
 import { fechaCorta, pesos } from "@/lib/formato";
 
+const COMPLETADOS = new Set(["finalizado", "pagado", "calificado"]);
+
 type Pestana = "disponibles" | "pendientes" | "en_curso" | "historial";
 
 const TERMINADOS = new Set(["finalizado", "pagado", "calificado", "cancelado"]);
@@ -79,20 +81,18 @@ export default function PaginaTecnico() {
   const pendientes = trabajos.filter((t) => t.estado === "asignado" && !t.tecnicoConfirmadoEl);
   const enCurso = trabajos.filter((t) => !!t.tecnicoConfirmadoEl && !TERMINADOS.has(t.estado));
   const historial = trabajos.filter((t) => TERMINADOS.has(t.estado));
+  const totalCobrado = trabajos
+    .filter((t) => COMPLETADOS.has(t.estado))
+    .reduce((suma, t) => suma + (t.montoArs ?? 0), 0);
 
   const filtrados = pestana === "pendientes" ? pendientes : pestana === "en_curso" ? enCurso : historial;
 
   return (
-    <main className="max-w-3xl mx-auto px-5 py-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-600 text-white shadow-fab">
-            <Wrench className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-[20px] font-bold font-display text-ink leading-tight">Tus trabajos</h1>
-            <p className="text-[12.5px] text-mute mt-0.5">Pedidos disponibles y los que ya tomaste.</p>
-          </div>
+    <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
+      <div className="px-5 pt-12 pb-2 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[24px] font-bold font-display text-ink leading-tight">Tus trabajos</h1>
+          <p className="text-[13px] text-mute mt-0.5">Pedidos disponibles y los que ya tomaste.</p>
         </div>
         <button
           type="button"
@@ -101,13 +101,60 @@ export default function PaginaTecnico() {
             router.replace("/entrar");
             router.refresh();
           }}
-          className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent shrink-0"
+          className="press flex items-center gap-1.5 text-[12.5px] font-semibold text-urgent shrink-0 mt-1.5"
         >
-          <LogOut className="w-4 h-4" /> Salir
+          <LogOut className="w-3.5 h-3.5" /> Salir
         </button>
       </div>
 
-      <div className="flex gap-2 mt-5 overflow-x-auto no-scrollbar">
+      {!cargando && (
+        <div className="px-5 mt-2">
+          <section
+            className="relative overflow-hidden rounded-xl3 bg-brand-700 text-white shadow-hero p-5"
+            style={{
+              backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
+            }}
+          >
+            <div className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-brand-400/20 blur-2xl" />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-2.5 py-1 text-[11.5px] font-medium text-brand-50">
+                  <Wrench className="w-[13px] h-[13px]" /> Tu actividad
+                </span>
+                <p className="mt-2.5 text-[30px] font-extrabold font-display leading-none num">{enCurso.length}</p>
+                <p className="text-[13px] text-brand-100 mt-1.5">
+                  {enCurso.length === 1 ? "trabajo en curso" : "trabajos en curso"}
+                </p>
+              </div>
+              <span className="shrink-0 w-14 h-14 grid place-items-center rounded-2xl bg-white/10">
+                <Wrench className="w-6 h-6" />
+              </span>
+            </div>
+
+            {(pendientes.length > 0 || totalCobrado > 0) && (
+              <div className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/[.08] border border-white/10 px-3.5 py-3">
+                <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-warn/20 text-orange-200">
+                  <Inbox className="w-[18px] h-[18px]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-white leading-snug">
+                    {pendientes.length > 0
+                      ? `${pendientes.length} ${pendientes.length === 1 ? "pedido" : "pedidos"} por aceptar`
+                      : "Todo aceptado"}
+                  </p>
+                  <p className="text-[11px] text-brand-100 mt-0.5">Revisalos antes de que se reasignen</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="num text-[14px] font-bold text-white leading-tight">{pesos(totalCobrado)}</p>
+                  <p className="text-[10px] text-brand-100 mt-0.5">cobrado en total</p>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      <div className="px-5 flex gap-2 mt-5 overflow-x-auto no-scrollbar">
         {(
           [
             ["disponibles", "Disponibles", abiertos.length],
@@ -142,13 +189,13 @@ export default function PaginaTecnico() {
       </div>
 
       {avisoTomar && (
-        <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mt-4">
+        <p role="alert" className="mx-5 text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mt-4">
           {avisoTomar}
         </p>
       )}
 
       {cargando ? (
-        <div className="mt-5 space-y-2.5">
+        <div className="px-5 mt-5 space-y-2.5">
           <Bloque className="h-[86px] w-full rounded-xl2" />
           <Bloque className="h-[86px] w-full rounded-xl2" />
         </div>
@@ -160,7 +207,7 @@ export default function PaginaTecnico() {
             texto="En cuanto aparezca uno de tu rubro y tu zona, lo vas a ver acá al instante."
           />
         ) : (
-          <div className="mt-5 space-y-2.5">
+          <div className="px-5 mt-5 space-y-2.5">
             {abiertos.map((p) => (
               <div
                 key={p.id}
@@ -215,7 +262,7 @@ export default function PaginaTecnico() {
           }
         />
       ) : (
-        <div className="mt-5 space-y-2.5">
+        <div className="px-5 mt-5 space-y-2.5">
           {filtrados.map((t) => (
             <Link
               key={t.id}

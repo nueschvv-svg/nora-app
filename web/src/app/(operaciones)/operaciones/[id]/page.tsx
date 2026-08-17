@@ -105,7 +105,7 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
 
   if (cargando || !servicio) {
     return (
-      <main className="max-w-2xl mx-auto px-5 py-8 space-y-3">
+      <main className="px-5 pt-12 space-y-3">
         <Bloque className="h-8 w-40" />
         <Bloque className="h-[120px] w-full rounded-xl2" />
         <Bloque className="h-[200px] w-full rounded-xl2" />
@@ -118,7 +118,7 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
   const puedeCancelar = servicio.estado !== "cancelado" && indiceActual >= 0 && indiceActual < SECUENCIA.indexOf("en_curso") + 1;
 
   return (
-    <main className="max-w-2xl mx-auto px-5 py-8 pb-20">
+    <main className="h-dvh overflow-y-auto no-scrollbar px-5 pt-12 pb-28">
       <Link href="/operaciones" className="press inline-flex items-center gap-1.5 text-[13px] font-semibold text-mute">
         <ArrowLeft className="w-4 h-4" /> Todos los pedidos
       </Link>

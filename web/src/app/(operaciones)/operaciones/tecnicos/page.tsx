@@ -36,7 +36,7 @@ export default function PaginaSolicitudesTecnico() {
   if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
   return (
-    <main className="max-w-3xl mx-auto px-5 py-8">
+    <main className="h-dvh overflow-y-auto no-scrollbar px-5 pt-12 pb-28">
       <Link href="/operaciones" className="press inline-flex items-center gap-1.5 text-[13px] font-semibold text-mute">
         <ArrowLeft className="w-4 h-4" /> Todos los pedidos
       </Link>

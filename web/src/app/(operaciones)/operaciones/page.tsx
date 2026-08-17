@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ClipboardList, LogOut, PackageOpen, UserCheck } from "lucide-react";
+import { ChevronRight, ClipboardList, LogOut, PackageOpen, Radio } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import { BadgeEstado } from "@/componentes/BadgeEstado";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
-import { listarSolicitudesTecnico, listarTodosLosServicios, type ServicioLista } from "@/lib/operaciones";
+import { listarTodosLosServicios, type ServicioLista } from "@/lib/operaciones";
 import { type EstadoServicio } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
 
@@ -36,7 +36,6 @@ export default function PaginaOperaciones() {
   const [error, setError] = useState<string | null>(null);
   const [pestana, setPestana] = useState<Pestana>("en_curso");
   const [intento, setIntento] = useState(0);
-  const [solicitudesTecnico, setSolicitudesTecnico] = useState(0);
 
   const traer = useCallback(() => setIntento((n) => n + 1), []);
 
@@ -52,13 +51,6 @@ export default function PaginaOperaciones() {
       .finally(() => {
         if (vivo) setCargando(false);
       });
-    listarSolicitudesTecnico()
-      .then((s) => {
-        if (vivo) setSolicitudesTecnico(s.length);
-      })
-      .catch(() => {
-        /* No es crítico: el link a la lista sigue andando sin el contador. */
-      });
     return () => {
       vivo = false;
     };
@@ -69,18 +61,14 @@ export default function PaginaOperaciones() {
   const enCurso = servicios.filter((s) => EN_CURSO.has(s.estado));
   const resueltos = servicios.filter((s) => !EN_CURSO.has(s.estado) && s.estado !== "cancelado");
   const filtrados = pestana === "en_curso" ? enCurso : pestana === "resueltos" ? resueltos : servicios;
+  const montoEnCurso = enCurso.reduce((suma, s) => suma + (s.montoArs ?? 0), 0);
 
   return (
-    <main className="max-w-3xl mx-auto px-5 py-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-600 text-white shadow-fab">
-            <ClipboardList className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-[20px] font-bold font-display text-ink leading-tight">Panel de operaciones</h1>
-            <p className="text-[12.5px] text-mute mt-0.5">Todos los pedidos, de todos los clientes.</p>
-          </div>
+    <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
+      <div className="px-5 pt-12 pb-2 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[24px] font-bold font-display text-ink leading-tight">Panel de operaciones</h1>
+          <p className="text-[13px] text-mute mt-0.5">Todos los pedidos, de todos los clientes.</p>
         </div>
         <button
           type="button"
@@ -89,29 +77,56 @@ export default function PaginaOperaciones() {
             router.replace("/entrar");
             router.refresh();
           }}
-          className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent shrink-0"
+          className="press flex items-center gap-1.5 text-[12.5px] font-semibold text-urgent shrink-0 mt-1.5"
         >
-          <LogOut className="w-4 h-4" /> Salir
+          <LogOut className="w-3.5 h-3.5" /> Salir
         </button>
       </div>
 
-      <Link
-        href="/operaciones/tecnicos"
-        className="press mt-4 flex items-center gap-3 rounded-xl2 bg-brand-50 border border-brand-100 px-4 py-3.5"
-      >
-        <span className="shrink-0 w-10 h-10 grid place-items-center rounded-xl bg-brand-600 text-white">
-          <UserCheck className="w-[18px] h-[18px]" />
-        </span>
-        <span className="flex-1 text-[13.5px] font-semibold text-brand-600">Solicitudes para ser técnico</span>
-        {solicitudesTecnico > 0 && (
-          <span className="shrink-0 text-[11.5px] font-bold text-white bg-brand-600 rounded-full w-6 h-6 grid place-items-center">
-            {solicitudesTecnico}
-          </span>
-        )}
-        <ChevronRight className="w-4 h-4 text-brand-600 shrink-0" />
-      </Link>
+      {!cargando && (
+        <div className="px-5 mt-2">
+          <section
+            className="relative overflow-hidden rounded-xl3 bg-brand-700 text-white shadow-hero p-5"
+            style={{
+              backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
+            }}
+          >
+            <div className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-brand-400/20 blur-2xl" />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-2.5 py-1 text-[11.5px] font-medium text-brand-50">
+                  <ClipboardList className="w-[13px] h-[13px]" /> Pedidos activos
+                </span>
+                <p className="mt-2.5 text-[30px] font-extrabold font-display leading-none num">{enCurso.length}</p>
+                <p className="text-[13px] text-brand-100 mt-1.5">
+                  {enCurso.length === 1 ? "pedido en curso" : "pedidos en curso"}
+                </p>
+              </div>
+              <span className="shrink-0 w-14 h-14 grid place-items-center rounded-2xl bg-white/10">
+                <ClipboardList className="w-6 h-6" />
+              </span>
+            </div>
 
-      <div className="flex gap-2 mt-5">
+            <div className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/[.08] border border-white/10 px-3.5 py-3">
+              <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-good/20 text-emerald-200">
+                <Radio className="w-[18px] h-[18px]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-white leading-snug">
+                  {resueltos.length} {resueltos.length === 1 ? "resuelto" : "resueltos"}
+                </p>
+                <p className="text-[11px] text-brand-100 mt-0.5">Del total histórico</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="num text-[14px] font-bold text-white leading-tight">{pesos(montoEnCurso)}</p>
+                <p className="text-[10px] text-brand-100 mt-0.5">en pedidos activos</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      <div className="px-5 flex gap-2 mt-5">
         {(
           [
             ["en_curso", "En curso", enCurso.length],
@@ -145,7 +160,7 @@ export default function PaginaOperaciones() {
       </div>
 
       {cargando ? (
-        <div className="mt-5 space-y-2.5">
+        <div className="px-5 mt-5 space-y-2.5">
           <Bloque className="h-[76px] w-full rounded-xl2" />
           <Bloque className="h-[76px] w-full rounded-xl2" />
           <Bloque className="h-[76px] w-full rounded-xl2" />
@@ -153,7 +168,7 @@ export default function PaginaOperaciones() {
       ) : filtrados.length === 0 ? (
         <EstadoVacio icono={PackageOpen} titulo="No hay pedidos acá" texto="Los pedidos que entren van a aparecer en esta lista." />
       ) : (
-        <div className="mt-5 space-y-2.5">
+        <div className="px-5 mt-5 space-y-2.5">
           {filtrados.map((s) => (
             <Link
               key={s.id}

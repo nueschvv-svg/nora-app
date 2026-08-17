@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServidor } from "@/lib/supabase/servidor";
+import { NavInferiorTecnico } from "@/componentes/NavInferiorTecnico";
 
 /* El "marco" del técnico. Mismo patrón que (operaciones)/layout.tsx.
 
@@ -21,5 +22,10 @@ export default async function LayoutTecnico({ children }: { children: React.Reac
 
   if (tecnico?.estado !== "verificado") redirect("/perfil");
 
-  return <div className="min-h-dvh bg-sand">{children}</div>;
+  return (
+    <div className="relative w-full max-w-[440px] h-dvh bg-sand overflow-hidden shadow-2xl">
+      {children}
+      <NavInferiorTecnico />
+    </div>
+  );
 }

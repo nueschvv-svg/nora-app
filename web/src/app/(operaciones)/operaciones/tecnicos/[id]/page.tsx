@@ -75,7 +75,7 @@ export default function PaginaDetalleSolicitudTecnico({ params }: { params: Prom
 
   if (cargando || !solicitud) {
     return (
-      <main className="max-w-2xl mx-auto px-5 py-8 space-y-3">
+      <main className="px-5 pt-12 space-y-3">
         <Bloque className="h-8 w-40" />
         <Bloque className="h-[160px] w-full rounded-xl2" />
       </main>
@@ -83,7 +83,7 @@ export default function PaginaDetalleSolicitudTecnico({ params }: { params: Prom
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-5 py-8 pb-20">
+    <main className="h-dvh overflow-y-auto no-scrollbar px-5 pt-12 pb-28">
       <Link
         href="/operaciones/tecnicos"
         className="press inline-flex items-center gap-1.5 text-[13px] font-semibold text-mute"
