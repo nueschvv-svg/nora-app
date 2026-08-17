@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Banknote, CalendarClock, Check, Loader2, QrCode, Star, UserRound, X, XCircle } from "lucide-react";
+import {
+  Banknote,
+  CalendarClock,
+  Check,
+  Loader2,
+  MessageCircle,
+  QrCode,
+  Star,
+  UserRound,
+  X,
+  XCircle,
+} from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
 import { HiloChat } from "./HiloChat";
 import { useApp } from "./ContextoApp";
@@ -525,29 +536,41 @@ export function HojaServicio({
             {servicio.tecnicoId && (
               <>
                 {tecnicoDeServicioId === servicio.id && (
-                  <div className="mt-4 flex items-center gap-3 rounded-xl2 bg-surface border border-line shadow-card p-3.5">
-                    <span className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-brand-50 grid place-items-center">
+                  <div className="mt-4 flex items-center gap-3.5 rounded-xl3 bg-surface border border-line shadow-card p-4">
+                    <span className="shrink-0 w-16 h-16 rounded-full overflow-hidden bg-brand-50 grid place-items-center ring-2 ring-brand-100">
                       {tecnico?.fotoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element -- URL pública, no vale next/image acá
                         <img src={tecnico.fotoUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <UserRound className="w-6 h-6 text-brand-300" />
+                        <UserRound className="w-8 h-8 text-brand-300" />
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-[10.5px] font-bold tracking-wide uppercase text-faint">
                         Tu técnico
                       </p>
-                      <p className="text-[14.5px] font-semibold text-ink truncate mt-0.5">
+                      <p className="text-[17px] font-bold font-display text-ink truncate mt-0.5 leading-tight">
                         {tecnico?.nombre ?? "Asignado"}
                       </p>
-                      {tecnico?.promedio != null && (
-                        <p className="flex items-center gap-1 text-[12px] text-mute mt-0.5">
-                          <Star className="w-3 h-3 fill-warn text-warn" />
-                          {tecnico.promedio} · {tecnico.trabajos} {tecnico.trabajos === 1 ? "trabajo" : "trabajos"}
-                        </p>
-                      )}
+                      <p className="flex items-center gap-1.5 text-[12.5px] text-mute mt-1 truncate">
+                        {tecnico?.promedio != null && (
+                          <span className="flex items-center gap-0.5 shrink-0">
+                            <Star className="w-3.5 h-3.5 fill-warn text-warn" />
+                            <span className="font-semibold text-ink">{tecnico.promedio}</span>
+                          </span>
+                        )}
+                        {tecnico?.promedio != null && (categoria?.nombre || tecnico?.trabajos) && " · "}
+                        {categoria?.nombre}
+                        {tecnico && tecnico.trabajos > 0 && ` · ${tecnico.trabajos} trabajos`}
+                      </p>
                     </div>
+                    <a
+                      href="#hilo-chat"
+                      className="press shrink-0 w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab"
+                      aria-label="Ir al chat con el técnico"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </a>
                   </div>
                 )}
 
@@ -629,7 +652,9 @@ export function HojaServicio({
                     </div>
                   ))}
 
-                <HiloChat servicioId={servicio.id} />
+                <div id="hilo-chat">
+                  <HiloChat servicioId={servicio.id} />
+                </div>
               </>
             )}
           </div>
