@@ -48,6 +48,16 @@ export default function PaginaPerfil() {
       });
   }, [sesion]);
 
+  /* notifOn arranca en null tanto en el servidor como en el primer render
+     del cliente (SSR no tiene `window`/`navigator` para saber si hay
+     soporte) — recién se resuelve en el efecto, dentro del .then(). Antes
+     el botón se mostraba u ocultaba llamando notificacionesSoportadas()
+     directo en el JSX: eso lee `window` y da una respuesta distinta en
+     el servidor (false) que en el primer render del cliente (true),
+     rompiendo la hidratación. Usar "todavía no sabemos" (null) como
+     único estado inicial, sin importar dónde corre, evita el mismatch:
+     el botón sólo aparece cuando notifOn deja de ser null, y eso pasa
+     siempre después de montar. */
   const [notifOn, setNotifOn] = useState<boolean | null>(null);
   const [notifCargando, setNotifCargando] = useState(false);
   const [notifError, setNotifError] = useState<string | null>(null);
@@ -201,11 +211,11 @@ export default function PaginaPerfil() {
               <ChevronRight className="w-[18px] h-[18px] text-faint" />
             </button>
           ))}
-          {notificacionesSoportadas() && (
+          {notifOn !== null && (
             <button
               type="button"
               onClick={alternarNotificaciones}
-              disabled={notifCargando || notifOn === null}
+              disabled={notifCargando}
               className="w-full flex items-center gap-3.5 p-3.5 press text-left disabled:opacity-60"
             >
               {notifOn ? (

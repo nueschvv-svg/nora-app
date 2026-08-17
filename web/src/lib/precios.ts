@@ -254,6 +254,59 @@ export function textoEstimado(e: Estimado): {
   };
 }
 
+/* ---------- Estimado sólo con la visita ----------
+
+   Para cuando no se pudo identificar el trabajo exacto (foto ambigua,
+   descripción rara, categoría sin catálogo de IA todavía) pero SÍ hay
+   tarifa cargada para la categoría. En vez de no mostrar nada — que es
+   lo que pasaba antes y por lo que el cliente nunca veía un precio en
+   varios rubros — mostramos lo único que sí podemos afirmar sin ver el
+   problema: cuánto sale que el técnico vaya. Mismo criterio que el caso
+   `!rangoUtil` de arriba, pero sin depender de un `Trabajo` del catálogo. */
+
+export type EstimadoVisita = {
+  desdeArs: number;
+  hastaArs: number;
+  desdeUsd: number | null;
+  hastaUsd: number | null;
+  conRecargo: boolean;
+};
+
+export function calcularVisita(
+  tarifa: Tarifa,
+  opciones: { fueraDeHorario?: boolean; dolar?: number | null } = {},
+): EstimadoVisita {
+  const { fueraDeHorario = false, dolar = null } = opciones;
+  const recargo = fueraDeHorario ? 1 + tarifa.recargoUrgencia : 1;
+  const desdeArs = Math.round(tarifa.visitaArs * recargo);
+  const hastaArs = Math.round((tarifa.visitaMaxArs ?? tarifa.visitaArs) * recargo);
+
+  return {
+    desdeArs,
+    hastaArs,
+    desdeUsd: dolar ? Math.round(desdeArs / dolar) : null,
+    hastaUsd: dolar ? Math.round(hastaArs / dolar) : null,
+    conRecargo: fueraDeHorario,
+  };
+}
+
+export function textoVisita(e: EstimadoVisita): { titulo: string; aclaracion: string; usd: string | null } {
+  const pesos = (n: number) => "$ " + n.toLocaleString("es-AR", { maximumFractionDigits: 0 });
+  const titulo =
+    e.desdeArs === e.hastaArs
+      ? `Visita desde ${pesos(e.desdeArs)}`
+      : `Visita desde ${pesos(e.desdeArs)} a ${pesos(e.hastaArs)}`;
+
+  return {
+    titulo,
+    aclaracion:
+      "No pudimos identificar el trabajo exacto, así que esto es sólo lo que sale que el técnico vaya a verlo — incluye la primera hora. El precio final te lo confirmamos antes de arrancar.",
+    usd: e.desdeUsd != null && e.hastaUsd != null
+      ? `USD ${e.desdeUsd}${e.desdeUsd !== e.hastaUsd ? ` – ${e.hastaUsd}` : ""}`
+      : null,
+  };
+}
+
 /** ¿Corresponde recargo? Fuera de 8-20 h de lunes a viernes, o fin de semana. */
 export function esFueraDeHorario(cuando: Date = new Date()): boolean {
   const dia = cuando.getDay();

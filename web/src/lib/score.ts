@@ -11,7 +11,7 @@
    el número + el desglose de cómo se llegó a él.
    ============================================================ */
 
-import { Equipo, REGLAS_EQUIPO } from "./tipos";
+import { Equipo, Propiedad, REGLAS_EQUIPO } from "./tipos";
 
 export type EstadoRevision = "vencido" | "por_vencer" | "al_dia" | "sin_datos";
 
@@ -221,4 +221,43 @@ export function ordenarPorUrgencia(equipos: EquipoEvaluado[]): EquipoEvaluado[] 
     if (d !== 0) return d;
     return (b.diasVencido ?? -9999) - (a.diasVencido ?? -9999);
   });
+}
+
+export type Recordatorio = {
+  id: string;
+  propiedadNombre: string;
+  etiqueta: string;
+  icono: string;
+  estado: "vencido" | "por_vencer";
+  diasVencido: number;
+};
+
+/* Recordatorios de mantenimiento para la campanita de notificaciones —
+   NO se guardan en ninguna tabla (ver db/28_notificaciones.sql): se
+   recalculan acá mismo, en el momento, a partir de los equipos de
+   TODAS las propiedades de la persona. Misma lógica que ya usa el
+   score de Inicio (evaluarEquipo), sólo que agregada entre propiedades
+   en vez de para una sola. */
+export function recordatoriosDeMantenimiento(
+  propiedades: Propiedad[],
+  equiposDe: (propiedadId: string) => Equipo[],
+): Recordatorio[] {
+  const items: Recordatorio[] = [];
+
+  for (const p of propiedades) {
+    for (const equipo of equiposDe(p.id)) {
+      const evaluado = evaluarEquipo(equipo);
+      if (evaluado.estado !== "vencido" && evaluado.estado !== "por_vencer") continue;
+      items.push({
+        id: equipo.id,
+        propiedadNombre: p.nombre,
+        etiqueta: evaluado.etiqueta,
+        icono: evaluado.icono,
+        estado: evaluado.estado,
+        diasVencido: evaluado.diasVencido ?? 0,
+      });
+    }
+  }
+
+  return items.sort((a, b) => b.diasVencido - a.diasVencido);
 }

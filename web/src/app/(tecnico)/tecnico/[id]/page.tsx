@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import { HiloChat } from "@/componentes/HiloChat";
+import { enviarMensajeServicio, listarMensajesServicio, suscribirseAMensajesServicio } from "@/lib/chat";
 import { BadgeEstado } from "@/componentes/BadgeEstado";
 import {
   aceptarTrabajo,
@@ -386,7 +387,12 @@ export default function PaginaDetalleTecnico({ params }: { params: Promise<{ id:
         )}
       </Seccion>
 
-      <HiloChat servicioId={id} />
+      <HiloChat
+        idAncla={id}
+        listar={() => listarMensajesServicio(id)}
+        enviar={(cuerpo) => enviarMensajeServicio(id, cuerpo)}
+        suscribirse={(alLlegar) => suscribirseAMensajesServicio(id, alLlegar)}
+      />
     </main>
   );
 }

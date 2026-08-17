@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+/* Bug real, encontrado en vivo (Safari): Tailwind v4 calcula
+   translate-x/y/z, scale-x/y/z, etc. con variables CSS (--tw-translate-y)
+   y un `@property` que les da 0 como valor inicial — pero el reset que
+   pone ese 0 en TODOS los elementos viene adentro de un `@supports(...)`
+   pensado para Safari, y en la versión de Safari que se probó esa
+   condición no se cumple. Sin el reset, una clase que sólo toca UN eje
+   (translate-y-full sólo define --tw-translate-y, no --tw-translate-x)
+   deja el otro eje sin valor — y como la propiedad `translate` es una
+   sola declaración con los dos ejes juntos, un valor inválido invalida
+   TODA la declaración: el elemento nunca se mueve, aunque la clase esté
+   bien puesta. Pasaba con cualquier hoja que usa `translate-y-full` para
+   esconderse (HojaPropiedades, FormularioPropiedad, etc.) — varias
+   quedaban visibles al mismo tiempo, superpuestas, en vez de una sola.
+   Este reset es el mismo que ya trae Tailwind, sin la condición de
+   Safari. Tiene que ir en `@layer base` y no suelto: fuera de una capa,
+   una regla de CSS le gana a CUALQUIER cosa adentro de una capa sin
+   importar especificidad ni orden — así quedó la primera versión de
+   este arreglo, y terminaba pisando también a las clases que sí debían
+   ganar (translate-y-full nunca volvía a esconder nada). Puesto en
+   `base`, que es más débil que `utilities` en el orden de capas de
+   Tailwind, sólo actúa como valor por defecto — cualquier clase de
+   utilidad lo sigue pisando con normalidad. */
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    --tw-translate-z: 0;
+  }
+}
+
 /* ============================================================
    SISTEMA DE DISEÑO NORA
    Extraído del prototipo original (prototipo/index.html, líneas 14-29).

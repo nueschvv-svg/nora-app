@@ -25,6 +25,8 @@ export type Obra = {
   contactoNombre: string | null;
   contactoRol: string | null;
   contactoTelefono: string | null;
+  /** Código del link para invitar (arquitecta, socios) — ver db/29_obras_colaboracion.sql. */
+  codigoInvitacion: string;
   creadoEl: string;
 };
 
@@ -38,6 +40,7 @@ type FilaObra = {
   contacto_nombre: string | null;
   contacto_rol: string | null;
   contacto_telefono: string | null;
+  codigo_invitacion: string;
   creado_el: string;
 };
 
@@ -52,12 +55,13 @@ function aObra(f: FilaObra): Obra {
     contactoNombre: f.contacto_nombre,
     contactoRol: f.contacto_rol,
     contactoTelefono: f.contacto_telefono,
+    codigoInvitacion: f.codigo_invitacion,
     creadoEl: f.creado_el,
   };
 }
 
 const SELECT =
-  "id, nombre, ubicacion, presupuesto_ars, ejecutado_ars, etapas, contacto_nombre, contacto_rol, contacto_telefono, creado_el";
+  "id, nombre, ubicacion, presupuesto_ars, ejecutado_ars, etapas, contacto_nombre, contacto_rol, contacto_telefono, codigo_invitacion, creado_el";
 
 export async function listarObras(): Promise<Obra[]> {
   const { data, error } = await supabaseNavegador()
@@ -126,4 +130,26 @@ export async function actualizarEjecutado(obraId: string, ejecutadoArs: number |
 export async function borrarObra(obraId: string): Promise<void> {
   const { error } = await supabaseNavegador().from("obras").delete().eq("id", obraId);
   if (error) fallar("borrar la obra", error);
+}
+
+/* ---------- Invitar gente a la obra ----------
+   Un solo link por obra (no uno por persona) — se lo pasás a la
+   arquitecta, a un socio, a quien tenga que estar. Cualquiera con el
+   link y una cuenta de Nora se suma como colaborador — ver
+   db/29_obras_colaboracion.sql. */
+
+export function linkInvitacionObra(codigo: string): string {
+  return `${window.location.origin}/obras/unirse/${codigo}`;
+}
+
+export async function unirseAObra(codigo: string): Promise<{ obraId: string; nombre: string }> {
+  const { data, error } = await supabaseNavegador().rpc("unirse_a_obra", { p_codigo: codigo }).maybeSingle();
+  if (error) {
+    console.error("[obras] unirse a la obra:", error.message);
+    // El mensaje de "código inválido" lo redacta la propia función de la
+    // base para mostrarlo tal cual — cualquier otro error se generaliza.
+    throw new Error(error.message.includes("no es válido") ? error.message : "No pudimos unirte a la obra. Probá de nuevo en un momento.");
+  }
+  if (!data) throw new Error("Ese link de invitación no es válido.");
+  return { obraId: data.obra_id, nombre: data.nombre };
 }

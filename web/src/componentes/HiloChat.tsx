@@ -2,19 +2,34 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
-import {
-  listarMensajesServicio,
-  enviarMensajeServicio,
-  suscribirseAMensajesServicio,
-  type MensajeServicio,
-} from "@/lib/chat";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 
-/* Chat de un servicio puntual. Lo usan cliente y técnico por igual —
-   quién puede leer o escribir lo decide la base
-   (db/12_tecnico_en_terreno.sql), acá sólo se pinta. */
-export function HiloChat({ servicioId }: { servicioId: string }) {
-  const [mensajes, setMensajes] = useState<MensajeServicio[]>([]);
+/* Chat genérico — lo usan tanto el servicio (cliente/técnico, vía
+   lib/chat.ts) como la obra (dueño/colaboradores, vía lib/obraChat.ts).
+   Mismo componente, cada uno le pasa sus propias funciones: quién
+   puede leer o escribir lo decide la base en cada caso, acá sólo se
+   pinta. */
+
+type MensajeChat = {
+  id: string;
+  autorId: string;
+  cuerpo: string;
+  creadoEl: string;
+};
+
+export function HiloChat({
+  idAncla,
+  listar,
+  enviar,
+  suscribirse,
+}: {
+  /** Sólo para que el <label htmlFor> del input sea único en la página. */
+  idAncla: string;
+  listar: () => Promise<MensajeChat[]>;
+  enviar: (cuerpo: string) => Promise<void>;
+  suscribirse: (alLlegarMensaje: (m: MensajeChat) => void) => () => void;
+}) {
+  const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [miId, setMiId] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -35,7 +50,7 @@ export function HiloChat({ servicioId }: { servicioId: string }) {
 
   useEffect(() => {
     let vivo = true;
-    listarMensajesServicio(servicioId)
+    listar()
       .then((m) => {
         if (vivo) setMensajes(m);
       })
@@ -43,7 +58,7 @@ export function HiloChat({ servicioId }: { servicioId: string }) {
         /* Sin historial el chat sigue funcionando para lo nuevo. */
       });
 
-    const cancelar = suscribirseAMensajesServicio(servicioId, (m) => {
+    const cancelar = suscribirse((m) => {
       setMensajes((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]));
     });
 
@@ -51,20 +66,21 @@ export function HiloChat({ servicioId }: { servicioId: string }) {
       vivo = false;
       cancelar();
     };
-  }, [servicioId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listar/suscribirse se recrean cada render en el padre; lo que importa para volver a suscribirse es idAncla
+  }, [idAncla]);
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ block: "end" });
   }, [mensajes]);
 
-  async function enviar(e: React.FormEvent) {
+  async function alEnviar(e: React.FormEvent) {
     e.preventDefault();
     const cuerpo = texto.trim();
     if (!cuerpo || enviando) return;
     setEnviando(true);
     setTexto("");
     try {
-      await enviarMensajeServicio(servicioId, cuerpo);
+      await enviar(cuerpo);
     } catch {
       setTexto(cuerpo);
     } finally {
@@ -97,12 +113,12 @@ export function HiloChat({ servicioId }: { servicioId: string }) {
         <div ref={finRef} />
       </div>
 
-      <form onSubmit={enviar} className="flex items-center gap-2 px-3 py-2.5 border-t border-line">
-        <label htmlFor={`chat-${servicioId}`} className="sr-only">
+      <form onSubmit={alEnviar} className="flex items-center gap-2 px-3 py-2.5 border-t border-line">
+        <label htmlFor={`chat-${idAncla}`} className="sr-only">
           Escribir un mensaje
         </label>
         <input
-          id={`chat-${servicioId}`}
+          id={`chat-${idAncla}`}
           type="text"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}

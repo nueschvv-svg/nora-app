@@ -17,10 +17,17 @@
 -- (db/21): se extiende la función security definer que ya existe
 -- para que además traiga promedio y cantidad de trabajos.
 --
+-- Postgres no deja cambiarle el tipo de retorno a una función con
+-- `create or replace` — hay que borrarla primero. Encontrado en vivo
+-- (el usuario lo corrió y tiró error 42P13, "cannot change return
+-- type of existing function").
+--
 -- Cómo aplicarlo: Supabase → SQL Editor → pegar y ejecutar.
 -- ============================================================
 
-create or replace function tecnico_de_mi_servicio(p_servicio_id uuid)
+drop function if exists tecnico_de_mi_servicio(uuid);
+
+create function tecnico_de_mi_servicio(p_servicio_id uuid)
 returns table (nombre text, foto_perfil_path text, promedio numeric, trabajos bigint)
 language sql
 stable

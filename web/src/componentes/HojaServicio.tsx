@@ -24,6 +24,7 @@ import {
   rechazarPresupuesto,
   type FotoServicio,
 } from "@/lib/datos";
+import { enviarMensajeServicio, listarMensajesServicio, suscribirseAMensajesServicio } from "@/lib/chat";
 import { suscribirseAServicio } from "@/lib/tiempoReal";
 import {
   calificarServicio,
@@ -43,28 +44,30 @@ const MapaSeguimiento = dynamic(
   { ssr: false },
 );
 
-/* Stepper de progreso: sólo tiene sentido una vez que hay un técnico
-   trabajando de verdad en esto — antes de eso (buscando, presupuesto
-   sin responder) no hay nada que "progrese" todavía. */
-const PASOS_PROGRESO = ["Confirmado", "En camino", "Trabajando", "Terminado"];
-const ESTADOS_CON_PROGRESO = new Set<EstadoServicio>([
-  "asignado",
-  "aceptado",
-  "en_camino",
-  "en_curso",
-  "finalizado",
-  "pagado",
-  "calificado",
-]);
+/* Stepper de progreso — arranca desde que el pedido SALE, no desde que
+   hay técnico. Antes el primer paso era "Confirmado" y hasta ahí no
+   llegar no mostraba nada: un pedido recién enviado se veía igual que
+   antes de tocar nada. Pedido real, encontrado en vivo más de una vez:
+   "aunque todavía no haya técnico que haya aceptado tiene que tener el
+   estilo". Ahora el paso 0 ("Pedido enviado") está cumplido apenas
+   existe el servicio — lo demás avanza con los mismos hitos de
+   siempre. Sólo se oculta en "cancelado", que no es progreso de nada. */
+const PASOS_PROGRESO = ["Pedido enviado", "Confirmado", "En camino", "Trabajando", "Terminado"];
+const ESTADOS_SIN_PROGRESO = new Set<EstadoServicio>(["cancelado"]);
 
-function pasoDeEstado(estado: EstadoServicio): number {
-  if (estado === "en_camino") return 1;
-  if (estado === "en_curso") return 2;
-  if (estado === "finalizado" || estado === "pagado" || estado === "calificado") return 3;
-  return 0; // asignado (ya confirmado) o aceptado
+function pasoDeEstado(servicio: Servicio): number {
+  const estado = servicio.estado;
+  if (estado === "en_camino") return 2;
+  if (estado === "en_curso") return 3;
+  if (estado === "finalizado" || estado === "pagado" || estado === "calificado") return 4;
+  if (estado === "aceptado" || servicio.tecnicoConfirmadoEl) return 1;
+  return 0; // solicitado, buscando_tecnico, asignado sin confirmar, presupuestado
 }
 
-function Progreso({ pasoActual }: { pasoActual: number }) {
+/* `oscuro`: el hero de arriba tiene fondo degradado, así que el
+   stepper necesita su propia paleta clara sobre ese fondo — la versión
+   de cardblanco (texto oscuro sobre bg-line) desaparecería ahí. */
+function Progreso({ pasoActual, oscuro }: { pasoActual: number; oscuro?: boolean }) {
   // El último paso ("Terminado") ya no tiene nada "en curso" después:
   // apenas se llega ahí, se muestra completo como los anteriores, no
   // pulsando como si algo siguiera pasando.
@@ -80,21 +83,41 @@ function Progreso({ pasoActual }: { pasoActual: number }) {
             <div className="flex flex-col items-center gap-1">
               <span
                 className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-bold ${
-                  hecho ? "bg-good text-white" : actual ? "bg-brand-600 text-white live-dot" : "bg-line text-faint"
+                  hecho
+                    ? oscuro
+                      ? "bg-white text-brand-700"
+                      : "bg-good text-white"
+                    : actual
+                      ? oscuro
+                        ? "bg-white text-brand-700 live-dot"
+                        : "bg-brand-600 text-white live-dot"
+                      : oscuro
+                        ? "bg-white/15 text-white/60"
+                        : "bg-line text-faint"
                 }`}
               >
                 {hecho ? <Check className="w-3 h-3" /> : i + 1}
               </span>
               <span
                 className={`text-[9.5px] font-medium text-center leading-tight ${
-                  i <= pasoActual ? "text-ink" : "text-faint"
+                  oscuro
+                    ? i <= pasoActual
+                      ? "text-white"
+                      : "text-white/50"
+                    : i <= pasoActual
+                      ? "text-ink"
+                      : "text-faint"
                 }`}
               >
                 {etiqueta}
               </span>
             </div>
             {i < PASOS_PROGRESO.length - 1 && (
-              <span className={`flex-1 h-[2px] mb-4 ${i < pasoActual ? "bg-good" : "bg-line"}`} />
+              <span
+                className={`flex-1 h-[2px] mb-4 ${
+                  i < pasoActual ? (oscuro ? "bg-white" : "bg-good") : oscuro ? "bg-white/20" : "bg-line"
+                }`}
+              />
             )}
           </div>
         );
@@ -163,6 +186,7 @@ export function HojaServicio({
      el nuevo. */
   const [overrideServicioId, setOverrideServicioId] = useState<string | null>(null);
   const [estadoEnVivo, setEstadoEnVivo] = useState<EstadoServicio | null>(null);
+  const [tecnicoConfirmadoEnVivo, setTecnicoConfirmadoEnVivo] = useState<string | null>(null);
   const [ubicacionEnVivo, setUbicacionEnVivo] = useState<{
     lat: number;
     lng: number;
@@ -170,6 +194,15 @@ export function HojaServicio({
   } | null>(null);
   const overrideVigente = !!servicio && overrideServicioId === servicio.id;
   const estadoMostrado = (overrideVigente ? estadoEnVivo : null) ?? servicio?.estado;
+  const tecnicoConfirmadoElMostrado =
+    (overrideVigente ? tecnicoConfirmadoEnVivo : null) ?? servicio?.tecnicoConfirmadoEl ?? null;
+  const pasoActual = servicio
+    ? pasoDeEstado({
+        ...servicio,
+        estado: estadoMostrado ?? servicio.estado,
+        tecnicoConfirmadoEl: tecnicoConfirmadoElMostrado ?? undefined,
+      })
+    : 0;
 
   /* Confirmar pago en efectivo. Al confirmar, se reusa el mismo
      mecanismo de "estado en vivo" de arriba en vez de esperar a que el
@@ -296,6 +329,7 @@ export function HojaServicio({
     return suscribirseAServicio(servicio.id, (fila) => {
       setOverrideServicioId(servicio.id);
       if (typeof fila.estado === "string") setEstadoEnVivo(fila.estado as EstadoServicio);
+      setTecnicoConfirmadoEnVivo(typeof fila.tecnico_confirmado_el === "string" ? fila.tecnico_confirmado_el : null);
       setUbicacionEnVivo(
         typeof fila.ubicacion_lat === "number" && typeof fila.ubicacion_lng === "number"
           ? {
@@ -338,45 +372,121 @@ export function HojaServicio({
         <div className="w-10 h-1 rounded-full bg-line mx-auto mt-2.5" />
         {servicio && (
           <div className="px-5 pt-3 pb-8">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="w-11 h-11 shrink-0 grid place-items-center rounded-2xl bg-brand-50 text-brand-600">
-                  <IconoEquipo nombre={categoria?.icono ?? "wrench"} className="w-5 h-5" />
-                </span>
-                <div>
-                  <h2 className="text-[17px] font-bold font-display text-ink leading-tight">
-                    {categoria?.nombre ?? "Servicio"}
-                  </h2>
-                  <p className="text-[12px] text-faint mt-0.5">{fecha(servicio.creadoEl)}</p>
+            {/* Hero: SIEMPRE presente, desde "Pedido enviado" — antes esto
+                era un encabezado chico + una pill de texto, y un pedido
+                recién mandado (sin técnico todavía) se veía igual que
+                cualquier pantalla sin nada pasando. Mismo lenguaje visual
+                que el hero de Inicio y las tarjetas de Obras, a propósito:
+                es la forma en que esta app ya dice "esto es lo importante
+                ahora mismo". */}
+            <div
+              className="relative overflow-hidden rounded-xl3 text-white shadow-hero p-5"
+              style={{
+                backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
+              }}
+            >
+              <div className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-brand-400/20 blur-2xl" />
+
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="min-w-0 flex items-center gap-3">
+                  <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-white/15">
+                    <IconoEquipo nombre={categoria?.icono ?? "wrench"} className="w-5 h-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-2.5 py-1">
+                      {!ESTADOS_SIN_PROGRESO.has(estadoMostrado ?? servicio.estado) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" aria-hidden="true" />
+                      )}
+                      {ETIQUETA_ESTADO[estadoMostrado ?? servicio.estado]}
+                    </span>
+                    <h2 className="text-[18px] font-bold font-display leading-tight mt-1.5 truncate">
+                      {categoria?.nombre ?? "Servicio"}
+                    </h2>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={alCerrar}
+                  className="press shrink-0 w-9 h-9 grid place-items-center rounded-full bg-white/15 text-white"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={alCerrar}
-                className="press shrink-0 w-9 h-9 grid place-items-center rounded-full bg-surface border border-line text-ink"
-                aria-label="Cerrar"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <span className="inline-block mt-4 text-[11.5px] font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1">
-              {ETIQUETA_ESTADO[estadoMostrado ?? servicio.estado]}
-            </span>
-
-            {servicio.fechaPreferida && (
-              <p className="flex items-center gap-1.5 text-[13px] text-mute mt-2.5">
-                <CalendarClock className="w-[15px] h-[15px] text-faint shrink-0" />
-                {fecha(servicio.fechaPreferida)}
-                {servicio.franjaPreferida && ` · ${ETIQUETA_FRANJA[servicio.franjaPreferida] ?? servicio.franjaPreferida}`}
-              </p>
-            )}
-
-            {servicio.tecnicoId &&
-              ESTADOS_CON_PROGRESO.has(estadoMostrado ?? servicio.estado) &&
-              !((estadoMostrado ?? servicio.estado) === "asignado" && !servicio.tecnicoConfirmadoEl) && (
-                <Progreso pasoActual={pasoDeEstado(estadoMostrado ?? servicio.estado)} />
+              {servicio.fechaPreferida && (
+                <p className="relative flex items-center gap-1.5 text-[12.5px] text-brand-100 mt-3">
+                  <CalendarClock className="w-[15px] h-[15px] shrink-0" />
+                  {fecha(servicio.fechaPreferida)}
+                  {servicio.franjaPreferida && ` · ${ETIQUETA_FRANJA[servicio.franjaPreferida] ?? servicio.franjaPreferida}`}
+                </p>
               )}
+
+              {/* Técnico asignado, o el placeholder honesto de que
+                  todavía se está buscando uno — nunca "nada". */}
+              <div className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/10 px-3.5 py-3">
+                {servicio.tecnicoId ? (
+                  tecnicoDeServicioId === servicio.id ? (
+                    <>
+                      <span className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-white/15 grid place-items-center ring-2 ring-white/25">
+                        {tecnico?.fotoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- URL pública, no vale next/image acá
+                          <img src={tecnico.fotoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <UserRound className="w-6 h-6 text-white/70" />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold tracking-wide uppercase text-brand-100">Tu técnico</p>
+                        <p className="text-[14.5px] font-bold font-display truncate leading-tight mt-0.5">
+                          {tecnico?.nombre ?? "Asignado"}
+                        </p>
+                        <p className="flex items-center gap-1.5 text-[11.5px] text-brand-100 mt-0.5 truncate">
+                          {tecnico?.promedio != null && (
+                            <span className="flex items-center gap-0.5 shrink-0 text-white font-semibold">
+                              <Star className="w-3 h-3 fill-warn text-warn" />
+                              {tecnico.promedio}
+                            </span>
+                          )}
+                          {tecnico?.promedio != null && tecnico?.trabajos ? " · " : ""}
+                          {tecnico && tecnico.trabajos > 0 ? `${tecnico.trabajos} trabajos` : null}
+                        </p>
+                      </div>
+                      <a
+                        href="#hilo-chat"
+                        className="press shrink-0 w-10 h-10 grid place-items-center rounded-full bg-white text-brand-700"
+                        aria-label="Ir al chat con el técnico"
+                      >
+                        <MessageCircle className="w-[18px] h-[18px]" />
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <span className="shrink-0 w-12 h-12 rounded-full bg-white/15 grid place-items-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+                      </span>
+                      <p className="text-[13px] text-brand-100">Cargando tu técnico…</p>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <span className="shrink-0 w-12 h-12 rounded-full bg-white/15 grid place-items-center">
+                      <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold text-white">Buscando técnico</p>
+                      <p className="text-[11.5px] text-brand-100 leading-snug">
+                        Te avisamos apenas se confirme uno
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {!ESTADOS_SIN_PROGRESO.has(estadoMostrado ?? servicio.estado) && (
+                <Progreso pasoActual={pasoActual} oscuro />
+              )}
+            </div>
 
             <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
               <FilaResumen etiqueta="Servicio" valor={categoria?.nombre ?? "Servicio"} />
@@ -535,45 +645,6 @@ export function HojaServicio({
 
             {servicio.tecnicoId && (
               <>
-                {tecnicoDeServicioId === servicio.id && (
-                  <div className="mt-4 flex items-center gap-3.5 rounded-xl3 bg-surface border border-line shadow-card p-4">
-                    <span className="shrink-0 w-16 h-16 rounded-full overflow-hidden bg-brand-50 grid place-items-center ring-2 ring-brand-100">
-                      {tecnico?.fotoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- URL pública, no vale next/image acá
-                        <img src={tecnico.fotoUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <UserRound className="w-8 h-8 text-brand-300" />
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10.5px] font-bold tracking-wide uppercase text-faint">
-                        Tu técnico
-                      </p>
-                      <p className="text-[17px] font-bold font-display text-ink truncate mt-0.5 leading-tight">
-                        {tecnico?.nombre ?? "Asignado"}
-                      </p>
-                      <p className="flex items-center gap-1.5 text-[12.5px] text-mute mt-1 truncate">
-                        {tecnico?.promedio != null && (
-                          <span className="flex items-center gap-0.5 shrink-0">
-                            <Star className="w-3.5 h-3.5 fill-warn text-warn" />
-                            <span className="font-semibold text-ink">{tecnico.promedio}</span>
-                          </span>
-                        )}
-                        {tecnico?.promedio != null && (categoria?.nombre || tecnico?.trabajos) && " · "}
-                        {categoria?.nombre}
-                        {tecnico && tecnico.trabajos > 0 && ` · ${tecnico.trabajos} trabajos`}
-                      </p>
-                    </div>
-                    <a
-                      href="#hilo-chat"
-                      className="press shrink-0 w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab"
-                      aria-label="Ir al chat con el técnico"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                    </a>
-                  </div>
-                )}
-
                 {estadoMostrado === "en_camino" && ubicacionMostrada && (
                   <>
                     <p className="text-[11px] font-bold tracking-wide uppercase text-faint mt-4 px-0.5">
@@ -653,7 +724,12 @@ export function HojaServicio({
                   ))}
 
                 <div id="hilo-chat">
-                  <HiloChat servicioId={servicio.id} />
+                  <HiloChat
+                    idAncla={servicio.id}
+                    listar={() => listarMensajesServicio(servicio.id)}
+                    enviar={(cuerpo) => enviarMensajeServicio(servicio.id, cuerpo)}
+                    suscribirse={(alLlegar) => suscribirseAMensajesServicio(servicio.id, alLlegar)}
+                  />
                 </div>
               </>
             )}

@@ -154,10 +154,9 @@ export default function PaginaPedir() {
      tenía que recalcularlo a mano desde cero. Ahora queda escrito en el
      mismo lugar donde operaciones ya mira ("El problema"), con las
      mismas palabras que ya vio el cliente, sin reformatear nada. */
-  const lineaEstimado =
-    diagnostico?.estimado && diagnostico.trabajo
-      ? `[Estimado de Nora] ${diagnostico.trabajo.nombre}: ${diagnostico.estimado.titulo} — ${diagnostico.estimado.aclaracion}`
-      : null;
+  const lineaEstimado = diagnostico?.estimado
+    ? `[Estimado de Nora] ${diagnostico.trabajo ? `${diagnostico.trabajo.nombre}: ` : ""}${diagnostico.estimado.titulo} — ${diagnostico.estimado.aclaracion}`
+    : null;
 
   const descripcionFinal = diagnostico?.observaciones
     ? [descripcion.trim(), `[Foto analizada por Nora] ${diagnostico.observaciones}`, lineaEstimado]
@@ -569,7 +568,7 @@ function ResultadoAnalisis({ resultado }: { resultado: ResultadoDiagnostico }) {
         <p className="text-[13px] text-ink leading-snug">{resultado.observaciones}</p>
       </div>
 
-      {resultado.identificado && resultado.trabajo && (
+      {resultado.identificado && resultado.trabajo ? (
         <div className="rounded-xl2 bg-brand-50 border border-brand-100 px-3 py-2.5">
           <p className="text-[13px] font-semibold text-ink">{resultado.trabajo.nombre}</p>
           {resultado.estimado && (
@@ -579,6 +578,16 @@ function ResultadoAnalisis({ resultado }: { resultado: ResultadoDiagnostico }) {
             </>
           )}
         </div>
+      ) : (
+        /* No identificamos el trabajo puntual, pero si conocemos el rubro
+           igual mostramos cuánto sale como mínimo que el técnico vaya a
+           verlo — nunca dejamos a la persona sin ningún número. */
+        resultado.estimado && (
+          <div className="rounded-xl2 bg-brand-50 border border-brand-100 px-3 py-2.5">
+            <p className="text-[13px] font-bold text-brand-600">{resultado.estimado.titulo}</p>
+            <p className="text-[11px] text-faint mt-0.5">{resultado.estimado.aclaracion}</p>
+          </div>
+        )
       )}
 
       {resultado.preguntas.length > 0 && (

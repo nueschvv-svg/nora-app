@@ -16,15 +16,22 @@ import {
 import { LogotipoNora } from "@/componentes/LogoNora";
 import { AnilloScore } from "@/componentes/AnilloScore";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
-import { BadgeEstado } from "@/componentes/BadgeEstado";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
 import { HojaServicio } from "@/componentes/HojaServicio";
+import { HojaNotificaciones } from "@/componentes/HojaNotificaciones";
 import { PrimerDomicilio } from "@/componentes/PrimerDomicilio";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
 import { useApp } from "@/componentes/ContextoApp";
-import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
+import { calcularScore, ordenarPorUrgencia, recordatoriosDeMantenimiento } from "@/lib/score";
 import { listarCategorias, listarServicios, type CategoriaBD } from "@/lib/datos";
-import { type EstadoServicio, type Servicio } from "@/lib/tipos";
+import {
+  listarNotificaciones,
+  marcarNotificacionLeida,
+  marcarTodasLeidas,
+  suscribirseANotificaciones,
+  type Notificacion,
+} from "@/lib/notificaciones";
+import { ETIQUETA_ESTADO, type EstadoServicio, type Servicio } from "@/lib/tipos";
 import { mesAnio, saludo, textoVencimiento } from "@/lib/formato";
 
 /* Mismo criterio que historial/page.tsx: qué está "en curso". Está
@@ -81,6 +88,53 @@ export default function PaginaInicio() {
     };
   }, [sesion]);
 
+  /* Campanita: bandeja de notificaciones + recordatorios de
+     mantenimiento. Fetch aparte del de arriba a propósito — mismo
+     criterio "no compartir entre pantallas" del resto del archivo, y
+     además esto no bloquea nada si falla (la persona sigue viendo
+     Inicio igual, sólo sin avisos). */
+  const [notifAbierta, setNotifAbierta] = useState(false);
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
+
+  useEffect(() => {
+    if (!sesion) return;
+    let vivo = true;
+    listarNotificaciones()
+      .then((n) => {
+        if (vivo) setNotificaciones(n);
+      })
+      .catch(() => {
+        /* Idem: no crítico. */
+      });
+    const cancelar = suscribirseANotificaciones(sesion.id, (n) => {
+      setNotificaciones((prev) => [n, ...prev]);
+    });
+    return () => {
+      vivo = false;
+      cancelar();
+    };
+  }, [sesion]);
+
+  const hayRecordatorios = recordatoriosDeMantenimiento(propiedades, equiposDe).length > 0;
+  const hayAvisosSinLeer = notificaciones.some((n) => !n.leida) || hayRecordatorios;
+
+  const marcarLeida = (id: string) => {
+    setNotificaciones((prev) => prev.map((n) => (n.id === id ? { ...n, leida: true } : n)));
+    marcarNotificacionLeida(id).catch(() => {
+      /* Optimista: si falla, la próxima carga la vuelve a mostrar sin leer. */
+    });
+  };
+
+  const marcarTodas = () => {
+    setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })));
+    marcarTodasLeidas().catch(() => {});
+  };
+
+  const abrirServicioDeNotificacion = (servicioId: string) => {
+    const s = servicios.find((x) => x.id === servicioId);
+    if (s) setSeleccionado(s);
+  };
+
   const enCurso = propiedad
     ? servicios.filter((s) => s.propiedadId === propiedad.id && EN_CURSO.has(s.estado))
     : [];
@@ -102,10 +156,17 @@ export default function PaginaInicio() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setNotifAbierta(true)}
               className="press relative w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
-              aria-label="Notificaciones"
+              aria-label={hayAvisosSinLeer ? "Notificaciones — hay novedades sin leer" : "Notificaciones"}
             >
               <Bell className="w-[18px] h-[18px]" />
+              {hayAvisosSinLeer && (
+                <span
+                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-urgent ring-2 ring-surface"
+                  aria-hidden="true"
+                />
+              )}
             </button>
             <Link href="/perfil" aria-label="Ir a mi perfil">
               <span className="w-10 h-10 grid place-items-center rounded-full bg-brand-600 text-white font-semibold text-[15px] ring-2 ring-white shadow-sm">
@@ -152,26 +213,30 @@ export default function PaginaInicio() {
           <button
             type="button"
             onClick={() => setSeleccionado(pedidoActivo)}
-            className="press w-full flex items-center gap-3.5 text-left bg-surface rounded-xl3 border-2 border-brand-200 shadow-hero p-4"
+            className="press relative overflow-hidden w-full flex items-center gap-3.5 text-left text-white rounded-xl3 shadow-hero p-4"
+            style={{
+              backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
+            }}
           >
-            <span className="shrink-0 w-12 h-12 grid place-items-center rounded-2xl bg-brand-50 text-brand-600">
+            <div className="pointer-events-none absolute -top-10 -right-8 w-32 h-32 rounded-full bg-brand-400/20 blur-2xl" />
+            <span className="relative shrink-0 w-12 h-12 grid place-items-center rounded-2xl bg-white/15">
               <IconoEquipo nombre={categoriaActiva?.icono ?? "wrench"} className="w-6 h-6" />
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10.5px] font-bold tracking-wide uppercase text-brand-600">
-                Pedido en curso
-              </p>
-              <p className="text-[15px] font-bold font-display text-ink leading-tight mt-0.5 truncate">
+            <div className="relative min-w-0 flex-1">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-2.5 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" aria-hidden="true" />
+                {ETIQUETA_ESTADO[pedidoActivo.estado]}
+              </span>
+              <p className="text-[15.5px] font-bold font-display leading-tight mt-1.5 truncate">
                 {categoriaActiva?.nombre ?? "Servicio"}
               </p>
-              <BadgeEstado estado={pedidoActivo.estado} className="mt-1.5" />
             </div>
             {enCurso.length > 1 && (
-              <span className="shrink-0 text-[11px] font-semibold text-faint self-start mt-1">
+              <span className="relative shrink-0 text-[11px] font-semibold text-brand-100 self-start mt-1">
                 +{enCurso.length - 1}
               </span>
             )}
-            <ChevronRight className="w-5 h-5 text-faint shrink-0" />
+            <ChevronRight className="relative w-5 h-5 text-white/70 shrink-0" />
           </button>
         )}
 
@@ -318,6 +383,14 @@ export default function PaginaInicio() {
       </div>
 
       <HojaPropiedades abierta={hojaAbierta} alCerrar={() => setHojaAbierta(false)} />
+      <HojaNotificaciones
+        abierto={notifAbierta}
+        alCerrar={() => setNotifAbierta(false)}
+        notificaciones={notificaciones}
+        alMarcarLeida={marcarLeida}
+        alMarcarTodas={marcarTodas}
+        alAbrirServicio={abrirServicioDeNotificacion}
+      />
       <HojaServicio
         servicio={seleccionado}
         categoria={seleccionado ? categorias.find((c) => c.slug === seleccionado.categoriaSlug) : undefined}

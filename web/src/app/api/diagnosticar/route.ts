@@ -7,7 +7,15 @@ import {
   MAX_BYTES_IMAGEN,
   type TipoImagen,
 } from "@/lib/diagnostico";
-import { calcularEstimado, esFueraDeHorario, textoEstimado, type Tarifa, type Trabajo } from "@/lib/precios";
+import {
+  calcularEstimado,
+  calcularVisita,
+  esFueraDeHorario,
+  textoEstimado,
+  textoVisita,
+  type Tarifa,
+  type Trabajo,
+} from "@/lib/precios";
 
 /* Diagnóstico por foto.
 
@@ -42,6 +50,17 @@ function estaEnElLimite(usuarioId: string): boolean {
   const recientes = (usos.get(usuarioId) ?? []).filter((t) => ahora - t < UNA_HORA);
   usos.set(usuarioId, recientes);
   return recientes.length >= LIMITE_POR_HORA;
+}
+
+/** Sin cotización mostramos sólo pesos — no es motivo para romper el estimado. */
+async function obtenerDolar(request: NextRequest): Promise<number | null> {
+  try {
+    const r = await fetch(new URL("/api/dolar", request.url));
+    if (!r.ok) return null;
+    return ((await r.json()) as { venta: number }).venta ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function registrarUso(usuarioId: string): void {
@@ -180,26 +199,42 @@ export async function POST(request: NextRequest) {
 
   const trabajo = resultado.slug ? catalogo.find((t) => t.slug === resultado.slug) : undefined;
 
-  // Sin trabajo identificado no hay estimado. No inventamos uno.
+  /* Sin trabajo identificado no hay un precio cerrado por rubro — pero
+     eso no significa mostrar la pantalla vacía. Si conocemos la
+     categoría y tenemos tarifa cargada, el cliente igual se merece un
+     número: cuánto sale, como mínimo, que el técnico vaya a verlo.
+     Antes de esto, cualquier descripción que el modelo no pudiera
+     clasificar (foto ambigua, texto raro, o categorías que todavía no
+     tenían catálogo de IA) se iba sin ningún estimado — bug real,
+     encontrado en vivo más de una vez. */
   if (!trabajo) {
+    const tarifaCategoria = categoriaSlug ? tarifas.get(categoriaSlug) : undefined;
+    const estimadoVisita = tarifaCategoria
+      ? calcularVisita(tarifaCategoria, { fueraDeHorario: esFueraDeHorario(), dolar: await obtenerDolar(request) })
+      : null;
+
     return NextResponse.json({
       identificado: false,
       observaciones: resultado.observaciones,
       preguntas: resultado.preguntas,
       riesgoInmediato: resultado.riesgoInmediato,
+      estimado: estimadoVisita
+        ? {
+            ...textoVisita(estimadoVisita),
+            desdeArs: estimadoVisita.desdeArs,
+            hastaArs: estimadoVisita.hastaArs,
+            rangoUtil: true,
+            detalle: [],
+            conRecargo: estimadoVisita.conRecargo,
+          }
+        : null,
     });
   }
 
   /* El precio se calcula ACÁ, con las tarifas de la base. El modelo no
      participó de este número: sólo dijo de qué trabajo se trata. */
   const tarifa = tarifas.get(trabajo.categoriaSlug);
-  let dolar: number | null = null;
-  try {
-    const r = await fetch(new URL("/api/dolar", request.url));
-    if (r.ok) dolar = ((await r.json()) as { venta: number }).venta ?? null;
-  } catch {
-    // Sin cotización mostramos sólo pesos.
-  }
+  const dolar = await obtenerDolar(request);
 
   const estimado = tarifa
     ? calcularEstimado(trabajo, tarifa, {

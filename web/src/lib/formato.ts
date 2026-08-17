@@ -47,6 +47,20 @@ export function textoVencimiento(dias: number | null): string {
   return `En más de un año`;
 }
 
+/** timestamptz ISO → "hace 5 min", "hace 3 h", "hace 2 d". Para bandejas
+ *  cortas (notificaciones); pasado una semana muestra la fecha, no un
+ *  número de días cada vez menos útil. */
+export function haceTiempo(iso: string): string {
+  const minutos = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (minutos < 1) return "Ahora";
+  if (minutos < 60) return `Hace ${minutos} min`;
+  const horas = Math.round(minutos / 60);
+  if (horas < 24) return `Hace ${horas} h`;
+  const dias = Math.round(horas / 24);
+  if (dias < 7) return `Hace ${dias} d`;
+  return fechaCorta(iso.slice(0, 10));
+}
+
 /** Saludo según la hora. */
 export function saludo(hora: number = new Date().getHours()): string {
   if (hora < 6) return "Buenas noches";

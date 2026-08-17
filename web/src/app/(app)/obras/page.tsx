@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Hammer, Phone, Plus, User } from "lucide-react";
+import { Hammer, Link2, MessageCircle, Phone, Plus, User } from "lucide-react";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { FormularioObra } from "@/componentes/FormularioObra";
+import { HojaInvitarObra } from "@/componentes/HojaInvitarObra";
+import { HojaChatObra } from "@/componentes/HojaChatObra";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import {
   actualizarEtapas,
@@ -25,6 +27,8 @@ export default function PaginaObras() {
   const [error, setError] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
   const [formAbierto, setFormAbierto] = useState(false);
+  const [obraInvitar, setObraInvitar] = useState<Obra | null>(null);
+  const [obraChat, setObraChat] = useState<Obra | null>(null);
 
   const traer = useCallback(() => setIntento((n) => n + 1), []);
 
@@ -90,7 +94,13 @@ export default function PaginaObras() {
       ) : (
         <div className="mt-5 space-y-4">
           {obras.map((obra) => (
-            <TarjetaObra key={obra.id} obra={obra} alTocarEtapa={(i) => tocarEtapa(obra, i)} />
+            <TarjetaObra
+              key={obra.id}
+              obra={obra}
+              alTocarEtapa={(i) => tocarEtapa(obra, i)}
+              alInvitar={() => setObraInvitar(obra)}
+              alAbrirChat={() => setObraChat(obra)}
+            />
           ))}
         </div>
       )}
@@ -103,11 +113,35 @@ export default function PaginaObras() {
           setFormAbierto(false);
         }}
       />
+
+      <HojaInvitarObra
+        abierto={!!obraInvitar}
+        alCerrar={() => setObraInvitar(null)}
+        nombreObra={obraInvitar?.nombre ?? ""}
+        codigo={obraInvitar?.codigoInvitacion ?? ""}
+      />
+
+      <HojaChatObra
+        abierto={!!obraChat}
+        alCerrar={() => setObraChat(null)}
+        obraId={obraChat?.id ?? null}
+        nombreObra={obraChat?.nombre ?? ""}
+      />
     </main>
   );
 }
 
-function TarjetaObra({ obra, alTocarEtapa }: { obra: Obra; alTocarEtapa: (indice: number) => void }) {
+function TarjetaObra({
+  obra,
+  alTocarEtapa,
+  alInvitar,
+  alAbrirChat,
+}: {
+  obra: Obra;
+  alTocarEtapa: (indice: number) => void;
+  alInvitar: () => void;
+  alAbrirChat: () => void;
+}) {
   const total = obra.etapas.length;
   const completas = obra.etapas.filter((e) => e.estado === "completo").length;
   const porcentaje = total > 0 ? Math.round((completas / total) * 100) : null;
@@ -227,6 +261,25 @@ function TarjetaObra({ obra, alTocarEtapa }: { obra: Obra; alTocarEtapa: (indice
           )}
         </div>
       )}
+
+      <div className="bg-surface border-t border-line p-4 flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={alInvitar}
+          className="press flex-1 flex items-center justify-center gap-1.5 rounded-xl2 border border-line text-ink py-2.5 text-[13px] font-semibold"
+        >
+          <Link2 className="w-4 h-4" />
+          Invitar
+        </button>
+        <button
+          type="button"
+          onClick={alAbrirChat}
+          className="press flex-1 flex items-center justify-center gap-1.5 rounded-xl2 border border-line text-ink py-2.5 text-[13px] font-semibold"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Chat
+        </button>
+      </div>
     </div>
   );
 }

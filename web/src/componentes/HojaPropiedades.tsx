@@ -25,7 +25,8 @@ export function HojaPropiedades({
       if (e.key === "Escape") alCerrar();
     };
     document.addEventListener("keydown", alPresionar);
-    panelRef.current?.focus();
+    // preventScroll: ver el comentario en HojaNotificaciones.tsx — mismo arreglo.
+    panelRef.current?.focus({ preventScroll: true });
     return () => document.removeEventListener("keydown", alPresionar);
   }, [abierta, alCerrar]);
 
