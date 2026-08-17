@@ -32,6 +32,17 @@ export function HojaPropiedades({
   const { propiedades, propiedad, elegirPropiedad, equiposDe } = useApp();
   const [formAbierto, setFormAbierto] = useState(false);
 
+  /* Invariante forzado durante el render, no en un efecto (mismo
+     criterio que el reset de FormularioPropiedad/FormularioTrabajador):
+     el formulario anidado de "Agregar domicilio" nunca debería quedar
+     abierto si esta hoja no lo está. Sin esto, un caso encontrado en
+     vivo: la página vuelve del caché del navegador con `formAbierto`
+     todavía en true de una visita anterior — como el sheet usa el
+     mismo z-index que otros (HojaServicio), quedaba visible por debajo
+     de cualquier otra hoja que se abriera después, aunque esta ya
+     estuviera cerrada. */
+  if (!abierta && formAbierto) setFormAbierto(false);
+
   return (
     <>
       {/* Fondo oscuro */}
