@@ -22,12 +22,18 @@ export function HiloChat({
   listar,
   enviar,
   suscribirse,
+  nombreDeAutor,
 }: {
   /** Sólo para que el <label htmlFor> del input sea único en la página. */
   idAncla: string;
   listar: () => Promise<MensajeChat[]>;
   enviar: (cuerpo: string) => Promise<void>;
   suscribirse: (alLlegarMensaje: (m: MensajeChat) => void) => () => void;
+  /** Sólo hace falta cuando el chat puede tener más de dos personas
+   *  (la obra, con dueño + colaboradores) — sin esto, un mensaje ajeno
+   *  no dice de quién es. El chat de un servicio (siempre cliente
+   *  ↔ técnico) no lo necesita. */
+  nombreDeAutor?: (autorId: string) => string | undefined;
 }) {
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [miId, setMiId] = useState<string | null>(null);
@@ -96,19 +102,28 @@ export function HiloChat({
         {mensajes.length === 0 ? (
           <p className="text-[12.5px] text-faint py-2">Todavía no hay mensajes.</p>
         ) : (
-          mensajes.map((m) => (
-            <div key={m.id} className={`flex ${m.autorId === miId ? "justify-end" : "justify-start"}`}>
-              <p
-                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-[13px] leading-snug ${
-                  m.autorId === miId
-                    ? "bg-brand-600 text-white rounded-br-md"
-                    : "bg-sand text-ink border border-line rounded-bl-md"
-                }`}
+          mensajes.map((m) => {
+            const nombreAutor = m.autorId !== miId ? nombreDeAutor?.(m.autorId) : undefined;
+            return (
+              <div
+                key={m.id}
+                className={`flex flex-col ${m.autorId === miId ? "items-end" : "items-start"}`}
               >
-                {m.cuerpo}
-              </p>
-            </div>
-          ))
+                {nombreAutor && (
+                  <span className="text-[10.5px] font-semibold text-faint px-1 mb-0.5">{nombreAutor}</span>
+                )}
+                <p
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-[13px] leading-snug ${
+                    m.autorId === miId
+                      ? "bg-brand-600 text-white rounded-br-md"
+                      : "bg-sand text-ink border border-line rounded-bl-md"
+                  }`}
+                >
+                  {m.cuerpo}
+                </p>
+              </div>
+            );
+          })
         )}
         <div ref={finRef} />
       </div>

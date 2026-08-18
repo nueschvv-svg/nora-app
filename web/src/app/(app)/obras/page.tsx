@@ -252,7 +252,7 @@ function TarjetaObra({
           </div>
           {obra.contactoTelefono && (
             <a
-              href={`tel:${obra.contactoTelefono}`}
+              href={`tel:${obra.contactoTelefono.replace(/[^\d+]/g, "")}`}
               className="press shrink-0 w-9 h-9 grid place-items-center rounded-full bg-brand-50 text-brand-600"
               aria-label={`Llamar a ${obra.contactoNombre ?? "contacto"}`}
             >

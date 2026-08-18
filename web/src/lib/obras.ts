@@ -151,5 +151,22 @@ export async function unirseAObra(codigo: string): Promise<{ obraId: string; nom
     throw new Error(error.message.includes("no es válido") ? error.message : "No pudimos unirte a la obra. Probá de nuevo en un momento.");
   }
   if (!data) throw new Error("Ese link de invitación no es válido.");
-  return { obraId: data.obra_id, nombre: data.nombre };
+  return { obraId: data.id_obra, nombre: data.nombre_obra };
+}
+
+/* ---------- Quién está en la obra ----------
+   Nombre de cada persona (dueño + colaboradores) — ver
+   participantes_de_obra() en db/30_arreglos_obras_colaboracion.sql.
+   Se usa para firmar el chat y para mostrar la lista de colaboradores. */
+
+export type ParticipanteObra = { usuarioId: string; nombre: string; esDueno: boolean };
+
+export async function participantesDeObra(obraId: string): Promise<ParticipanteObra[]> {
+  const { data, error } = await supabaseNavegador().rpc("participantes_de_obra", { p_obra_id: obraId });
+  if (error) fallar("cargar quién está en la obra", error);
+  return (data ?? []).map((f: { usuario_id: string; nombre: string; es_dueno: boolean }) => ({
+    usuarioId: f.usuario_id,
+    nombre: f.nombre,
+    esDueno: f.es_dueno,
+  }));
 }
