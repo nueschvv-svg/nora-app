@@ -8,6 +8,8 @@ import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { FormularioPropiedad } from "@/componentes/FormularioPropiedad";
 import { FormularioTrabajador } from "@/componentes/FormularioTrabajador";
+import { HojaDatosPersonales } from "@/componentes/HojaDatosPersonales";
+import { HojaLegal } from "@/componentes/HojaLegal";
 import { calcularScore } from "@/lib/score";
 import { miFichaTrabajador, type EstadoTrabajador, type MiFichaTrabajador } from "@/lib/trabajadores";
 import {
@@ -28,6 +30,13 @@ export default function PaginaPerfil() {
   const { propiedades, equiposDe, sesion, cerrarSesion } = useApp();
   const [formAbierto, setFormAbierto] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
+  const [datosAbierto, setDatosAbierto] = useState(false);
+  const [legalAbierto, setLegalAbierto] = useState(false);
+  /* Sobreescribe el nombre de sesion sólo en esta pantalla: recargar()
+     no vuelve a leer perfiles.nombre (sólo propiedades/equipos), así
+     que sin esto el cambio recién se vería después de recargar la
+     página entera o volver a entrar. */
+  const [nombreLocal, setNombreLocal] = useState<string | null>(null);
 
   // Discreto a propósito: se consulta una sola vez, sin mostrar
   // esqueleto de carga — si tarda, el botón simplemente muestra
@@ -110,7 +119,7 @@ export default function PaginaPerfil() {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[17px] font-bold font-display text-ink">
-              {sesion?.nombre ?? "Cargando…"}
+              {nombreLocal ?? sesion?.nombre ?? "Cargando…"}
             </p>
             <p className="text-[12.5px] text-mute mt-0.5 truncate">{sesion?.email ?? ""}</p>
           </div>
@@ -209,7 +218,15 @@ export default function PaginaPerfil() {
             <button
               key={t}
               type="button"
-              onClick={t === "Ayuda" ? () => window.dispatchEvent(new Event("nora:abrir-ayuda")) : undefined}
+              onClick={
+                t === "Datos personales"
+                  ? () => setDatosAbierto(true)
+                  : t === "Ayuda"
+                    ? () => window.dispatchEvent(new Event("nora:abrir-ayuda"))
+                    : t === "Términos y privacidad"
+                      ? () => setLegalAbierto(true)
+                      : undefined
+              }
               className="w-full flex items-center gap-3.5 p-3.5 press text-left"
             >
               <span className="flex-1 text-[14px] font-semibold text-ink">{t}</span>
@@ -266,6 +283,12 @@ export default function PaginaPerfil() {
         alGuardar={setFichaTrabajador}
         fichaInicial={fichaTrabajador}
       />
+      <HojaDatosPersonales
+        abierto={datosAbierto}
+        alCerrar={() => setDatosAbierto(false)}
+        alGuardar={setNombreLocal}
+      />
+      <HojaLegal abierto={legalAbierto} alCerrar={() => setLegalAbierto(false)} />
     </main>
   );
 }
