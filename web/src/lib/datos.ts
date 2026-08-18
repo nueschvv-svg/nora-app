@@ -83,6 +83,8 @@ type FilaServicio = {
   ubicacion_lng: number | null;
   ubicacion_actualizada_el: string | null;
   codigo_confirmacion: string | null;
+  estimado_desde_ars: number | null;
+  estimado_hasta_ars: number | null;
 };
 
 function aServicio(f: FilaServicio): Servicio {
@@ -104,6 +106,8 @@ function aServicio(f: FilaServicio): Servicio {
     ubicacionLat: f.ubicacion_lat ?? undefined,
     ubicacionLng: f.ubicacion_lng ?? undefined,
     codigoConfirmacion: f.codigo_confirmacion ?? undefined,
+    estimadoDesdeArs: f.estimado_desde_ars ?? undefined,
+    estimadoHastaArs: f.estimado_hasta_ars ?? undefined,
     ubicacionActualizadaEl: f.ubicacion_actualizada_el ?? undefined,
   };
 }
@@ -274,7 +278,7 @@ export async function listarServicios(): Promise<Servicio[]> {
   const { data, error } = await supabase
     .from("servicios")
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
     )
     .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
@@ -289,6 +293,11 @@ export type NuevoServicio = {
   descripcion: string;
   fechaPreferida: string | null;
   franjaPreferida: string | null;
+  /** El rango que Nora le mostró al cliente al pedir (lib/precios.ts) —
+   *  para que el "Total" del detalle lo siga mostrando después, en vez
+   *  de quedar en "A confirmar" hasta que haya un precio cerrado. */
+  estimadoDesdeArs?: number | null;
+  estimadoHastaArs?: number | null;
 };
 
 export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
@@ -300,7 +309,9 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
 
   /* Mandamos sólo el problema y la preferencia horaria. El estado arranca
      en 'solicitado' y los montos van vacíos: la política de la base rechaza
-     el alta si viniera un precio o un técnico ya puesto desde el navegador. */
+     el alta si viniera un precio o un técnico ya puesto desde el navegador.
+     (estimado_desde/hasta_ars no son "el precio" — son la referencia que
+     ya vio el cliente, la política no los restringe.) */
   const { data, error } = await supabase
     .from("servicios")
     .insert({
@@ -311,9 +322,11 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
       estado: "solicitado",
       fecha_preferida: datos.fechaPreferida,
       franja_preferida: datos.franjaPreferida,
+      estimado_desde_ars: datos.estimadoDesdeArs ?? null,
+      estimado_hasta_ars: datos.estimadoHastaArs ?? null,
     })
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
     )
     .single();
 
@@ -338,7 +351,7 @@ export async function confirmarPagoEfectivo(servicioId: string): Promise<Servici
     })
     .eq("id", servicioId)
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
     )
     .single();
 
@@ -357,7 +370,7 @@ export async function aceptarPresupuesto(servicioId: string): Promise<Servicio> 
     .update({ estado: "aceptado" })
     .eq("id", servicioId)
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
     )
     .single();
 
@@ -371,7 +384,7 @@ export async function rechazarPresupuesto(servicioId: string): Promise<Servicio>
     .update({ estado: "buscando_tecnico", tecnico_id: null, monto_ars: null })
     .eq("id", servicioId)
     .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion",
+      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
     )
     .single();
 

@@ -226,4 +226,9 @@ export type Servicio = {
   /** Código de 4 dígitos que el cliente le dicta al técnico para poder
    *  finalizar el trabajo — ver db/32_codigo_confirmacion.sql. */
   codigoConfirmacion?: string;
+  /** El rango que Nora mostró al pedir (lib/precios.ts), guardado aparte
+   *  del precio confirmado — ver db/34_estimado_precio.sql. Ninguno de
+   *  los dos es "el precio": son referencia hasta que haya uno real. */
+  estimadoDesdeArs?: number;
+  estimadoHastaArs?: number;
 };

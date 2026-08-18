@@ -517,7 +517,15 @@ export function HojaServicio({
               )}
               <FilaResumen
                 etiqueta="Total"
-                valor={servicio.montoArs != null ? pesos(servicio.montoArs) : "A confirmar"}
+                valor={
+                  servicio.montoArs != null
+                    ? pesos(servicio.montoArs)
+                    : servicio.estimadoDesdeArs != null && servicio.estimadoHastaArs != null
+                      ? servicio.estimadoDesdeArs === servicio.estimadoHastaArs
+                        ? `${pesos(servicio.estimadoDesdeArs)} (estimado)`
+                        : `${pesos(servicio.estimadoDesdeArs)} – ${pesos(servicio.estimadoHastaArs)} (estimado)`
+                      : "A confirmar"
+                }
                 destacado
               />
             </div>

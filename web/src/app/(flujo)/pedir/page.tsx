@@ -178,6 +178,8 @@ export default function PaginaPedir() {
           descripcion: descripcionFinal,
           fechaPreferida: dia,
           franjaPreferida: franja,
+          estimadoDesdeArs: diagnostico?.estimado?.desdeArs ?? null,
+          estimadoHastaArs: diagnostico?.estimado?.hastaArs ?? null,
         });
 
         /* La foto es un plus, no un requisito: si falla la subida, el
