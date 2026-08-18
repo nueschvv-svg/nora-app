@@ -61,6 +61,16 @@ export function BotNora() {
     return () => document.removeEventListener("keydown", alPresionar);
   }, [abierto]);
 
+  /* El botón "Ayuda" de Perfil dispara este evento en vez de recibir un
+     prop: BotNora ya vive montado una sola vez en (app)/layout.tsx, y
+     abrirlo así evita tener que pasar setAbierto por todo el árbol de
+     componentes sólo para este único caso de uso. */
+  useEffect(() => {
+    const abrir = () => setAbierto(true);
+    window.addEventListener("nora:abrir-ayuda", abrir);
+    return () => window.removeEventListener("nora:abrir-ayuda", abrir);
+  }, []);
+
   function agregar(autor: Mensaje["autor"], texto: string) {
     setMensajes((prev) => [...prev, { id: proximoId(autor), autor, texto }]);
   }

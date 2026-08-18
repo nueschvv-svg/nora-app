@@ -206,7 +206,12 @@ export default function PaginaPerfil() {
         <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Cuenta</p>
         <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
           {["Datos personales", "Ayuda", "Términos y privacidad"].map((t) => (
-            <button key={t} type="button" className="w-full flex items-center gap-3.5 p-3.5 press text-left">
+            <button
+              key={t}
+              type="button"
+              onClick={t === "Ayuda" ? () => window.dispatchEvent(new Event("nora:abrir-ayuda")) : undefined}
+              className="w-full flex items-center gap-3.5 p-3.5 press text-left"
+            >
               <span className="flex-1 text-[14px] font-semibold text-ink">{t}</span>
               <ChevronRight className="w-[18px] h-[18px] text-faint" />
             </button>

@@ -241,7 +241,7 @@ function Formulario() {
             <button
               type="button"
               onClick={() => setVerClave(!verClave)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center text-faint"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-11 h-11 grid place-items-center text-faint"
               aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"}
             >
               {verClave ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
