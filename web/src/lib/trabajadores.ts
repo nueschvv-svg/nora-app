@@ -198,6 +198,9 @@ export async function subirDocumentoTecnico(tipo: TipoDocumentoTecnico, archivo:
 export type TecnicoDeServicio = {
   nombre: string;
   fotoUrl: string | null;
+  /** Sólo lo trae esta función — es el teléfono del técnico QUE TENGO
+   *  asignado en este pedido, no un dato público general. */
+  telefono: string | null;
   /** null hasta que tenga al menos una calificación. */
   promedio: number | null;
   trabajos: number;
@@ -210,7 +213,59 @@ export async function tecnicoDeServicio(servicioId: string): Promise<TecnicoDeSe
 
   const fila = (
     data as
-      | { nombre: string; foto_perfil_path: string | null; promedio: number | null; trabajos: number }[]
+      | {
+          nombre: string;
+          foto_perfil_path: string | null;
+          telefono: string | null;
+          promedio: number | null;
+          trabajos: number;
+        }[]
+      | null
+  )?.[0];
+  if (!fila) return null;
+
+  return {
+    nombre: fila.nombre,
+    fotoUrl: fila.foto_perfil_path
+      ? supabase.storage.from(BUCKET_FOTO_PERFIL).getPublicUrl(fila.foto_perfil_path).data.publicUrl
+      : null,
+    telefono: fila.telefono,
+    promedio: fila.promedio,
+    trabajos: fila.trabajos,
+  };
+}
+
+/* ---------- Perfil público ----------
+   A diferencia de tecnicoDeServicio(), no hace falta tener un pedido
+   con él — cualquier usuario logueado puede ver la ficha pública de
+   cualquier técnico verificado (perfil_publico_tecnico(),
+   db/35_perfil_tecnico.sql). Sin teléfono a propósito: ese sigue
+   siendo sólo para quien lo tiene asignado. */
+
+export type PerfilPublicoTecnico = {
+  nombre: string;
+  fotoUrl: string | null;
+  promedio: number | null;
+  trabajos: number;
+  calificaciones: number;
+  rubros: string[];
+};
+
+export async function perfilPublicoTecnico(tecnicoId: string): Promise<PerfilPublicoTecnico | null> {
+  const supabase = supabaseNavegador();
+  const { data, error } = await supabase.rpc("perfil_publico_tecnico", { p_tecnico_id: tecnicoId });
+  if (error) fallar("cargar el perfil del técnico", error);
+
+  const fila = (
+    data as
+      | {
+          nombre: string;
+          foto_perfil_path: string | null;
+          promedio: number | null;
+          trabajos: number;
+          calificaciones: number;
+          rubros: string[] | null;
+        }[]
       | null
   )?.[0];
   if (!fila) return null;
@@ -222,7 +277,31 @@ export async function tecnicoDeServicio(servicioId: string): Promise<TecnicoDeSe
       : null,
     promedio: fila.promedio,
     trabajos: fila.trabajos,
+    calificaciones: fila.calificaciones,
+    rubros: fila.rubros ?? [],
   };
+}
+
+export type ReseñaTecnico = { estrellas: number; comentario: string | null; creadoEl: string };
+
+/** Últimas reseñas de clientes sobre este técnico — calificaciones ya
+ *  es de lectura pública para cualquiera (02_permisos.sql), no hace
+ *  falta ninguna función nueva para esto. */
+export async function listarResenasTecnico(tecnicoId: string, limite = 5): Promise<ReseñaTecnico[]> {
+  const { data, error } = await supabaseNavegador()
+    .from("calificaciones")
+    .select("estrellas, comentario, creado_el")
+    .eq("tecnico_id", tecnicoId)
+    .eq("calificador", "cliente")
+    .not("comentario", "is", null)
+    .order("creado_el", { ascending: false })
+    .limit(limite);
+  if (error) fallar("cargar las reseñas", error);
+  return (data ?? []).map((f: { estrellas: number; comentario: string | null; creado_el: string }) => ({
+    estrellas: f.estrellas,
+    comentario: f.comentario,
+    creadoEl: f.creado_el,
+  }));
 }
 
 /* ---------- Calificaciones ----------

@@ -8,6 +8,7 @@ import {
   Check,
   Loader2,
   MessageCircle,
+  Phone,
   QrCode,
   Star,
   UserRound,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
 import { HiloChat } from "./HiloChat";
+import { HojaPerfilTecnico } from "./HojaPerfilTecnico";
 import { useApp } from "./ContextoApp";
 import {
   aceptarPresupuesto,
@@ -310,6 +312,8 @@ export function HojaServicio({
       });
   }, [abierto, servicio]);
 
+  const [perfilAbierto, setPerfilAbierto] = useState(false);
+
   useEffect(() => {
     if (!abierto || !servicio) return;
     listarFotosServicio(servicio.id)
@@ -451,7 +455,23 @@ export function HojaServicio({
                           {tecnico?.promedio != null && tecnico?.trabajos ? " · " : ""}
                           {tecnico && tecnico.trabajos > 0 ? `${tecnico.trabajos} trabajos` : null}
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => setPerfilAbierto(true)}
+                          className="text-[11px] text-white underline underline-offset-2 decoration-white/50 mt-1"
+                        >
+                          Ver perfil
+                        </button>
                       </div>
+                      {tecnico?.telefono && (
+                        <a
+                          href={`tel:${tecnico.telefono.replace(/[^\d+]/g, "")}`}
+                          className="press shrink-0 w-10 h-10 grid place-items-center rounded-full bg-white/15 text-white"
+                          aria-label={`Llamar a ${tecnico.nombre}`}
+                        >
+                          <Phone className="w-[17px] h-[17px]" />
+                        </a>
+                      )}
                       <a
                         href="#hilo-chat"
                         className="press shrink-0 w-10 h-10 grid place-items-center rounded-full bg-white text-brand-700"
@@ -766,6 +786,12 @@ export function HojaServicio({
           </div>
         )}
       </div>
+
+      <HojaPerfilTecnico
+        abierto={perfilAbierto}
+        alCerrar={() => setPerfilAbierto(false)}
+        tecnicoId={servicio?.tecnicoId ?? null}
+      />
     </>
   );
 }
