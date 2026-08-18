@@ -215,7 +215,7 @@ export default function PaginaTecnico() {
             {abiertos.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border border-line shadow-card border-l-4 border-l-warn"
+                className="flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border border-line shadow-card"
               >
                 <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
                   {p.categoriaNombre.slice(0, 2).toUpperCase()}

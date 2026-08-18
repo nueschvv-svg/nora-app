@@ -110,28 +110,54 @@ export default function PaginaPedir() {
     const texto = descripcion.trim();
     if (texto.length < 10) return;
 
+    let vigente = true;
     const espera = setTimeout(() => {
       setAnalizando(true);
       setErrorFoto(null);
       diagnosticarFoto({ descripcion: texto, categoriaSlug: categoria })
-        .then(setDiagnostico)
-        .catch((err) => {
-          setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar el problema.");
+        .then((resultado) => {
+          /* Si mientras esperábamos la respuesta la persona siguió
+             tipeando, ya hay un pedido más nuevo en camino — descartar
+             éste evita que una respuesta lenta y vieja pise el
+             diagnóstico de lo que realmente escribió al final. */
+          if (vigente) setDiagnostico(resultado);
         })
-        .finally(() => setAnalizando(false));
+        .catch((err) => {
+          if (vigente) setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar el problema.");
+        })
+        .finally(() => {
+          if (vigente) setAnalizando(false);
+        });
     }, 900);
 
-    return () => clearTimeout(espera);
+    return () => {
+      vigente = false;
+      clearTimeout(espera);
+    };
   }, [descripcion, foto, categoria]);
 
   /* Los rubros salen de la base, no del código: así podés activar
-     "Gas" cuando consigas un gasista matriculado, sin tocar la app. */
-  useEffect(() => {
+     "Gas" cuando consigas un gasista matriculado, sin tocar la app.
+     cargarCategorias() no se llama nunca sincrónicamente adentro del
+     efecto — sólo dispara la promesa; los estados de carga/error ya
+     arrancan en su valor correcto (cargandoCats=true, errorCats=false)
+     así que no hace falta resetearlos de nuevo en el primer render. */
+  const [errorCats, setErrorCats] = useState(false);
+  const cargarCategorias = () => {
     listarCategorias()
       .then(setCategorias)
-      .catch(() => setError("No pudimos cargar los rubros. Probá de nuevo."))
+      .catch(() => setErrorCats(true))
       .finally(() => setCargandoCats(false));
+  };
+  useEffect(() => {
+    cargarCategorias();
   }, []);
+
+  const reintentarCategorias = () => {
+    setCargandoCats(true);
+    setErrorCats(false);
+    cargarCategorias();
+  };
 
   const proximosDias = obtenerProximosDias();
   const catElegida = categorias.find((c) => c.slug === categoria);
@@ -287,6 +313,21 @@ export default function PaginaPedir() {
                 {Array.from({ length: 9 }, (_, i) => (
                   <Bloque key={i} className="h-[92px] rounded-2xl" />
                 ))}
+              </div>
+            )}
+
+            {!cargandoCats && errorCats && (
+              <div className="mt-5 rounded-xl2 bg-urgent/10 px-4 py-4 text-center">
+                <p role="alert" className="text-[13px] text-urgent">
+                  No pudimos cargar los rubros.
+                </p>
+                <button
+                  type="button"
+                  onClick={reintentarCategorias}
+                  className="press mt-2.5 text-[13px] font-semibold text-urgent underline underline-offset-2"
+                >
+                  Reintentar
+                </button>
               </div>
             )}
 
