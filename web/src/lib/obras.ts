@@ -17,6 +17,8 @@ export type Etapa = { nombre: string; estado: EstadoEtapa };
 
 export type Obra = {
   id: string;
+  /** Para saber si quien mira es el dueño (puede invitar) o un colaborador. */
+  clienteId: string;
   nombre: string;
   ubicacion: string | null;
   presupuestoArs: number | null;
@@ -25,13 +27,12 @@ export type Obra = {
   contactoNombre: string | null;
   contactoRol: string | null;
   contactoTelefono: string | null;
-  /** Código del link para invitar (arquitecta, socios) — ver db/29_obras_colaboracion.sql. */
-  codigoInvitacion: string;
   creadoEl: string;
 };
 
 type FilaObra = {
   id: string;
+  cliente_id: string;
   nombre: string;
   ubicacion: string | null;
   presupuesto_ars: number | null;
@@ -40,13 +41,13 @@ type FilaObra = {
   contacto_nombre: string | null;
   contacto_rol: string | null;
   contacto_telefono: string | null;
-  codigo_invitacion: string;
   creado_el: string;
 };
 
 function aObra(f: FilaObra): Obra {
   return {
     id: f.id,
+    clienteId: f.cliente_id,
     nombre: f.nombre,
     ubicacion: f.ubicacion,
     presupuestoArs: f.presupuesto_ars,
@@ -55,13 +56,12 @@ function aObra(f: FilaObra): Obra {
     contactoNombre: f.contacto_nombre,
     contactoRol: f.contacto_rol,
     contactoTelefono: f.contacto_telefono,
-    codigoInvitacion: f.codigo_invitacion,
     creadoEl: f.creado_el,
   };
 }
 
 const SELECT =
-  "id, nombre, ubicacion, presupuesto_ars, ejecutado_ars, etapas, contacto_nombre, contacto_rol, contacto_telefono, codigo_invitacion, creado_el";
+  "id, cliente_id, nombre, ubicacion, presupuesto_ars, ejecutado_ars, etapas, contacto_nombre, contacto_rol, contacto_telefono, creado_el";
 
 export async function listarObras(): Promise<Obra[]> {
   const { data, error } = await supabaseNavegador()
@@ -133,13 +133,37 @@ export async function borrarObra(obraId: string): Promise<void> {
 }
 
 /* ---------- Invitar gente a la obra ----------
-   Un solo link por obra (no uno por persona) — se lo pasás a la
-   arquitecta, a un socio, a quien tenga que estar. Cualquiera con el
-   link y una cuenta de Nora se suma como colaborador — ver
-   db/29_obras_colaboracion.sql. */
+   Un link DISTINTO por rol, no uno solo por obra: el dueño elige de
+   antemano si el link es para la arquitecta, un socio, etc. — quien
+   lo abre no elige nada, el rol ya viene decidido. Ver
+   db/31_roles_invitacion_obra.sql. */
+
+export type RolInvitacion = "arquitecto" | "socio" | "contratista" | "otro";
+
+export const ETIQUETA_ROL: Record<RolInvitacion, string> = {
+  arquitecto: "Arquitecto/a",
+  socio: "Socio/a",
+  contratista: "Contratista",
+  otro: "Otro",
+};
 
 export function linkInvitacionObra(codigo: string): string {
   return `${window.location.origin}/obras/unirse/${codigo}`;
+}
+
+/** Sólo el dueño puede llamar esto — lo valida la propia función en la base. */
+export async function invitacionParaRol(
+  obraId: string,
+  rol: RolInvitacion,
+  etiqueta?: string,
+): Promise<string> {
+  const { data, error } = await supabaseNavegador().rpc("invitacion_para_rol", {
+    p_obra_id: obraId,
+    p_rol: rol,
+    p_etiqueta: etiqueta?.trim() || null,
+  });
+  if (error) fallar("generar el link de invitación", error);
+  return data as string;
 }
 
 export async function unirseAObra(codigo: string): Promise<{ obraId: string; nombre: string }> {
@@ -155,18 +179,36 @@ export async function unirseAObra(codigo: string): Promise<{ obraId: string; nom
 }
 
 /* ---------- Quién está en la obra ----------
-   Nombre de cada persona (dueño + colaboradores) — ver
-   participantes_de_obra() en db/30_arreglos_obras_colaboracion.sql.
+   Nombre y rol de cada persona (dueño + colaboradores) — ver
+   participantes_de_obra() en db/31_roles_invitacion_obra.sql.
    Se usa para firmar el chat y para mostrar la lista de colaboradores. */
 
-export type ParticipanteObra = { usuarioId: string; nombre: string; esDueno: boolean };
+export type ParticipanteObra = {
+  usuarioId: string;
+  nombre: string;
+  esDueno: boolean;
+  rol: RolInvitacion | null;
+  etiqueta: string | null;
+};
 
 export async function participantesDeObra(obraId: string): Promise<ParticipanteObra[]> {
   const { data, error } = await supabaseNavegador().rpc("participantes_de_obra", { p_obra_id: obraId });
   if (error) fallar("cargar quién está en la obra", error);
-  return (data ?? []).map((f: { usuario_id: string; nombre: string; es_dueno: boolean }) => ({
-    usuarioId: f.usuario_id,
-    nombre: f.nombre,
-    esDueno: f.es_dueno,
-  }));
+  return (data ?? []).map(
+    (f: { usuario_id: string; nombre: string; es_dueno: boolean; rol: string | null; etiqueta: string | null }) => ({
+      usuarioId: f.usuario_id,
+      nombre: f.nombre,
+      esDueno: f.es_dueno,
+      rol: f.rol as RolInvitacion | null,
+      etiqueta: f.etiqueta,
+    }),
+  );
+}
+
+/** Etiqueta lista para mostrar junto al nombre: "Arquitecto/a", o el texto libre si rol es "otro". */
+export function etiquetaParticipante(p: ParticipanteObra): string | null {
+  if (p.esDueno) return "dueño/a";
+  if (!p.rol) return null;
+  if (p.rol === "otro" && p.etiqueta) return p.etiqueta;
+  return ETIQUETA_ROL[p.rol];
 }

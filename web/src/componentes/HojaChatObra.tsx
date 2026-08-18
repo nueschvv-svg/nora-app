@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Users, X } from "lucide-react";
 import { HiloChat } from "./HiloChat";
 import { enviarMensajeObra, listarMensajesObra, suscribirseAMensajesObra } from "@/lib/obraChat";
-import { participantesDeObra, type ParticipanteObra } from "@/lib/obras";
+import { etiquetaParticipante, participantesDeObra, type ParticipanteObra } from "@/lib/obras";
 
 /* Chat de la obra — dueño y colaboradores (arquitecta, socios). Mismo
    <HiloChat/> que usa el servicio, apuntado a las funciones de
@@ -39,7 +39,12 @@ export function HojaChatObra({
     };
   }, [abierto, obraId]);
 
-  const nombreDeAutor = (autorId: string) => participantes.find((p) => p.usuarioId === autorId)?.nombre;
+  const nombreDeAutor = (autorId: string) => {
+    const p = participantes.find((x) => x.usuarioId === autorId);
+    if (!p) return undefined;
+    const etiqueta = etiquetaParticipante(p);
+    return etiqueta ? `${p.nombre} · ${etiqueta}` : p.nombre;
+  };
 
   return (
     <>
@@ -79,7 +84,12 @@ export function HojaChatObra({
             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
               <Users className="w-3.5 h-3.5 text-faint shrink-0" />
               <p className="text-[11.5px] text-faint">
-                {participantes.map((p) => (p.esDueno ? `${p.nombre} (dueño/a)` : p.nombre)).join(" · ")}
+                {participantes
+                  .map((p) => {
+                    const etiqueta = etiquetaParticipante(p);
+                    return etiqueta ? `${p.nombre} (${etiqueta})` : p.nombre;
+                  })
+                  .join(" · ")}
               </p>
             </div>
           )}

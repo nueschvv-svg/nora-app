@@ -7,6 +7,7 @@ import { FormularioObra } from "@/componentes/FormularioObra";
 import { HojaInvitarObra } from "@/componentes/HojaInvitarObra";
 import { HojaChatObra } from "@/componentes/HojaChatObra";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
+import { useApp } from "@/componentes/ContextoApp";
 import {
   actualizarEtapas,
   listarObras,
@@ -22,6 +23,7 @@ import { pesos } from "@/lib/formato";
    base): el cliente la carga a mano, con sus etapas y quien la
    dirige, y va marcando el avance tocando cada etapa. */
 export default function PaginaObras() {
+  const { sesion } = useApp();
   const [obras, setObras] = useState<Obra[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +99,7 @@ export default function PaginaObras() {
             <TarjetaObra
               key={obra.id}
               obra={obra}
+              esDueno={obra.clienteId === sesion?.id}
               alTocarEtapa={(i) => tocarEtapa(obra, i)}
               alInvitar={() => setObraInvitar(obra)}
               alAbrirChat={() => setObraChat(obra)}
@@ -118,7 +121,7 @@ export default function PaginaObras() {
         abierto={!!obraInvitar}
         alCerrar={() => setObraInvitar(null)}
         nombreObra={obraInvitar?.nombre ?? ""}
-        codigo={obraInvitar?.codigoInvitacion ?? ""}
+        obraId={obraInvitar?.id ?? ""}
       />
 
       <HojaChatObra
@@ -133,11 +136,13 @@ export default function PaginaObras() {
 
 function TarjetaObra({
   obra,
+  esDueno,
   alTocarEtapa,
   alInvitar,
   alAbrirChat,
 }: {
   obra: Obra;
+  esDueno: boolean;
   alTocarEtapa: (indice: number) => void;
   alInvitar: () => void;
   alAbrirChat: () => void;
@@ -263,14 +268,16 @@ function TarjetaObra({
       )}
 
       <div className="bg-surface border-t border-line p-4 flex items-center gap-2.5">
-        <button
-          type="button"
-          onClick={alInvitar}
-          className="press flex-1 flex items-center justify-center gap-1.5 rounded-xl2 border border-line text-ink py-2.5 text-[13px] font-semibold"
-        >
-          <Link2 className="w-4 h-4" />
-          Invitar
-        </button>
+        {esDueno && (
+          <button
+            type="button"
+            onClick={alInvitar}
+            className="press flex-1 flex items-center justify-center gap-1.5 rounded-xl2 border border-line text-ink py-2.5 text-[13px] font-semibold"
+          >
+            <Link2 className="w-4 h-4" />
+            Invitar
+          </button>
+        )}
         <button
           type="button"
           onClick={alAbrirChat}
