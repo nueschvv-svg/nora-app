@@ -77,15 +77,13 @@ type FilaServicio = {
   metodo_pago: string | null;
   pago_confirmado_el: string | null;
   reporte: string | null;
-  tecnico_id: string | null;
-  tecnico_confirmado_el: string | null;
-  ubicacion_lat: number | null;
-  ubicacion_lng: number | null;
-  ubicacion_actualizada_el: string | null;
-  codigo_confirmacion: string | null;
   estimado_desde_ars: number | null;
   estimado_hasta_ars: number | null;
 };
+
+/** Columnas de `servicios` que necesita el lado cliente — sin técnico. */
+const COLUMNAS_SERVICIO =
+  "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
 
 function aServicio(f: FilaServicio): Servicio {
   return {
@@ -101,14 +99,8 @@ function aServicio(f: FilaServicio): Servicio {
     metodoPago: f.metodo_pago as Servicio["metodoPago"],
     pagoConfirmadoEl: f.pago_confirmado_el,
     reporte: f.reporte ?? undefined,
-    tecnicoId: f.tecnico_id ?? undefined,
-    tecnicoConfirmadoEl: f.tecnico_confirmado_el ?? undefined,
-    ubicacionLat: f.ubicacion_lat ?? undefined,
-    ubicacionLng: f.ubicacion_lng ?? undefined,
-    codigoConfirmacion: f.codigo_confirmacion ?? undefined,
     estimadoDesdeArs: f.estimado_desde_ars ?? undefined,
     estimadoHastaArs: f.estimado_hasta_ars ?? undefined,
-    ubicacionActualizadaEl: f.ubicacion_actualizada_el ?? undefined,
   };
 }
 
@@ -129,13 +121,6 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Tenés que iniciar sesión.");
 
-  /* Excepción deliberada a "nunca filtrar a mano" (ver encabezado del
-     archivo): `propiedades` tiene una política extra que además le
-     deja ver la dirección al técnico con un trabajo activo ahí. Sin
-     este filtro, "Tus domicilios" le mezclaría a un técnico la
-     dirección ajena de un pedido que tiene asignado — no es suya, y
-     un pedido nuevo con esa dirección la base lo rechaza (RLS bien
-     hecho, pero un error confuso en pantalla). Encontrado en vivo. */
   const { data, error } = await supabase
     .from("propiedades")
     .select("id, nombre, calle, numero, localidad, provincia, icono")
@@ -268,18 +253,9 @@ export async function listarServicios(): Promise<Servicio[]> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Tenés que iniciar sesión.");
 
-  /* Excepción deliberada a la regla de este archivo (nunca filtrar a
-     mano): `servicios` tiene DOS políticas de SELECT que se combinan
-     con OR (cliente_id = auth.uid(), tecnico_id = auth.uid()). Sin este
-     filtro, una cuenta que también es técnico vería acá los trabajos
-     que le asignaron, no sólo los que ella pidió como cliente — bug
-     real, encontrado y corregido en esta misma sesión. Esos trabajos
-     van en /tecnico, no en este Historial personal. */
   const { data, error } = await supabase
     .from("servicios")
-    .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
-    )
+    .select(COLUMNAS_SERVICIO)
     .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
 
@@ -307,11 +283,14 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Tenés que iniciar sesión.");
 
-  /* Mandamos sólo el problema y la preferencia horaria. El estado arranca
-     en 'solicitado' y los montos van vacíos: la política de la base rechaza
-     el alta si viniera un precio o un técnico ya puesto desde el navegador.
-     (estimado_desde/hasta_ars no son "el precio" — son la referencia que
-     ya vio el cliente, la política no los restringe.) */
+  /* Mandamos sólo el problema y la preferencia horaria. Los montos van
+     vacíos: la política de la base rechaza el alta si viniera un precio
+     ya puesto desde el navegador. (estimado_desde/hasta_ars no son "el
+     precio" — son la referencia que ya vio el cliente, la política no
+     los restringe.) El estado arranca en 'solicitado': operaciones lo ve
+     al instante en su panel (suscribirseATodosLosServicios(),
+     lib/operaciones.ts) y responde desde ahí — no hay bolsa a la que
+     publicarse, no hay paso intermedio. */
   const { data, error } = await supabase
     .from("servicios")
     .insert({
@@ -325,9 +304,7 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
       estimado_desde_ars: datos.estimadoDesdeArs ?? null,
       estimado_hasta_ars: datos.estimadoHastaArs ?? null,
     })
-    .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
-    )
+    .select(COLUMNAS_SERVICIO)
     .single();
 
   if (error) fallar("enviar el pedido", error);
@@ -350,28 +327,23 @@ export async function confirmarPagoEfectivo(servicioId: string): Promise<Servici
       pago_confirmado_el: new Date().toISOString(),
     })
     .eq("id", servicioId)
-    .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
-    )
+    .select(COLUMNAS_SERVICIO)
     .single();
 
   if (error) fallar("confirmar el pago", error);
   return aServicio(data as FilaServicio);
 }
 
-/* Responder al presupuesto que ofertó el técnico (ver
-   db/23_ofertar_precio.sql). Aceptar deja el pedido listo para que el
-   técnico salga; rechazar lo devuelve a la bolsa tal cual estaba antes
-   de que este técnico lo tomara — cualquier otro lo puede tomar u
-   ofertar de nuevo. */
+/* Responder al presupuesto que ofertó operaciones (ver
+   db/39_eliminar_rol_tecnico.sql). Aceptar confirma el trabajo;
+   rechazar vuelve a 'solicitado' — operaciones lo ve de nuevo en su
+   panel y puede ofertar otro precio o rechazarlo del todo. */
 export async function aceptarPresupuesto(servicioId: string): Promise<Servicio> {
   const { data, error } = await supabaseNavegador()
     .from("servicios")
     .update({ estado: "aceptado" })
     .eq("id", servicioId)
-    .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
-    )
+    .select(COLUMNAS_SERVICIO)
     .single();
 
   if (error) fallar("aceptar el presupuesto", error);
@@ -381,15 +353,47 @@ export async function aceptarPresupuesto(servicioId: string): Promise<Servicio> 
 export async function rechazarPresupuesto(servicioId: string): Promise<Servicio> {
   const { data, error } = await supabaseNavegador()
     .from("servicios")
-    .update({ estado: "buscando_tecnico", tecnico_id: null, monto_ars: null })
+    .update({ estado: "solicitado", monto_ars: null })
     .eq("id", servicioId)
-    .select(
-      "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, tecnico_id, tecnico_confirmado_el, ubicacion_lat, ubicacion_lng, ubicacion_actualizada_el, codigo_confirmacion, estimado_desde_ars, estimado_hasta_ars",
-    )
+    .select(COLUMNAS_SERVICIO)
     .single();
 
   if (error) fallar("rechazar el presupuesto", error);
   return aServicio(data as FilaServicio);
+}
+
+/* ---------- Calificación ---------- */
+/* Un solo sentido (el cliente califica el servicio) desde el pivot
+   sin técnico externo — ver db/39_eliminar_rol_tecnico.sql. Antes
+   calificaba a "el técnico"; ahora califica el trabajo en general. */
+
+export type MiCalificacion = { estrellas: number; comentario: string | null };
+
+/** null si el cliente todavía no calificó este servicio. */
+export async function miCalificacion(servicioId: string): Promise<MiCalificacion | null> {
+  const { data, error } = await supabaseNavegador()
+    .from("calificaciones")
+    .select("estrellas, comentario")
+    .eq("servicio_id", servicioId)
+    .maybeSingle();
+  if (error) fallar("cargar tu calificación", error);
+  return data;
+}
+
+export async function calificarServicio(servicioId: string, estrellas: number, comentario: string): Promise<void> {
+  const supabase = supabaseNavegador();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  const { error } = await supabase.from("calificaciones").insert({
+    servicio_id: servicioId,
+    cliente_id: user.id,
+    estrellas,
+    comentario: comentario.trim() || null,
+  });
+  if (error) fallar("guardar tu calificación", error);
 }
 
 /* ---------- Fotos de servicio ---------- */

@@ -10,7 +10,13 @@ import { linkWhatsapp, MENU_ASISTENTE, type NodoCategoria, type NodoRespuesta } 
    opciones fijo (ver lib/faq.ts) y siempre termina en una respuesta ya
    escrita. Cero variabilidad, cero costo por mensaje. Si no resuelve la
    duda, el único escape es un link real a WhatsApp — no se inventa
-   nada ni se simula una derivación que no existe. */
+   nada ni se simula una derivación que no existe.
+
+   Sin burbuja flotante propia a propósito: con Inicio rediseñado
+   alrededor del chat para PEDIR un servicio, una segunda burbuja
+   siempre visible para soporte competía por el mismo espacio visual.
+   Este panel se sigue abriendo igual, disparando el evento
+   "nora:abrir-ayuda" — desde el menú "···" de Inicio o desde Perfil. */
 
 type Mensaje = {
   id: string;
@@ -111,19 +117,6 @@ export function BotNora() {
 
   return (
     <>
-      {/* Burbuja flotante. Arriba de la barra de navegación (z-30) y
-          corrida del FAB central de "Pedir un servicio". */}
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className={`press absolute right-4 bottom-24 z-40 w-14 h-14 rounded-full bg-brand-600 text-white shadow-fab grid place-items-center transition-opacity duration-200 ${
-          abierto ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
-        aria-label="Abrir el asistente Nora"
-      >
-        <MessageCircle className="w-6 h-6" />
-      </button>
-
       {/* Panel de chat */}
       <div
         role="dialog"

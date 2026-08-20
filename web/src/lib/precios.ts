@@ -242,7 +242,7 @@ export function textoEstimado(e: Estimado): {
     return {
       titulo: `Visita desde ${pesos(visita.desde)}`,
       aclaracion:
-        "Este trabajo cambia mucho según lo que se encuentre, así que darte un número ahora sería inventarlo. El técnico lo ve, te pasa el precio cerrado y recién ahí decidís.",
+        "Este trabajo cambia mucho según lo que se encuentre, así que darte un número ahora sería inventarlo. Lo vemos, te pasamos el precio cerrado y recién ahí decidís.",
       usd: null,
     };
   }
@@ -261,7 +261,7 @@ export function textoEstimado(e: Estimado): {
    tarifa cargada para la categoría. En vez de no mostrar nada — que es
    lo que pasaba antes y por lo que el cliente nunca veía un precio en
    varios rubros — mostramos lo único que sí podemos afirmar sin ver el
-   problema: cuánto sale que el técnico vaya. Mismo criterio que el caso
+   problema: cuánto sale ir a verlo. Mismo criterio que el caso
    `!rangoUtil` de arriba, pero sin depender de un `Trabajo` del catálogo. */
 
 export type EstimadoVisita = {
@@ -300,7 +300,7 @@ export function textoVisita(e: EstimadoVisita): { titulo: string; aclaracion: st
   return {
     titulo,
     aclaracion:
-      "No pudimos identificar el trabajo exacto, así que esto es sólo lo que sale que el técnico vaya a verlo — incluye la primera hora. El precio final te lo confirmamos antes de arrancar.",
+      "No pudimos identificar el trabajo exacto, así que esto es sólo lo que sale ir a verlo — incluye la primera hora. El precio final te lo confirmamos antes de arrancar.",
     usd: e.desdeUsd != null && e.hastaUsd != null
       ? `USD ${e.desdeUsd}${e.desdeUsd !== e.hastaUsd ? ` – ${e.hastaUsd}` : ""}`
       : null,

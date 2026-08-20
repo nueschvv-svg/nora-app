@@ -54,7 +54,6 @@
 
   /* --- Superficies y texto --- */
   --color-sand: #f2f0ea;
-  --color-shell: #ddd8ce; /* fondo detrás del "teléfono" en escritorio */
   --color-surface: #ffffff;
   --color-ink: #16211f;
   --color-mute: #5b6b68; /* contraste 5.59:1 sobre blanco — cumple WCAG AA */
@@ -96,7 +95,7 @@ html {
 }
 
 body {
-  background: var(--color-shell);
+  background: var(--color-sand);
 }
 
 /* Números tabulares: evita que los precios "bailen" al animarse */

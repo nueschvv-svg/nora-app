@@ -2,10 +2,11 @@
    TIEMPO REAL — cambios en vivo de un servicio.
 
    Sólo lo usa el lado cliente (HojaServicio.tsx): quiere ver, sin
-   recargar, cuándo el técnico avanza el estado o comparte su
-   ubicación. El técnico no lo necesita — es quien escribe los cambios,
-   su propia pantalla se actualiza apenas la acción que hizo vuelve con
-   éxito, no hace falta que se entere de sí mismo por Realtime.
+   recargar, cuándo operaciones avanza el estado del pedido.
+   Operaciones no lo necesita para su propia pantalla — es quien
+   escribe los cambios, se actualiza apenas la acción que hizo vuelve
+   con éxito — pero sí lo usa el panel para enterarse de cambios que
+   hizo OTRA sesión de la misma cuenta compartida (ver lib/operaciones.ts).
    ============================================================ */
 
 import type { RealtimePostgresUpdatePayload } from "@supabase/supabase-js";

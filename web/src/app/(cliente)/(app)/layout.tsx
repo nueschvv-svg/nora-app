@@ -1,39 +1,30 @@
-import { redirect } from "next/navigation";
-import { supabaseServidor } from "@/lib/supabase/servidor";
-import { NavInferior } from "@/componentes/NavInferior";
-import { ProveedorApp } from "@/componentes/ContextoApp";
-import { BotNora } from "@/componentes/BotNora";
+"use client";
 
-/* El "marco de teléfono". En el celular ocupa toda la pantalla;
-   en escritorio queda centrado con el fondo arena alrededor.
+import { NavInferior } from "@/componentes/NavInferior";
+import { BotNora } from "@/componentes/BotNora";
+import { SplashBienvenida } from "@/componentes/SplashBienvenida";
+import { useApp } from "@/componentes/ContextoApp";
+
+/* Sitio web, no mockup de app: en el celular ocupa todo el ancho; en
+   pantallas grandes queda una columna centrada de lectura cómoda, sin
+   sombra de "dispositivo flotando" ni fondo distinto detrás.
    Uso dvh y no vh: en Safari de iPhone, vh queda tapado por la
    barra de direcciones y se come la navegación de abajo.
 
-   Antes de pintar nada: si quien entra es de operaciones, afuera.
-   Estas pantallas (Inicio, Pedir, Historial) leen "propiedades" y
-   "servicios" sin filtrar por dueño — para un cliente alcanza,
-   porque su propio RLS ya lo limita a lo suyo. Para operaciones, cuyo
-   RLS es ancho a propósito (ve TODO, para el panel), ese mismo patrón
-   mezcla datos de cualquier cliente en lo que parece "tu" cuenta. La
-   solución de fondo no es filtrar acá: es que operaciones ni entre. */
-export default async function LayoutApp({ children }: { children: React.ReactNode }) {
-  const supabase = await supabaseServidor();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
-    if (perfil?.rol === "operaciones") redirect("/operaciones");
-  }
+   La sesión, el chequeo de operaciones y <ProveedorApp> ya los resuelve
+   el layout padre (cliente)/layout.tsx, compartido con (flujo) — acá
+   sólo queda el marco visual propio de este grupo: nav inferior, bot,
+   y la pantalla de bienvenida (que necesita el nombre de la sesión,
+   por eso este layout ahora es client component). */
+export default function LayoutApp({ children }: { children: React.ReactNode }) {
+  const { sesion } = useApp();
 
   return (
-    <ProveedorApp>
-      <div className="relative w-full max-w-[440px] h-dvh bg-sand overflow-hidden shadow-2xl">
-        {children}
-        <BotNora />
-        <NavInferior />
-      </div>
-    </ProveedorApp>
+    <div className="relative w-full max-w-[440px] mx-auto h-dvh bg-sand overflow-hidden">
+      {children}
+      <BotNora />
+      <NavInferior />
+      <SplashBienvenida nombre={sesion?.nombre?.split(" ")[0]} />
+    </div>
   );
 }

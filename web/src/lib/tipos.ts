@@ -102,13 +102,17 @@ export type Propiedad = {
   icono: "home" | "house" | "building-2";
 };
 
-/* Espeja exactamente el tipo `estado_servicio` de la base (db/01_esquema.sql).
-   Si se agrega un estado allá, hay que agregarlo acá: TypeScript avisa
-   apenas falte uno en ETIQUETA_ESTADO. */
+/* Espeja exactamente el tipo `estado_servicio` de la base (db/01_esquema.sql,
+   redefinido en db/39_eliminar_rol_tecnico.sql). Si se agrega un estado
+   allá, hay que agregarlo acá: TypeScript avisa apenas falte uno en
+   ETIQUETA_ESTADO.
+
+   Sin técnico externo: cada pedido lo gestiona directo operaciones —
+   acepta, rechaza u oferta un precio, y avanza el trabajo. Por eso no
+   hay "buscando_tecnico" ni "asignado": el pedido pasa de "solicitado"
+   directo a "presupuestado" o "aceptado" según cómo responda operaciones. */
 export type EstadoServicio =
   | "solicitado"
-  | "buscando_tecnico"
-  | "asignado"
   | "presupuestado"
   | "aceptado"
   | "en_camino"
@@ -118,14 +122,11 @@ export type EstadoServicio =
   | "calificado"
   | "cancelado";
 
-/** Los estados que ve el cliente, con su texto. El panel de operaciones
- *  los mueve a mano en el MVP; después se automatizan. */
+/** Los estados que ve el cliente, con su texto. */
 export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   solicitado: "Pedido enviado",
-  buscando_tecnico: "Buscando técnico",
-  asignado: "Técnico asignado",
   presupuestado: "Tenés un presupuesto",
-  aceptado: "Presupuesto aceptado",
+  aceptado: "Confirmado",
   en_camino: "En camino",
   en_curso: "Trabajando",
   finalizado: "Terminado",
@@ -153,8 +154,6 @@ export type GrupoEstado = "cancelado" | "resuelto" | "en_vivo" | "esperando";
 
 const GRUPO_ESTADO: Record<EstadoServicio, GrupoEstado> = {
   solicitado: "esperando",
-  buscando_tecnico: "esperando",
-  asignado: "esperando",
   presupuestado: "esperando",
   aceptado: "esperando",
   en_camino: "en_vivo",
@@ -182,7 +181,7 @@ export type Categoria = {
   slug: string;
   nombre: string;
   icono: string;
-  /** Si requiere matrícula habilitante, no cualquier técnico puede tomarlo. */
+  /** Si requiere matrícula habilitante (ej. gas), sólo alguien matriculado del equipo puede hacerlo. */
   requiereMatricula: boolean;
   /** Categorías activas en el MVP. El resto se muestra como "próximamente". */
   activa: boolean;
@@ -198,9 +197,8 @@ export type Servicio = {
   estado: EstadoServicio;
   creadoEl: string;
   /** Día y franja que eligió el cliente al pedir — no una hora de llegada
-   *  calculada (para eso hace falta un servicio de ruteo con tránsito en
-   *  vivo, no sólo coordenadas — las coordenadas del domicilio ya existen
-   *  y se usan para ordenar la bolsa del técnico por distancia). */
+   *  calculada (para eso haría falta un servicio de ruteo con tránsito en
+   *  vivo, no sólo coordenadas). */
   fechaPreferida: string | null;
   franjaPreferida: string | null;
   /** Monto en pesos argentinos. Null mientras no haya presupuesto aceptado. */
@@ -210,22 +208,8 @@ export type Servicio = {
    *  db/22_confirmar_pago.sql. */
   metodoPago: MetodoPago | null;
   pagoConfirmadoEl: string | null;
-  tecnicoNombre?: string;
-  tecnicoCalificacion?: number;
-  /** Qué se hizo, cargado por el técnico al terminar. */
+  /** Qué se hizo, cargado por operaciones al terminar. */
   reporte?: string;
-  calificacion?: number;
-  /** Id del técnico asignado, si hay. Determina si mostrar chat/ubicación. */
-  tecnicoId?: string;
-  /** Cuándo el técnico aceptó el trabajo. Null/undefined = todavía no. */
-  tecnicoConfirmadoEl?: string;
-  /** Última posición que compartió el técnico mientras estaba "en_camino". */
-  ubicacionLat?: number;
-  ubicacionLng?: number;
-  ubicacionActualizadaEl?: string;
-  /** Código de 4 dígitos que el cliente le dicta al técnico para poder
-   *  finalizar el trabajo — ver db/32_codigo_confirmacion.sql. */
-  codigoConfirmacion?: string;
   /** El rango que Nora mostró al pedir (lib/precios.ts), guardado aparte
    *  del precio confirmado — ver db/34_estimado_precio.sql. Ninguno de
    *  los dos es "el precio": son referencia hasta que haya uno real. */

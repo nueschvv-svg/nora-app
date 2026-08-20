@@ -7,17 +7,9 @@ export type { EstrategiaEnrutamiento, PedidoParaEnrutar, ResultadoEnrutamiento }
 
 /* El registro de destinos posibles. Agregar uno nuevo es escribir el
    archivo (misma interfaz que telegram.ts) y sumarlo acá — nada más
-   de este archivo cambia.
-
-   Cuando haya masa crítica de técnicos registrados (ver
-   lib/trabajadores.ts y db/07_trabajadores.sql), el destino
-   "matching" llamaría a buscarTrabajadoresCercanos() con la
-   ubicación de la propiedad en vez de avisar por Telegram. Hoy no
-   existe: activarlo sin técnicos reales no serviría de nada, y no es
-   lo que se pidió en esta iteración. */
+   de este archivo cambia. */
 const ESTRATEGIAS: Record<string, EstrategiaEnrutamiento> = {
   telegram: estrategiaTelegram,
-  // matching: estrategiaMatchingCercania,  // ← el día de mañana
 };
 
 const ESTRATEGIA_DEFAULT = "telegram";

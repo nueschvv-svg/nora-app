@@ -1,78 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import {
-  Banknote,
-  CalendarClock,
-  Check,
-  Loader2,
-  MessageCircle,
-  Phone,
-  QrCode,
-  Star,
-  UserRound,
-  X,
-  XCircle,
-} from "lucide-react";
+import { Banknote, CalendarClock, Check, Loader2, QrCode, Star, X, XCircle } from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
-import { HiloChat } from "./HiloChat";
-import { HojaPerfilTecnico } from "./HojaPerfilTecnico";
 import { useApp } from "./ContextoApp";
 import {
   aceptarPresupuesto,
+  calificarServicio,
   confirmarPagoEfectivo,
   listarFotosServicio,
+  miCalificacion,
   rechazarPresupuesto,
   type FotoServicio,
-} from "@/lib/datos";
-import { enviarMensajeServicio, listarMensajesServicio, suscribirseAMensajesServicio } from "@/lib/chat";
-import { suscribirseAServicio } from "@/lib/tiempoReal";
-import {
-  calificarServicio,
-  miCalificacion,
-  tecnicoDeServicio,
   type MiCalificacion,
-  type TecnicoDeServicio,
-} from "@/lib/trabajadores";
+} from "@/lib/datos";
+import { suscribirseAServicio } from "@/lib/tiempoReal";
 import { ETIQUETA_ESTADO, ETIQUETA_FRANJA, type EstadoServicio, type Servicio } from "@/lib/tipos";
 import { fecha, pesos } from "@/lib/formato";
 import type { CategoriaBD } from "@/lib/datos";
 
-/* Leaflet toca `window` al importar — rompe si se carga en el
-   servidor. ssr:false lo difiere al navegador. */
-const MapaSeguimiento = dynamic(
-  () => import("./MapaSeguimiento").then((m) => m.MapaSeguimiento),
-  { ssr: false },
-);
-
 /* Stepper de progreso — arranca desde que el pedido SALE, no desde que
-   hay técnico. Antes el primer paso era "Confirmado" y hasta ahí no
-   llegar no mostraba nada: un pedido recién enviado se veía igual que
-   antes de tocar nada. Pedido real, encontrado en vivo más de una vez:
-   "aunque todavía no haya técnico que haya aceptado tiene que tener el
-   estilo". Ahora el paso 0 ("Pedido enviado") está cumplido apenas
-   existe el servicio — lo demás avanza con los mismos hitos de
-   siempre. Sólo se oculta en "cancelado", que no es progreso de nada. */
+   está confirmado. Antes el primer paso era "Confirmado" y hasta ahí
+   no llegar no mostraba nada: un pedido recién enviado se veía igual
+   que antes de tocar nada. El paso 0 ("Pedido enviado") está cumplido
+   apenas existe el servicio. Sólo se oculta en "cancelado". */
 const PASOS_PROGRESO = ["Pedido enviado", "Confirmado", "En camino", "Trabajando", "Terminado"];
 const ESTADOS_SIN_PROGRESO = new Set<EstadoServicio>(["cancelado"]);
 
-function pasoDeEstado(servicio: Servicio): number {
-  const estado = servicio.estado;
+function pasoDeEstado(estado: EstadoServicio): number {
   if (estado === "en_camino") return 2;
   if (estado === "en_curso") return 3;
   if (estado === "finalizado" || estado === "pagado" || estado === "calificado") return 4;
-  if (estado === "aceptado" || servicio.tecnicoConfirmadoEl) return 1;
-  return 0; // solicitado, buscando_tecnico, asignado sin confirmar, presupuestado
+  if (estado === "aceptado") return 1;
+  return 0; // solicitado, presupuestado
 }
 
 /* `oscuro`: el hero de arriba tiene fondo degradado, así que el
-   stepper necesita su propia paleta clara sobre ese fondo — la versión
-   de cardblanco (texto oscuro sobre bg-line) desaparecería ahí. */
+   stepper necesita su propia paleta clara sobre ese fondo. */
 function Progreso({ pasoActual, oscuro }: { pasoActual: number; oscuro?: boolean }) {
-  // El último paso ("Terminado") ya no tiene nada "en curso" después:
-  // apenas se llega ahí, se muestra completo como los anteriores, no
-  // pulsando como si algo siguiera pasando.
   const completo = pasoActual >= PASOS_PROGRESO.length - 1;
 
   return (
@@ -151,11 +116,10 @@ function FilaResumen({
   );
 }
 
-/* Detalle de un servicio. Antes no existía: los pedidos se veían en
-   Historial pero no se podían abrir — ni para leer el diagnóstico
-   completo, ni para ver la foto que se mandó. Esta hoja es esa
-   memoria: la descripción entera (con lo que Nora vio en la foto,
-   si hubo), el estado, y las fotos que se guardaron. */
+/* Detalle de un servicio — el estado y la respuesta de operaciones
+   (aceptó, ofertó un precio, avanzó el trabajo), sin nada de técnico:
+   Nora lo gestiona directo, no hay perfil ni ubicación en vivo de
+   nadie que mostrar. */
 export function HojaServicio({
   servicio,
   categoria,
@@ -167,49 +131,25 @@ export function HojaServicio({
   abierto: boolean;
   alCerrar: () => void;
 }) {
-  /* El domicilio de "Resumen" es el mismo que ya tiene cargado el
-     contexto: tanto Inicio como Historial ya filtran sus listas al
-     domicilio elegido, así que cualquier servicio que llega acá es de
-     esa misma propiedad — no hace falta pasarla como prop aparte. */
   const { propiedad } = useApp();
 
   const [fotos, setFotos] = useState<FotoServicio[]>([]);
-  /* id del servicio cuyas fotos ya están en `fotos`. Mientras no
-     coincida con el servicio abierto, se está cargando — derivado en
-     vez de un booleano aparte, para no tocar estado de forma síncrona
-     apenas arranca el efecto (eso dispara renders en cascada). */
   const [fotosDeServicio, setFotosDeServicio] = useState<string | null>(null);
   const cargandoFotos = !!servicio && fotosDeServicio !== servicio.id;
 
-  /* Estado y ubicación "en vivo": sólo los alimenta el callback de
-     Realtime, nunca un setState síncrono al arrancar el efecto — mismo
-     criterio que fotosDeServicio de arriba. overrideServicioId evita
-     mostrar el estado en vivo de un servicio anterior mientras carga
-     el nuevo. */
+  /* Estado "en vivo": sólo lo alimenta el callback de Realtime, nunca
+     un setState síncrono al arrancar el efecto. overrideServicioId
+     evita mostrar el estado en vivo de un servicio anterior mientras
+     carga el nuevo. */
   const [overrideServicioId, setOverrideServicioId] = useState<string | null>(null);
   const [estadoEnVivo, setEstadoEnVivo] = useState<EstadoServicio | null>(null);
-  const [tecnicoConfirmadoEnVivo, setTecnicoConfirmadoEnVivo] = useState<string | null>(null);
-  const [ubicacionEnVivo, setUbicacionEnVivo] = useState<{
-    lat: number;
-    lng: number;
-    actualizadoEl: string | null;
-  } | null>(null);
   const overrideVigente = !!servicio && overrideServicioId === servicio.id;
   const estadoMostrado = (overrideVigente ? estadoEnVivo : null) ?? servicio?.estado;
-  const tecnicoConfirmadoElMostrado =
-    (overrideVigente ? tecnicoConfirmadoEnVivo : null) ?? servicio?.tecnicoConfirmadoEl ?? null;
-  const pasoActual = servicio
-    ? pasoDeEstado({
-        ...servicio,
-        estado: estadoMostrado ?? servicio.estado,
-        tecnicoConfirmadoEl: tecnicoConfirmadoElMostrado ?? undefined,
-      })
-    : 0;
+  const pasoActual = servicio ? pasoDeEstado(estadoMostrado ?? servicio.estado) : 0;
 
   /* Confirmar pago en efectivo. Al confirmar, se reusa el mismo
      mecanismo de "estado en vivo" de arriba en vez de esperar a que el
-     padre vuelva a pedir la lista — así el paso de pago desaparece al
-     toque, sin depender de un refetch externo. */
+     padre vuelva a pedir la lista. */
   const [confirmandoPago, setConfirmandoPago] = useState(false);
   const [errorPago, setErrorPago] = useState<string | null>(null);
 
@@ -228,8 +168,8 @@ export function HojaServicio({
     }
   };
 
-  /* Responder a una oferta del técnico. Mismo mecanismo que el pago:
-     al resolver, se pisa el estado en vivo para que la tarjeta
+  /* Responder a un presupuesto de operaciones. Mismo mecanismo que el
+     pago: al resolver, se pisa el estado en vivo para que la tarjeta
      desaparezca al toque. */
   const [respondiendoOferta, setRespondiendoOferta] = useState<"aceptar" | "rechazar" | null>(null);
   const [errorOferta, setErrorOferta] = useState<string | null>(null);
@@ -250,9 +190,8 @@ export function HojaServicio({
     }
   };
 
-  /* Calificar al técnico. Sólo se puede una vez por servicio (la base
-     lo exige con un unique en servicio_id) — se trae la calificación
-     existente para no mostrar el formulario dos veces. */
+  /* Calificar el servicio. Sólo se puede una vez por servicio (la base
+     lo exige con un unique en servicio_id). */
   const [calificacion, setCalificacion] = useState<MiCalificacion | null>(null);
   const [calificacionDeServicio, setCalificacionDeServicio] = useState<string | null>(null);
   const [estrellas, setEstrellas] = useState(0);
@@ -261,7 +200,7 @@ export function HojaServicio({
   const [errorCalificacion, setErrorCalificacion] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!abierto || !servicio?.tecnicoId) return;
+    if (!abierto || !servicio) return;
     miCalificacion(servicio.id)
       .then((c) => {
         setCalificacion(c);
@@ -274,11 +213,11 @@ export function HojaServicio({
   }, [abierto, servicio]);
 
   const enviarCalificacion = async () => {
-    if (!servicio?.tecnicoId || estrellas === 0 || guardandoCalificacion) return;
+    if (!servicio || estrellas === 0 || guardandoCalificacion) return;
     setGuardandoCalificacion(true);
     setErrorCalificacion(null);
     try {
-      await calificarServicio(servicio.id, servicio.tecnicoId, estrellas, comentarioCalificacion);
+      await calificarServicio(servicio.id, estrellas, comentarioCalificacion);
       setCalificacion({ estrellas, comentario: comentarioCalificacion.trim() || null });
     } catch (e) {
       setErrorCalificacion(e instanceof Error ? e.message : "No pudimos guardar tu calificación.");
@@ -286,33 +225,6 @@ export function HojaServicio({
       setGuardandoCalificacion(false);
     }
   };
-
-  const ubicacionMostrada = overrideVigente
-    ? ubicacionEnVivo
-    : servicio?.ubicacionLat != null && servicio?.ubicacionLng != null
-      ? { lat: servicio.ubicacionLat, lng: servicio.ubicacionLng, actualizadoEl: servicio.ubicacionActualizadaEl ?? null }
-      : null;
-
-  /* Quién es mi técnico: nombre y foto, para que el pedido deje de
-     sentirse vacío apenas hay alguien asignado — antes esto no se
-     mostraba en ningún lado del lado cliente. */
-  const [tecnico, setTecnico] = useState<TecnicoDeServicio | null>(null);
-  const [tecnicoDeServicioId, setTecnicoDeServicioId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!abierto || !servicio?.tecnicoId) return;
-    tecnicoDeServicio(servicio.id)
-      .then((t) => {
-        setTecnico(t);
-        setTecnicoDeServicioId(servicio.id);
-      })
-      .catch(() => {
-        setTecnico(null);
-        setTecnicoDeServicioId(servicio.id);
-      });
-  }, [abierto, servicio]);
-
-  const [perfilAbierto, setPerfilAbierto] = useState(false);
 
   useEffect(() => {
     if (!abierto || !servicio) return;
@@ -322,7 +234,6 @@ export function HojaServicio({
         setFotosDeServicio(servicio.id);
       })
       .catch(() => {
-        /* Sin fotos no se rompe el detalle: el resto de la info sigue siendo útil. */
         setFotos([]);
         setFotosDeServicio(servicio.id);
       });
@@ -333,16 +244,6 @@ export function HojaServicio({
     return suscribirseAServicio(servicio.id, (fila) => {
       setOverrideServicioId(servicio.id);
       if (typeof fila.estado === "string") setEstadoEnVivo(fila.estado as EstadoServicio);
-      setTecnicoConfirmadoEnVivo(typeof fila.tecnico_confirmado_el === "string" ? fila.tecnico_confirmado_el : null);
-      setUbicacionEnVivo(
-        typeof fila.ubicacion_lat === "number" && typeof fila.ubicacion_lng === "number"
-          ? {
-              lat: fila.ubicacion_lat,
-              lng: fila.ubicacion_lng,
-              actualizadoEl: typeof fila.ubicacion_actualizada_el === "string" ? fila.ubicacion_actualizada_el : null,
-            }
-          : null,
-      );
     });
   }, [abierto, servicio]);
 
@@ -376,13 +277,6 @@ export function HojaServicio({
         <div className="w-10 h-1 rounded-full bg-line mx-auto mt-2.5" />
         {servicio && (
           <div className="px-5 pt-3 pb-8">
-            {/* Hero: SIEMPRE presente, desde "Pedido enviado" — antes esto
-                era un encabezado chico + una pill de texto, y un pedido
-                recién mandado (sin técnico todavía) se veía igual que
-                cualquier pantalla sin nada pasando. Mismo lenguaje visual
-                que el hero de Inicio y las tarjetas de Obras, a propósito:
-                es la forma en que esta app ya dice "esto es lo importante
-                ahora mismo". */}
             <div
               className="relative overflow-hidden rounded-xl3 text-white shadow-hero p-5"
               style={{
@@ -426,105 +320,6 @@ export function HojaServicio({
                 </p>
               )}
 
-              {/* Técnico asignado, o el placeholder honesto de que
-                  todavía se está buscando uno — nunca "nada". */}
-              <div className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/10 px-3.5 py-3">
-                {servicio.tecnicoId ? (
-                  tecnicoDeServicioId === servicio.id ? (
-                    <>
-                      <span className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-white/15 grid place-items-center ring-2 ring-white/25">
-                        {tecnico?.fotoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- URL pública, no vale next/image acá
-                          <img src={tecnico.fotoUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <UserRound className="w-6 h-6 text-white/70" />
-                        )}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-bold tracking-wide uppercase text-brand-100">Tu técnico</p>
-                        <p className="text-[14.5px] font-bold font-display truncate leading-tight mt-0.5">
-                          {tecnico?.nombre ?? "Asignado"}
-                        </p>
-                        <p className="flex items-center gap-1.5 text-[11.5px] text-brand-100 mt-0.5 truncate">
-                          {tecnico?.promedio != null && (
-                            <span className="flex items-center gap-0.5 shrink-0 text-white font-semibold">
-                              <Star className="w-3 h-3 fill-warn text-warn" />
-                              {tecnico.promedio}
-                            </span>
-                          )}
-                          {tecnico?.promedio != null && tecnico?.trabajos ? " · " : ""}
-                          {tecnico && tecnico.trabajos > 0 ? `${tecnico.trabajos} trabajos` : null}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setPerfilAbierto(true)}
-                          className="text-[11px] text-white underline underline-offset-2 decoration-white/50 mt-1"
-                        >
-                          Ver perfil
-                        </button>
-                      </div>
-                      {tecnico?.telefono && (
-                        <a
-                          href={`tel:${tecnico.telefono.replace(/[^\d+]/g, "")}`}
-                          className="press shrink-0 w-10 h-10 grid place-items-center rounded-full bg-white/15 text-white"
-                          aria-label={`Llamar a ${tecnico.nombre}`}
-                        >
-                          <Phone className="w-[17px] h-[17px]" />
-                        </a>
-                      )}
-                      <a
-                        href="#hilo-chat"
-                        className="press shrink-0 w-10 h-10 grid place-items-center rounded-full bg-white text-brand-700"
-                        aria-label="Ir al chat con el técnico"
-                      >
-                        <MessageCircle className="w-[18px] h-[18px]" />
-                      </a>
-                    </>
-                  ) : (
-                    <>
-                      <span className="shrink-0 w-12 h-12 rounded-full bg-white/15 grid place-items-center">
-                        <Loader2 className="w-5 h-5 animate-spin text-white/70" />
-                      </span>
-                      <p className="text-[13px] text-brand-100">Cargando tu técnico…</p>
-                    </>
-                  )
-                ) : (
-                  <>
-                    <span className="shrink-0 w-12 h-12 rounded-full bg-white/15 grid place-items-center">
-                      <Loader2 className="w-5 h-5 animate-spin text-white/70" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-[13.5px] font-semibold text-white">Buscando técnico</p>
-                      <p className="text-[11.5px] text-brand-100 leading-snug">
-                        Te avisamos apenas se confirme uno
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Se lo dictás al técnico cuando termine — sin esto no puede
-                  cerrar el trabajo. Visible desde que hay técnico asignado
-                  y hasta que el trabajo se cierra; después ya cumplió su
-                  función. Ver db/32_codigo_confirmacion.sql. */}
-              {servicio.tecnicoId &&
-                servicio.codigoConfirmacion &&
-                !["finalizado", "pagado", "calificado", "cancelado"].includes(estadoMostrado ?? servicio.estado) && (
-                  <div className="relative mt-3 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-3.5 py-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold tracking-wide uppercase text-brand-100">
-                        Código para tu técnico
-                      </p>
-                      <p className="text-[11.5px] text-brand-100 leading-snug mt-0.5">
-                        Se lo dictás cuando termine, para cerrar el trabajo
-                      </p>
-                    </div>
-                    <span className="shrink-0 num text-[22px] font-bold text-white tracking-[0.25em]">
-                      {servicio.codigoConfirmacion}
-                    </span>
-                  </div>
-                )}
-
               {!ESTADOS_SIN_PROGRESO.has(estadoMostrado ?? servicio.estado) && (
                 <Progreso pasoActual={pasoActual} oscuro />
               )}
@@ -550,12 +345,12 @@ export function HojaServicio({
               />
             </div>
 
-            {/* El técnico ofertó un precio propio en vez de aceptar tal
-                cual: no puede salir hasta que el cliente responda. */}
+            {/* Operaciones ofertó un precio en vez de confirmar directo:
+                no puede avanzar hasta que el cliente responda. */}
             {estadoMostrado === "presupuestado" && (
               <div className="mt-3 rounded-xl2 bg-brand-50 border border-brand-100 p-4">
                 <p className="text-[11px] font-bold tracking-wide uppercase text-brand-600">
-                  Tu técnico te ofrece hacer el trabajo por
+                  Te ofrecemos hacer el trabajo por
                 </p>
                 {servicio.montoArs != null && (
                   <p className="num text-[22px] font-bold text-ink mt-1">{pesos(servicio.montoArs)}</p>
@@ -582,7 +377,7 @@ export function HojaServicio({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!window.confirm("¿Rechazar esta oferta? El pedido vuelve a la bolsa para otro técnico.")) return;
+                      if (!window.confirm("¿Rechazar esta oferta? Te vamos a contactar de nuevo.")) return;
                       responderOferta("rechazar");
                     }}
                     disabled={!!respondiendoOferta}
@@ -608,18 +403,15 @@ export function HojaServicio({
 
             {servicio.reporte && (
               <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
-                <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
-                  Reporte del técnico
-                </p>
+                <p className="text-[11px] font-bold tracking-wide uppercase text-faint">Reporte</p>
                 <p className="text-[13.5px] text-ink leading-relaxed mt-1.5">{servicio.reporte}</p>
               </div>
             )}
 
-            {/* Pago: sólo aparece cuando el técnico ya terminó y todavía
+            {/* Pago: sólo aparece cuando el trabajo ya terminó y todavía
                 nadie confirmó cómo se pagó. Efectivo cierra el pedido en
                 el momento; Mercado Pago está a la vista pero apagado
-                hasta tener credenciales reales de una Aplicación de
-                Mercado Pago Developers — ver db/22_confirmar_pago.sql. */}
+                hasta tener credenciales reales — ver db/22_confirmar_pago.sql. */}
             {estadoMostrado === "finalizado" && !servicio.metodoPago && (
               <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
                 <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
@@ -693,105 +485,71 @@ export function HojaServicio({
               </div>
             )}
 
-            {servicio.tecnicoId && (
-              <>
-                {estadoMostrado === "en_camino" && ubicacionMostrada && (
-                  <>
-                    <p className="text-[11px] font-bold tracking-wide uppercase text-faint mt-4 px-0.5">
-                      El técnico está en camino
-                    </p>
-                    <MapaSeguimiento
-                      lat={ubicacionMostrada.lat}
-                      lng={ubicacionMostrada.lng}
-                      actualizadoEl={ubicacionMostrada.actualizadoEl}
-                    />
-                  </>
-                )}
-
-                {/* Calificar: sólo cuando el trabajo ya terminó y todavía
-                    no hay calificación para este servicio puntual. */}
-                {calificacionDeServicio === servicio.id &&
-                  ["finalizado", "pagado", "calificado"].includes(estadoMostrado ?? servicio.estado) &&
-                  (calificacion ? (
-                    <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card p-4">
-                      <p className="text-[11px] font-bold tracking-wide uppercase text-faint">Tu calificación</p>
-                      <div className="flex items-center gap-1 mt-1.5">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <Star
-                            key={n}
-                            className={`w-4 h-4 ${n <= calificacion.estrellas ? "fill-warn text-warn" : "text-line"}`}
-                          />
-                        ))}
-                      </div>
-                      {calificacion.comentario && (
-                        <p className="text-[13px] text-ink leading-relaxed mt-2">{calificacion.comentario}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card p-4">
-                      <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
-                        ¿Cómo te fue con {tecnico?.nombre ?? "el técnico"}?
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-2">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            onClick={() => setEstrellas(n)}
-                            aria-label={`${n} estrellas`}
-                            className="press"
-                          >
-                            <Star className={`w-7 h-7 ${n <= estrellas ? "fill-warn text-warn" : "text-line"}`} />
-                          </button>
-                        ))}
-                      </div>
-                      {estrellas > 0 && (
-                        <>
-                          <textarea
-                            value={comentarioCalificacion}
-                            onChange={(e) => setComentarioCalificacion(e.target.value)}
-                            placeholder="Contanos cómo te fue (opcional)"
-                            rows={2}
-                            className="mt-3 w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
-                          />
-                          {errorCalificacion && (
-                            <p role="alert" className="text-[12.5px] text-urgent mt-1.5">
-                              {errorCalificacion}
-                            </p>
-                          )}
-                          <button
-                            type="button"
-                            onClick={enviarCalificacion}
-                            disabled={guardandoCalificacion}
-                            className="press mt-2.5 w-full flex items-center justify-center gap-1.5 rounded-xl2 bg-brand-600 text-white py-3 text-[13px] font-semibold disabled:opacity-60"
-                          >
-                            {guardandoCalificacion && <Loader2 className="w-4 h-4 animate-spin" />}
-                            Enviar calificación
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-
-                <div id="hilo-chat">
-                  <HiloChat
-                    idAncla={servicio.id}
-                    listar={() => listarMensajesServicio(servicio.id)}
-                    enviar={(cuerpo) => enviarMensajeServicio(servicio.id, cuerpo)}
-                    suscribirse={(alLlegar) => suscribirseAMensajesServicio(servicio.id, alLlegar)}
-                  />
+            {/* Calificar: sólo cuando el trabajo ya terminó y todavía no
+                hay calificación para este servicio puntual. */}
+            {calificacionDeServicio === servicio.id &&
+              ["finalizado", "pagado", "calificado"].includes(estadoMostrado ?? servicio.estado) &&
+              (calificacion ? (
+                <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card p-4">
+                  <p className="text-[11px] font-bold tracking-wide uppercase text-faint">Tu calificación</p>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={`w-4 h-4 ${n <= calificacion.estrellas ? "fill-warn text-warn" : "text-line"}`}
+                      />
+                    ))}
+                  </div>
+                  {calificacion.comentario && (
+                    <p className="text-[13px] text-ink leading-relaxed mt-2">{calificacion.comentario}</p>
+                  )}
                 </div>
-              </>
-            )}
+              ) : (
+                <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card p-4">
+                  <p className="text-[11px] font-bold tracking-wide uppercase text-faint">¿Cómo te fue?</p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setEstrellas(n)}
+                        aria-label={`${n} estrellas`}
+                        className="press"
+                      >
+                        <Star className={`w-7 h-7 ${n <= estrellas ? "fill-warn text-warn" : "text-line"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  {estrellas > 0 && (
+                    <>
+                      <textarea
+                        value={comentarioCalificacion}
+                        onChange={(e) => setComentarioCalificacion(e.target.value)}
+                        placeholder="Contanos cómo te fue (opcional)"
+                        rows={2}
+                        className="mt-3 w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+                      />
+                      {errorCalificacion && (
+                        <p role="alert" className="text-[12.5px] text-urgent mt-1.5">
+                          {errorCalificacion}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={enviarCalificacion}
+                        disabled={guardandoCalificacion}
+                        className="press mt-2.5 w-full flex items-center justify-center gap-1.5 rounded-xl2 bg-brand-600 text-white py-3 text-[13px] font-semibold disabled:opacity-60"
+                      >
+                        {guardandoCalificacion && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Enviar calificación
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
           </div>
         )}
       </div>
-
-      <HojaPerfilTecnico
-        abierto={perfilAbierto}
-        alCerrar={() => setPerfilAbierto(false)}
-        tecnicoId={servicio?.tecnicoId ?? null}
-      />
     </>
   );
 }

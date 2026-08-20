@@ -29,7 +29,7 @@ const dmSerif = DM_Serif_Display({
 export const metadata: Metadata = {
   title: "Nora — Tu hogar, en control",
   description:
-    "Pedí un servicio para tu casa y seguí todo desde el celular. Técnicos verificados, presupuesto claro y garantía.",
+    "Pedí un servicio para tu casa y seguí todo desde el celular. Precio claro y equipo propio de confianza.",
   applicationName: "Nora",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Nora — Tu hogar, en control",
     description:
-      "Pedí un servicio para tu casa y seguí todo desde el celular. Técnicos verificados, presupuesto claro y garantía.",
+      "Pedí un servicio para tu casa y seguí todo desde el celular. Precio claro y equipo propio de confianza.",
     type: "website",
     locale: "es_AR",
   },
@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="es-AR">
       <body
-        className={`${inter.variable} ${sora.variable} ${dmSerif.variable} font-sans min-h-dvh flex justify-center`}
+        className={`${inter.variable} ${sora.variable} ${dmSerif.variable} font-sans min-h-dvh`}
       >
         {children}
       </body>

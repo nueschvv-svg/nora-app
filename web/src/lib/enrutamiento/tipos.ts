@@ -2,9 +2,8 @@
    ENRUTAMIENTO DE PEDIDOS — la interfaz
 
    Qué pasa con un pedido después de que Nora lo analizó: hoy avisa
-   por Telegram al equipo de Enjinia, que decide a mano. El día que
-   haya masa crítica de técnicos registrados, esto cambia a matching
-   automático — sin tocar el análisis de Nora ni el alta de técnicos.
+   por Telegram al equipo de Enjinia, que decide a mano desde el panel
+   de operaciones.
 
    Por eso es una interfaz y no un if/else: agregar un destino nuevo
    es escribir una función que la cumpla y sumarla al registro de

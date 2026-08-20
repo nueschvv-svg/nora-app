@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -45,11 +45,17 @@ const PASOS = ["Categoría", "El problema", "Cuándo", "Confirmar"];
 
 export default function PaginaPedir() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { propiedad } = useApp();
 
   const [paso, setPaso] = useState(0);
   const [categoria, setCategoria] = useState<string | null>(null);
-  const [descripcion, setDescripcion] = useState("");
+  /* Si se llega acá desde el chat de Inicio ("contanos qué pasa..."),
+     el texto ya escrito viaja en la URL — se precarga acá para no
+     hacer a la persona escribirlo dos veces. Sólo se lee una vez, al
+     montar: si después cambia la URL (el usuario vuelve atrás y
+     entra de nuevo, por ejemplo) no le pisa lo que ya haya tipeado. */
+  const [descripcion, setDescripcion] = useState(() => searchParams.get("texto") ?? "");
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
@@ -171,7 +177,7 @@ export default function PaginaPedir() {
     (paso === 2 && !!dia && !!franja) ||
     paso === 3;
 
-  /* Lo que ve operaciones (y el técnico). La persona sigue viendo y
+  /* Lo que ve operaciones. La persona sigue viendo y
      editando sólo su propio texto en el campo — esto se arma recién al
      mandar, para no meterle a la textarea palabras que no escribió.
 
@@ -208,25 +214,30 @@ export default function PaginaPedir() {
           estimadoHastaArs: diagnostico?.estimado?.hastaArs ?? null,
         });
 
-        /* La foto es un plus, no un requisito: si falla la subida, el
-           pedido ya está adentro y no tiene sentido mostrarle un error
-           a la persona por algo que no la afecta a ella. Queda
-           registrado en la consola para poder revisarlo. */
-        if (foto) {
-          try {
-            await subirFotoServicio(nuevoServicio.id, foto);
-          } catch (e) {
-            console.error("[pedir] no se pudo guardar la foto:", e);
+        /* Lo único que de verdad tiene que pasar antes de mostrarle
+           "pedido enviado" a la persona es crearServicio() de arriba —
+           eso es lo que lo hace visible para operaciones. Subir la foto
+           y avisar por Telegram son un plus, ninguno de los dos
+           requisito (si fallan, el pedido ya está adentro igual, ver
+           comentarios de cada función) — así que no hay motivo para
+           tener a la persona mirando un spinner mientras se suben y
+           esperan la vuelta de un servidor externo. Corren en
+           background, en el mismo orden de antes (foto primero, para
+           que el aviso pueda incluir su URL). */
+        (async () => {
+          if (foto) {
+            try {
+              await subirFotoServicio(nuevoServicio.id, foto);
+            } catch (e) {
+              console.error("[pedir] no se pudo guardar la foto:", e);
+            }
           }
-        }
-
-        /* Después de la foto: si hay imagen, que ya esté subida antes
-           de avisar, para que el mensaje incluya la URL firmada. */
-        try {
-          await enrutarPedido(nuevoServicio.id, diagnostico);
-        } catch (e) {
-          console.error("[pedir] no se pudo avisar del pedido:", e);
-        }
+          try {
+            await enrutarPedido(nuevoServicio.id, diagnostico);
+          } catch (e) {
+            console.error("[pedir] no se pudo avisar del pedido:", e);
+          }
+        })();
 
         setEnviado(true);
       } catch (e) {
@@ -245,7 +256,7 @@ export default function PaginaPedir() {
       <div className="absolute inset-0 z-40 bg-sand grid place-content-center px-8 text-center">
         <p className="text-[15px] font-semibold text-ink">Primero cargá un domicilio</p>
         <p className="text-[13.5px] text-mute mt-2 max-w-[280px]">
-          Necesitamos saber dónde mandar al técnico.
+          Necesitamos saber a dónde ir.
         </p>
         <Link
           href="/inicio"
@@ -377,7 +388,7 @@ export default function PaginaPedir() {
               está pasando
             </h1>
             <p className="text-[13px] text-mute mt-1.5">
-              Cuanto más detalle nos des, mejor preparado llega el técnico.
+              Cuanto más detalle nos des, mejor preparados llegamos.
             </p>
 
             <div className="mt-4 rounded-2xl bg-surface border border-line shadow-card p-3 flex items-center gap-3">
@@ -410,7 +421,7 @@ export default function PaginaPedir() {
             </p>
 
             {/* La foto se manda a analizar apenas se elige: es lo que
-                más ayuda al técnico a venir preparado, y de paso le
+                más ayuda a llegar preparados, y de paso le
                 muestra a la persona qué ve Nora en el momento. */}
             <input
               ref={inputFotoRef}
@@ -484,7 +495,7 @@ export default function PaginaPedir() {
               viene bien?
             </h1>
             <p className="text-[13px] text-mute mt-1.5">
-              Elegí día y franja. Te confirmamos el horario exacto con el técnico.
+              Elegí día y franja. Te confirmamos el horario exacto.
             </p>
 
             <div className="mt-5 flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5">
@@ -623,8 +634,8 @@ function ResultadoAnalisis({ resultado }: { resultado: ResultadoDiagnostico }) {
         </div>
       ) : (
         /* No identificamos el trabajo puntual, pero si conocemos el rubro
-           igual mostramos cuánto sale como mínimo que el técnico vaya a
-           verlo — nunca dejamos a la persona sin ningún número. */
+           igual mostramos cuánto sale como mínimo ir a verlo — nunca
+           dejamos a la persona sin ningún número. */
         resultado.estimado && (
           <div className="rounded-xl2 bg-brand-50 border border-brand-100 px-3 py-2.5">
             <p className="text-[13px] font-bold text-brand-600">{resultado.estimado.titulo}</p>

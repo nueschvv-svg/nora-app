@@ -46,7 +46,7 @@ export default function PaginaCambiarClave() {
   }
 
   return (
-    <div className="relative w-full max-w-[440px] min-h-dvh bg-sand overflow-y-auto no-scrollbar">
+    <div className="relative w-full max-w-[440px] mx-auto min-h-dvh bg-sand overflow-y-auto no-scrollbar">
       <div className="px-6 pt-16 pb-10">
         <div className="flex flex-col items-center text-center">
           <span className="grid place-items-center w-16 h-16 rounded-2xl bg-brand-50 text-brand-600">

@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { supabaseServidor } from "@/lib/supabase/servidor";
-import { NavInferiorOperaciones } from "@/componentes/NavInferiorOperaciones";
 
-/* El "marco" de operaciones. A propósito NO reusa (app)/layout.tsx: ese
-   layout carga propiedades y equipos de quien entra (ProveedorApp) y
-   tiene la barra de navegación del cliente (NavInferior) — nada de eso
-   aplica acá. Es una pantalla distinta, para una persona distinta.
-   Sí reutiliza la MISMA forma de marco (ancho de teléfono, nav inferior
-   fija) para que se sienta parte de la misma app — sólo con su propio
-   componente de navegación (NavInferiorOperaciones), con sus propias
-   pestañas.
+/* El "marco" de operaciones. A propósito NO reusa (cliente)/layout.tsx:
+   ese layout carga propiedades y equipos de quien entra (ProveedorApp)
+   y tiene la barra de navegación del cliente — nada de eso aplica acá.
+   Es una pantalla distinta, para una persona distinta.
+
+   Sin marco de teléfono ni ancho máximo: es una herramienta de trabajo
+   para el equipo, pensada para usarse en escritorio — el dashboard de
+   lista + detalle (ListaPedidos/DetalleServicio) necesita todo el
+   ancho disponible para mostrar las dos columnas lado a lado.
 
    El control de acceso vive acá y no en middleware.ts a propósito:
    middleware.ts protege TODA la app (sólo pide sesión), tocarlo para
@@ -30,10 +30,5 @@ export default async function LayoutOperaciones({ children }: { children: React.
 
   if (perfil?.rol !== "operaciones") redirect("/inicio");
 
-  return (
-    <div className="relative w-full max-w-[440px] h-dvh bg-sand overflow-hidden shadow-2xl">
-      {children}
-      <NavInferiorOperaciones />
-    </div>
-  );
+  return <div className="relative w-full h-dvh bg-sand overflow-hidden">{children}</div>;
 }

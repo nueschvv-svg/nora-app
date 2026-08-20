@@ -1,30 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Bell, BellOff, Briefcase, ChevronRight, LogOut, Plus, Settings, Wrench } from "lucide-react";
+import { Bell, BellOff, ChevronRight, LogOut, Plus, Settings } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { FormularioPropiedad } from "@/componentes/FormularioPropiedad";
-import { FormularioTrabajador } from "@/componentes/FormularioTrabajador";
 import { HojaDatosPersonales } from "@/componentes/HojaDatosPersonales";
 import { HojaLegal } from "@/componentes/HojaLegal";
 import { calcularScore } from "@/lib/score";
-import { miFichaTrabajador, type EstadoTrabajador, type MiFichaTrabajador } from "@/lib/trabajadores";
 import {
   activarNotificaciones,
   desactivarNotificaciones,
   notificacionesActivas,
   notificacionesSoportadas,
 } from "@/lib/push";
-
-const ETIQUETA_ESTADO_TRABAJADOR: Record<EstadoTrabajador, string> = {
-  pendiente: "Pendiente de verificación",
-  verificado: "Activo",
-  suspendido: "Suspendido",
-  baja: "De baja",
-};
 
 export default function PaginaPerfil() {
   const { propiedades, equiposDe, sesion, cerrarSesion } = useApp();
@@ -37,25 +27,6 @@ export default function PaginaPerfil() {
      que sin esto el cambio recién se vería después de recargar la
      página entera o volver a entrar. */
   const [nombreLocal, setNombreLocal] = useState<string | null>(null);
-
-  // Discreto a propósito: se consulta una sola vez, sin mostrar
-  // esqueleto de carga — si tarda, el botón simplemente muestra
-  // "Trabajá con Nora" hasta que la respuesta llegue.
-  //
-  // Se guarda la ficha completa (no sólo el estado) para poder pasarla
-  // como valor inicial al formulario: así, al abrirlo, no hace falta
-  // pedirla de nuevo.
-  const [formTrabajadorAbierto, setFormTrabajadorAbierto] = useState(false);
-  const [fichaTrabajador, setFichaTrabajador] = useState<MiFichaTrabajador | null>(null);
-
-  useEffect(() => {
-    if (!sesion) return;
-    miFichaTrabajador()
-      .then(setFichaTrabajador)
-      .catch(() => {
-        /* No es crítico: si falla, el botón se queda ofreciendo el alta. */
-      });
-  }, [sesion]);
 
   /* notifOn arranca en null tanto en el servidor como en el primer render
      del cliente (SSR no tiene `window`/`navigator` para saber si hay
@@ -96,8 +67,6 @@ export default function PaginaPerfil() {
       setNotifCargando(false);
     }
   };
-
-  const estadoTrabajador: EstadoTrabajador | null = fichaTrabajador?.estado ?? null;
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
@@ -164,54 +133,6 @@ export default function PaginaPerfil() {
           </button>
         </div>
 
-        {/* Grande y arriba a propósito: antes era un link chiquito al
-            final de la pantalla y casi nadie lo encontraba. Es su
-            propia sección, no una opción más de "Cuenta". */}
-        {estadoTrabajador === "verificado" ? (
-          <Link
-            href="/tecnico"
-            className="press w-full flex items-center gap-4 rounded-xl2 bg-brand-600 p-5 shadow-fab"
-          >
-            <span className="shrink-0 w-14 h-14 grid place-items-center rounded-2xl bg-white/15 text-white">
-              <Wrench className="w-6 h-6" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[17px] font-bold font-display text-white leading-tight">Sección técnico</p>
-              <p className="text-[12.5px] text-white/80 mt-0.5">Ver pedidos disponibles y tus trabajos</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-white shrink-0" />
-          </Link>
-        ) : null}
-        {estadoTrabajador === "verificado" && (
-          <button
-            type="button"
-            onClick={() => setFormTrabajadorAbierto(true)}
-            className="press w-full text-center text-[12.5px] font-medium text-mute underline underline-offset-2 -mt-1"
-          >
-            Editar mi ficha de trabajador
-          </button>
-        )}
-        {estadoTrabajador !== "verificado" && (
-          <button
-            type="button"
-            onClick={() => setFormTrabajadorAbierto(true)}
-            className="press w-full flex items-center gap-4 rounded-xl2 bg-brand-600 p-5 shadow-fab text-left"
-          >
-            <span className="shrink-0 w-14 h-14 grid place-items-center rounded-2xl bg-white/15 text-white">
-              <Briefcase className="w-6 h-6" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[17px] font-bold font-display text-white leading-tight">Trabajá con Nora</p>
-              <p className="text-[12.5px] text-white/80 mt-0.5">
-                {estadoTrabajador
-                  ? ETIQUETA_ESTADO_TRABAJADOR[estadoTrabajador]
-                  : "Sumate como plomero, electricista y más"}
-              </p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-white shrink-0" />
-          </button>
-        )}
-
         <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Cuenta</p>
         <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
           {["Datos personales", "Ayuda", "Términos y privacidad"].map((t) => (
@@ -277,12 +198,6 @@ export default function PaginaPerfil() {
       </div>
 
       <FormularioPropiedad abierto={formAbierto} alCerrar={() => setFormAbierto(false)} />
-      <FormularioTrabajador
-        abierto={formTrabajadorAbierto}
-        alCerrar={() => setFormTrabajadorAbierto(false)}
-        alGuardar={setFichaTrabajador}
-        fichaInicial={fichaTrabajador}
-      />
       <HojaDatosPersonales
         abierto={datosAbierto}
         alCerrar={() => setDatosAbierto(false)}

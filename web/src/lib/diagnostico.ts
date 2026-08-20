@@ -151,8 +151,8 @@ Reglas:
    estás rompiendo el sistema.
 
 2. Si la foto no alcanza para decidir, poné slug en null y confianza baja. Es
-   preferible preguntar a arriesgar. Un diagnóstico equivocado hace que vaya el
-   técnico equivocado con las herramientas equivocadas.
+   preferible preguntar a arriesgar. Un diagnóstico equivocado hace que
+   lleguemos con las herramientas equivocadas.
 
 3. Describí sólo lo que se ve. No supongas la causa si no está a la vista.
 

@@ -9,7 +9,22 @@
    Si alguien sin ese rol llama a estas funciones, la base devuelve
    cero filas (lectura) o rechaza el UPDATE (escritura) — no hay nada
    que este archivo tenga que reforzar.
-   ============================================================ */
+
+   Sin técnico externo (ver db/39_eliminar_rol_tecnico.sql): cada
+   pedido lo gestiona directo operaciones — acepta, rechaza u oferta
+   un precio, y avanza el trabajo él mismo.
+
+   CONCURRENCIA: la cuenta de operaciones es única y compartida —
+   puede haber más de una persona logueada al mismo tiempo, mirando y
+   actuando sobre los mismos pedidos. Cada función de escritura de acá
+   abajo condiciona su UPDATE al estado que esperaba encontrar
+   (`.eq("estado", estadoEsperado)`) — si otra sesión ya movió el
+   pedido, el UPDATE no afecta ninguna fila (0 rows) y se lanza
+   ConflictoConcurrencia en vez de fingir que funcionó. "Primer click
+   gana": la persona que actuó primero ve su cambio confirmado: la
+   segunda ve un aviso claro y el estado real, no un error genérico.
+   Mismo patrón que ya se usaba para que un técnico reclamara un
+   pedido de la bolsa (tomarTrabajo(), ahora eliminado). */
 
 import { supabaseNavegador } from "./supabase/cliente";
 import type { EstadoServicio } from "./tipos";
@@ -17,6 +32,18 @@ import type { EstadoServicio } from "./tipos";
 function fallar(contexto: string, error: { message: string }): never {
   console.error(`[operaciones] ${contexto}:`, error.message);
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
+}
+
+/** Alguien más (otra sesión de la misma cuenta de operaciones) ya
+ *  actuó sobre este pedido antes de que llegara este UPDATE — el
+ *  0 filas afectadas es la señal. Distinto de un error de red o de
+ *  base: acá lo único que hace falta es refrescar y mostrar el estado
+ *  real, no reintentar el mismo cambio. */
+export class ConflictoConcurrencia extends Error {
+  constructor() {
+    super("Alguien más ya actualizó este pedido. Mirá el estado actual antes de seguir.");
+    this.name = "ConflictoConcurrencia";
+  }
 }
 
 /* ---------- Lista ---------- */
@@ -66,6 +93,22 @@ export async function listarTodosLosServicios(): Promise<ServicioLista[]> {
   }));
 }
 
+/** Todas las sesiones de operaciones mirando la lista se enteran al
+ *  instante de cualquier pedido nuevo o cambio de estado — de
+ *  cualquier otra sesión, incluida la propia cuenta compartida desde
+ *  otro dispositivo. */
+export function suscribirseATodosLosServicios(alCambio: () => void): () => void {
+  const supabase = supabaseNavegador();
+  const canal = supabase
+    .channel("operaciones-servicios")
+    .on("postgres_changes", { event: "*", schema: "public", table: "servicios" }, () => alCambio())
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(canal);
+  };
+}
+
 /* ---------- Detalle ---------- */
 
 export type FotoServicioOp = { id: string; url: string; momento: "antes" | "despues" };
@@ -95,7 +138,6 @@ export type ServicioDetalle = {
   metodoPago: "efectivo" | "mercado_pago" | null;
   fechaPreferida: string | null;
   franjaPreferida: string | null;
-  tecnicoId: string | null;
   creadoEl: string;
   cliente: { nombre: string; telefono: string | null };
   propiedad: {
@@ -118,7 +160,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
   const { data: servicio, error: errServicio } = await supabase
     .from("servicios")
     .select(
-      "id, categoria_slug, descripcion, estado, monto_ars, metodo_pago, fecha_preferida, franja_preferida, tecnico_id, creado_el, propiedad_id, cliente_id",
+      "id, categoria_slug, descripcion, estado, monto_ars, metodo_pago, fecha_preferida, franja_preferida, creado_el, propiedad_id, cliente_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -169,7 +211,6 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
     metodoPago: servicio.metodo_pago,
     fechaPreferida: servicio.fecha_preferida,
     franjaPreferida: servicio.franja_preferida,
-    tecnicoId: servicio.tecnico_id,
     creadoEl: servicio.creado_el,
     cliente: { nombre: perfil?.nombre ?? "—", telefono: perfil?.telefono ?? null },
     propiedad: {
@@ -206,199 +247,90 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
   };
 }
 
-/* ---------- Técnicos para asignar ---------- */
+/* ---------- Acciones sobre un pedido — todas condicionadas al estado
+   esperado, para que dos sesiones de operaciones actuando a la vez no
+   se pisen (ver ConflictoConcurrencia arriba). ---------- */
 
-export type TecnicoParaAsignar = {
-  id: string;
-  nombre: string;
-  zonaCobertura: string[];
-  promedio: number | null;
-  trabajos: number;
-};
-
-type FilaTecnicoPublico = {
-  id: string;
-  nombre: string;
-  zona_cobertura: string[] | null;
-  promedio: number | null;
-  trabajos: number;
-};
-
-/* Dos consultas y no un embed (tecnico_categorias → tecnicos_publico):
-   tecnicos_publico es una VISTA, no tiene una relación de foreign key
-   que PostgREST pueda inferir para hacer el join en una sola consulta.
-   tecnicos_publico (02_permisos.sql) ya filtra por estado='verificado'
-   y ya esconde CUIT/comisión — reusarla acá evita repetir ese filtro. */
-export async function listarTecnicosParaCategoria(categoriaSlug: string): Promise<TecnicoParaAsignar[]> {
-  const supabase = supabaseNavegador();
-
-  const { data: filas, error: errFilas } = await supabase
-    .from("tecnico_categorias")
-    .select("tecnico_id")
-    .eq("categoria_slug", categoriaSlug);
-  if (errFilas) fallar("cargar los técnicos disponibles", errFilas);
-
-  const ids = (filas ?? []).map((f: { tecnico_id: string }) => f.tecnico_id);
-  if (ids.length === 0) return [];
-
-  const { data: tecnicos, error: errTecnicos } = await supabase
-    .from("tecnicos_publico")
-    .select("id, nombre, zona_cobertura, promedio, trabajos")
-    .in("id", ids);
-  if (errTecnicos) fallar("cargar los técnicos disponibles", errTecnicos);
-
-  return ((tecnicos ?? []) as FilaTecnicoPublico[])
-    .map((t) => ({
-      id: t.id,
-      nombre: t.nombre,
-      zonaCobertura: t.zona_cobertura ?? [],
-      promedio: t.promedio,
-      trabajos: t.trabajos,
-    }))
-    .sort((a, b) => b.trabajos - a.trabajos);
-}
-
-/* ---------- Escritura ---------- */
-
-export type CambiosServicio = {
-  estado?: EstadoServicio;
-  tecnicoId?: string | null;
-  montoArs?: number | null;
-  fechaPreferida?: string | null;
-  franjaPreferida?: string | null;
-};
-
-export async function actualizarServicioOperaciones(id: string, cambios: CambiosServicio): Promise<void> {
-  const filas: Record<string, unknown> = {};
-  if (cambios.estado !== undefined) filas.estado = cambios.estado;
-  if (cambios.tecnicoId !== undefined) filas.tecnico_id = cambios.tecnicoId;
-  if (cambios.montoArs !== undefined) filas.monto_ars = cambios.montoArs;
-  if (cambios.fechaPreferida !== undefined) filas.fecha_preferida = cambios.fechaPreferida;
-  if (cambios.franjaPreferida !== undefined) filas.franja_preferida = cambios.franjaPreferida;
-
-  const { error } = await supabaseNavegador().from("servicios").update(filas).eq("id", id);
-  if (error) fallar("actualizar el pedido", error);
-}
-
-/* ---------- Verificación de técnicos ---------- */
-/* Hasta acá, una postulación para ser técnico (FormularioTrabajador)
-   no llegaba a ningún lado visible — había que entrar a Supabase a
-   mano para verla. La política de RLS ya dejaba leer todo esto
-   (es_operaciones() en tecnicos/tecnico_documentos, 02_permisos.sql);
-   sólo faltaba esta capa y la pantalla. */
-
-export type SolicitudTecnico = {
-  id: string;
-  nombre: string;
-  telefono: string | null;
-  estado: "pendiente" | "verificado" | "suspendido" | "baja";
-  categorias: string[];
-  zonaCobertura: string[];
-  creadoEl: string;
-};
-
-type FilaSolicitudTecnico = {
-  id: string;
-  estado: SolicitudTecnico["estado"];
-  zona_cobertura: string[] | null;
-  creado_el: string;
-  perfiles: { nombre: string; telefono: string | null } | null;
-};
-
-export async function listarSolicitudesTecnico(): Promise<SolicitudTecnico[]> {
-  const supabase = supabaseNavegador();
-  const [{ data: tecnicos, error: errTecnicos }, { data: cats, error: errCats }] = await Promise.all([
-    supabase
-      .from("tecnicos")
-      .select("id, estado, zona_cobertura, creado_el, perfiles(nombre, telefono)")
-      .eq("estado", "pendiente")
-      .order("creado_el", { ascending: false }),
-    supabase.from("tecnico_categorias").select("tecnico_id, categoria_slug"),
-  ]);
-  if (errTecnicos) fallar("cargar las solicitudes de técnicos", errTecnicos);
-  if (errCats) fallar("cargar los rubros de los técnicos", errCats);
-
-  const categoriasPorTecnico = new Map<string, string[]>();
-  for (const c of (cats ?? []) as Array<{ tecnico_id: string; categoria_slug: string }>) {
-    const lista = categoriasPorTecnico.get(c.tecnico_id) ?? [];
-    lista.push(c.categoria_slug);
-    categoriasPorTecnico.set(c.tecnico_id, lista);
-  }
-
-  return ((tecnicos ?? []) as FilaSolicitudTecnico[]).map((f) => ({
-    id: f.id,
-    nombre: f.perfiles?.nombre ?? "—",
-    telefono: f.perfiles?.telefono ?? null,
-    estado: f.estado,
-    categorias: categoriasPorTecnico.get(f.id) ?? [],
-    zonaCobertura: f.zona_cobertura ?? [],
-    creadoEl: f.creado_el,
-  }));
-}
-
-export type DocumentoTecnico = { id: string; tipo: string; url: string; creadoEl: string };
-
-export type SolicitudTecnicoDetalle = SolicitudTecnico & { documentos: DocumentoTecnico[] };
-
-const BUCKET_DOCUMENTOS = "documentos-tecnicos";
-
-export async function obtenerSolicitudTecnico(id: string): Promise<SolicitudTecnicoDetalle | null> {
-  const supabase = supabaseNavegador();
-
-  const { data: tecnico, error: errTecnico } = await supabase
-    .from("tecnicos")
-    .select("id, estado, zona_cobertura, creado_el, perfiles(nombre, telefono)")
+/** UPDATE genérico interno: condiciona al estado esperado y traduce
+ *  "0 filas afectadas" a ConflictoConcurrencia. Ninguna función
+ *  pública de acá abajo expone esto directo — cada una arma su propio
+ *  objeto de cambios, explícito, para que sea imposible mandar un
+ *  campo de más por error. */
+async function actualizarCondicionado(
+  id: string,
+  estadoEsperado: EstadoServicio,
+  cambios: Record<string, unknown>,
+  contexto: string,
+): Promise<void> {
+  const { data, error } = await supabaseNavegador()
+    .from("servicios")
+    .update(cambios)
     .eq("id", id)
-    .maybeSingle();
-  if (errTecnico) fallar("cargar la solicitud", errTecnico);
-  if (!tecnico) return null;
+    .eq("estado", estadoEsperado)
+    .select("id");
 
-  const [{ data: cats }, { data: documentos }] = await Promise.all([
-    supabase.from("tecnico_categorias").select("categoria_slug").eq("tecnico_id", id),
-    supabase
-      .from("tecnico_documentos")
-      .select("id, tipo, archivo_path, creado_el")
-      .eq("tecnico_id", id)
-      .order("creado_el"),
-  ]);
+  if (error) fallar(contexto, error);
+  if (!data || data.length === 0) throw new ConflictoConcurrencia();
+}
 
-  const documentosConUrl = await Promise.all(
-    ((documentos ?? []) as Array<{ id: string; tipo: string; archivo_path: string | null; creado_el: string }>).map(
-      async (d) => {
-        if (!d.archivo_path) return { id: d.id, tipo: d.tipo, url: "", creadoEl: d.creado_el };
-        const { data: firmada } = await supabase.storage.from(BUCKET_DOCUMENTOS).createSignedUrl(d.archivo_path, 3600);
-        return { id: d.id, tipo: d.tipo, url: firmada?.signedUrl ?? "", creadoEl: d.creado_el };
-      },
-    ),
+/** Aceptar un pedido "solicitado" directo, con precio confirmado —
+ *  sin pasar por un presupuesto que el cliente tenga que aprobar. */
+export async function aceptarPedidoDirecto(id: string, montoArs: number): Promise<void> {
+  await actualizarCondicionado(id, "solicitado", { estado: "aceptado", monto_ars: montoArs }, "aceptar el pedido");
+}
+
+/** Ofertar un precio: el pedido pasa a "presupuestado", y el cliente
+ *  decide si lo acepta o lo rechaza desde su propio pedido. */
+export async function ofertarPrecio(id: string, montoArs: number): Promise<void> {
+  await actualizarCondicionado(
+    id,
+    "solicitado",
+    { estado: "presupuestado", monto_ars: montoArs },
+    "enviar el presupuesto",
   );
-
-  const f = tecnico as unknown as FilaSolicitudTecnico;
-  return {
-    id: f.id,
-    nombre: f.perfiles?.nombre ?? "—",
-    telefono: f.perfiles?.telefono ?? null,
-    estado: f.estado,
-    categorias: ((cats ?? []) as Array<{ categoria_slug: string }>).map((c) => c.categoria_slug),
-    zonaCobertura: f.zona_cobertura ?? [],
-    creadoEl: f.creado_el,
-    documentos: documentosConUrl.filter((d) => d.url),
-  };
 }
 
-export async function verificarTecnico(id: string): Promise<void> {
-  const { error } = await supabaseNavegador().from("tecnicos").update({ estado: "verificado" }).eq("id", id);
-  if (error) fallar("verificar al técnico", error);
+/** Rechazar un pedido recién solicitado — no se puede resolver. */
+export async function rechazarPedido(id: string, motivo: string): Promise<void> {
+  await actualizarCondicionado(id, "solicitado", { estado: "cancelado" }, "rechazar el pedido");
+  await agregarNotaServicio(id, motivo, "cancelado");
 }
 
-export async function rechazarTecnico(id: string): Promise<void> {
-  const { error } = await supabaseNavegador().from("tecnicos").update({ estado: "baja" }).eq("id", id);
-  if (error) fallar("rechazar al técnico", error);
+/** Avanzar la secuencia normal (aceptado → en_camino → en_curso →
+ *  finalizado) un paso por vez — mismo criterio de antes: nada de
+ *  saltos raros de estado. */
+export async function avanzarEstado(id: string, estadoActual: EstadoServicio, proximoEstado: EstadoServicio): Promise<void> {
+  await actualizarCondicionado(id, estadoActual, { estado: proximoEstado }, "actualizar el pedido");
+}
+
+/** Cancelar desde cualquier punto anterior a "en_curso" — misma regla
+ *  que ya regía para el cliente, disponible también para operaciones. */
+export async function cancelarPedido(id: string, estadoActual: EstadoServicio): Promise<void> {
+  await actualizarCondicionado(id, estadoActual, { estado: "cancelado" }, "cancelar el pedido");
+}
+
+export async function editarPrecio(id: string, estadoActual: EstadoServicio, montoArs: number | null): Promise<void> {
+  await actualizarCondicionado(id, estadoActual, { monto_ars: montoArs }, "actualizar el precio");
+}
+
+export async function reprogramarPedido(
+  id: string,
+  estadoActual: EstadoServicio,
+  fechaPreferida: string | null,
+  franjaPreferida: string | null,
+): Promise<void> {
+  await actualizarCondicionado(
+    id,
+    estadoActual,
+    { fecha_preferida: fechaPreferida, franja_preferida: franjaPreferida },
+    "reprogramar el pedido",
+  );
 }
 
 /* Fila manual en la bitácora: no cambia el estado (estado_nuevo queda
-   igual al actual), sólo dejauna nota. Para dejar registrado un motivo
-   —por ejemplo, al reprogramar— sin que eso se confunda con un cambio
-   real de estado. */
+   igual al actual), sólo deja una nota. Para dejar registrado un
+   motivo —por ejemplo al reprogramar, o al rechazar un pedido— sin
+   que eso se confunda con el cambio de estado en sí. */
 export async function agregarNotaServicio(
   id: string,
   nota: string,

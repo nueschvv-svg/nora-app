@@ -1,20 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowRight,
-  Bell,
-  CalendarCheck,
-  ChevronRight,
-  ChevronsUpDown,
-  MessageCircle,
-  ShieldCheck,
-  TrendingUp,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Bell, ChevronRight, ChevronsUpDown, MoreHorizontal, Send, Sparkles } from "lucide-react";
 
 import { LogotipoNora } from "@/componentes/LogoNora";
-import { AnilloScore } from "@/componentes/AnilloScore";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
 import { HojaServicio } from "@/componentes/HojaServicio";
@@ -22,7 +13,7 @@ import { HojaNotificaciones } from "@/componentes/HojaNotificaciones";
 import { PrimerDomicilio } from "@/componentes/PrimerDomicilio";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
 import { useApp } from "@/componentes/ContextoApp";
-import { calcularScore, ordenarPorUrgencia, recordatoriosDeMantenimiento } from "@/lib/score";
+import { recordatoriosDeMantenimiento } from "@/lib/score";
 import { listarCategorias, listarServicios, type CategoriaBD } from "@/lib/datos";
 import {
   listarNotificaciones,
@@ -32,34 +23,17 @@ import {
   type Notificacion,
 } from "@/lib/notificaciones";
 import { ETIQUETA_ESTADO, type EstadoServicio, type Servicio } from "@/lib/tipos";
-import { mesAnio, saludo, textoVencimiento } from "@/lib/formato";
+import { saludo } from "@/lib/formato";
 
 /* Mismo criterio que historial/page.tsx: qué está "en curso". Está
    duplicado a propósito y no importado desde ahí — ver el comentario
    en ese archivo, la razón es la misma acá. */
-const EN_CURSO = new Set<EstadoServicio>([
-  "solicitado",
-  "buscando_tecnico",
-  "asignado",
-  "presupuestado",
-  "aceptado",
-  "en_camino",
-  "en_curso",
-]);
+const EN_CURSO = new Set<EstadoServicio>(["solicitado", "presupuestado", "aceptado", "en_camino", "en_curso"]);
 
 export default function PaginaInicio() {
+  const router = useRouter();
   const { propiedad, indice, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
   const [hojaAbierta, setHojaAbierta] = useState(false);
-
-  // El score se recalcula solo cuando cambia la propiedad.
-  const score = useMemo(
-    () => calcularScore(propiedad ? equiposDe(propiedad.id) : []),
-    [equiposDe, propiedad],
-  );
-  const urgentes = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
-
-  const critico = score.nivel === "critico";
-  const proximo = urgentes[0];
 
   /* Pedido en curso, arriba y grande — antes esto sólo se veía adentro
      de Historial. La idea (pedida explícitamente): que al entrar se
@@ -143,6 +117,19 @@ export default function PaginaInicio() {
     ? categorias.find((c) => c.slug === pedidoActivo.categoriaSlug)
     : undefined;
 
+  /* El "chat" para arrancar un pedido. No es un chat de verdad todavía
+     (eso ya lo resuelve /pedir, paso a paso, con el mismo diagnóstico
+     de Nora) — esto es la puerta de entrada: lo que la persona escribe
+     acá viaja como texto inicial y aparece ya cargado en el paso
+     "Contanos qué está pasando" de /pedir, para no hacerla escribir
+     dos veces. */
+  const [mensaje, setMensaje] = useState("");
+  const enviarMensaje = (e: React.FormEvent) => {
+    e.preventDefault();
+    const texto = mensaje.trim();
+    router.push(texto ? `/pedir?texto=${encodeURIComponent(texto)}` : "/pedir");
+  };
+
   if (cargando) return <EsqueletoInicio />;
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
   // Recién registrado: todavía no cargó ningún domicilio.
@@ -154,6 +141,14 @@ export default function PaginaInicio() {
         <div className="flex items-center justify-between">
           <LogotipoNora />
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event("nora:abrir-ayuda"))}
+              className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+              aria-label="Más opciones — soporte"
+            >
+              <MoreHorizontal className="w-[18px] h-[18px]" />
+            </button>
             <button
               type="button"
               onClick={() => setNotifAbierta(true)}
@@ -240,146 +235,38 @@ export default function PaginaInicio() {
           </button>
         )}
 
-        {/* --- Hero: score --- */}
-        <section
-          className="relative overflow-hidden rounded-xl3 bg-brand-700 text-white shadow-hero p-5"
-          style={{
-            backgroundImage:
-              "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
-          }}
-        >
-          <div className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-brand-400/20 blur-2xl" />
-          <div className="relative flex items-center gap-5">
-            <AnilloScore valor={score.valor} />
-            <div className="min-w-0">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-2.5 py-1 text-[11.5px] font-medium text-brand-50">
-                <ShieldCheck className="w-[13px] h-[13px]" /> Salud de la propiedad
-              </span>
-              <p className="mt-2.5 text-[19px] font-semibold font-display leading-snug">
-                {score.titulo.map((linea, i) => (
-                  <span key={i} className="block">
-                    {linea}
-                  </span>
-                ))}
-              </p>
-              <Link
-                href="/inicio/score"
-                className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-brand-100 underline underline-offset-2 decoration-brand-100/40"
-              >
-                <TrendingUp className="w-[15px] h-[15px] text-emerald-300" />
-                Ver por qué
-              </Link>
-            </div>
-          </div>
-
-          {/* Alerta principal: lo más urgente que tenga esta propiedad */}
-          {proximo && (
-            <Link
-              href="/inicio/agenda"
-              className="press relative mt-4 w-full flex items-center gap-3 rounded-2xl bg-white/[.08] border border-white/10 px-3.5 py-3 text-left"
-            >
-              <span
-                className={`shrink-0 w-9 h-9 grid place-items-center rounded-xl ${
-                  critico ? "bg-urgent/20 text-orange-200" : "bg-good/20 text-emerald-200"
-                }`}
-              >
-                <IconoEquipo nombre={proximo.icono} className="w-[18px] h-[18px]" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] font-semibold text-white leading-snug">
-                  {proximo.estado === "al_dia"
-                    ? "Todo al día en esta propiedad"
-                    : `${proximo.etiqueta}: ${textoVencimiento(proximo.diasVencido).toLowerCase()}`}
-                </span>
-                <span className="block text-[11.5px] text-brand-100 mt-0.5">
-                  {resumenAgenda(score.equipos)}
-                </span>
-              </span>
-              <ArrowRight className="w-[18px] h-[18px] text-white/70 shrink-0" />
-            </Link>
-          )}
-        </section>
-
-        {/* --- Pedir un servicio --- */}
-        <Link
-          href="/pedir"
-          className="press w-full flex items-center justify-between rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab"
-        >
-          <span className="flex items-center gap-3">
-            <span className="w-10 h-10 grid place-items-center rounded-full bg-white/15">
-              <MessageCircle className="w-5 h-5" />
+        {/* --- El chat: puerta de entrada para pedir un servicio --- */}
+        <section className="rounded-xl3 bg-surface border border-line shadow-card p-4">
+          <div className="flex items-start gap-2.5">
+            <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white">
+              <Sparkles className="w-[16px] h-[16px]" />
             </span>
-            <span className="text-left leading-tight">
-              <span className="block text-[15.5px] font-semibold">Pedir un servicio</span>
-              <span className="block text-[12px] text-brand-100">
-                Contanos qué pasa y te conseguimos técnico
-              </span>
-            </span>
-          </span>
-          <ArrowRight className="w-5 h-5" />
-        </Link>
-
-        {/* --- Próximo mantenimiento --- */}
-        {proximo && proximo.estado !== "al_dia" && (
-          <Link
-            href="/inicio/agenda"
-            className="lift w-full flex items-center gap-3.5 bg-surface rounded-xl2 border border-line shadow-card p-3.5 text-left"
-          >
-            <span
-              className={`shrink-0 w-11 h-11 grid place-items-center rounded-2xl ${
-                proximo.estado === "vencido" ? "bg-urgent/10 text-urgent" : "bg-brand-50 text-brand-600"
-              }`}
-            >
-              <IconoEquipo nombre={proximo.icono} className="w-[19px] h-[19px]" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10.5px] font-bold tracking-wide uppercase text-faint truncate">
-                Próxima revisión
-              </p>
-              <p className="text-[14px] font-semibold text-ink leading-tight mt-0.5 truncate">
-                {proximo.etiqueta}
-                {proximo.equipo.marca ? ` · ${proximo.equipo.marca}` : ""}
-              </p>
-            </div>
-            <div className="text-right shrink-0 max-w-[38%]">
-              <p
-                className={`num text-[13px] font-semibold leading-tight ${
-                  proximo.estado === "vencido" ? "text-urgent" : "text-ink"
-                }`}
-              >
-                {proximo.proximaRevision ? mesAnio(proximo.proximaRevision) : "Sin datos"}
-              </p>
-              <p
-                className={`text-[11.5px] leading-tight mt-0.5 ${
-                  proximo.estado === "vencido" ? "text-urgent/80 font-medium" : "text-faint"
-                }`}
-              >
-                {proximo.estado === "vencido"
-                  ? "Vencido"
-                  : proximo.estado === "por_vencer"
-                    ? "Por vencer"
-                    : "Programado"}
-              </p>
-            </div>
-          </Link>
-        )}
-
-        {/* --- Agendar mantenimiento --- */}
-        <Link
-          href="/inicio/agenda"
-          className="lift w-full flex items-center gap-3 bg-surface rounded-xl2 border border-line shadow-card p-3.5 text-left"
-        >
-          <span className="shrink-0 w-11 h-11 grid place-items-center rounded-2xl bg-brand-50 text-brand-600">
-            <CalendarCheck className="w-[19px] h-[19px]" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold text-ink leading-tight">Tus equipos</p>
-            <p className="text-[12.5px] text-faint mt-0.5">
-              {score.equipos.length} cargados · ver estado de cada uno
+            <p className="bg-sand border border-line rounded-2xl rounded-tl-md px-3.5 py-2.5 text-[13.5px] text-ink leading-snug">
+              ¿Qué necesitás resolver hoy? Contame qué está pasando y me ocupo.
             </p>
           </div>
-          <ArrowRight className="w-[18px] h-[18px] text-faint shrink-0" />
-        </Link>
+
+          <form onSubmit={enviarMensaje} className="mt-3 flex items-center gap-2">
+            <label htmlFor="mensaje-inicio" className="sr-only">
+              Contanos qué pasa
+            </label>
+            <input
+              id="mensaje-inicio"
+              type="text"
+              value={mensaje}
+              onChange={(e) => setMensaje(e.target.value)}
+              placeholder="Ej: pierde agua la canilla de la cocina…"
+              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+            />
+            <button
+              type="submit"
+              className="press shrink-0 w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab disabled:opacity-50"
+              aria-label="Enviar"
+            >
+              <Send className="w-[18px] h-[18px]" />
+            </button>
+          </form>
+        </section>
       </div>
 
       <HojaPropiedades abierta={hojaAbierta} alCerrar={() => setHojaAbierta(false)} />
@@ -399,16 +286,4 @@ export default function PaginaInicio() {
       />
     </main>
   );
-}
-
-function resumenAgenda(equipos: ReturnType<typeof calcularScore>["equipos"]): string {
-  const vencidos = equipos.filter((e) => e.estado === "vencido").length;
-  const porVencer = equipos.filter((e) => e.estado === "por_vencer").length;
-  const sinDatos = equipos.filter((e) => e.estado === "sin_datos").length;
-
-  const partes: string[] = [];
-  if (vencidos) partes.push(`${vencidos} ${vencidos === 1 ? "vencido" : "vencidos"}`);
-  if (porVencer) partes.push(`${porVencer} por vencer`);
-  if (sinDatos) partes.push(`${sinDatos} sin datos`);
-  return partes.length ? partes.join(" · ") : "Todos los mantenimientos al día";
 }

@@ -344,7 +344,7 @@ function Formulario() {
 
 function Marco({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative w-full max-w-[440px] min-h-dvh bg-sand overflow-y-auto no-scrollbar">
+    <div className="relative w-full max-w-[440px] mx-auto min-h-dvh bg-sand overflow-y-auto no-scrollbar">
       <div className="px-6 pt-16 pb-10">{children}</div>
     </div>
   );

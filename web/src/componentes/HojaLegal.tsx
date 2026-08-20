@@ -13,7 +13,7 @@ import { X } from "lucide-react";
    CUIT y domicilio real de la empresa, que quedaron como [COMPLETAR]
    porque no son un dato que Nora (el asistente) pueda inventar. */
 
-const ULTIMA_ACTUALIZACION = "18 de agosto de 2026";
+const ULTIMA_ACTUALIZACION = "19 de agosto de 2026";
 
 export function HojaLegal({ abierto, alCerrar }: { abierto: boolean; alCerrar: () => void }) {
   useEffect(() => {
@@ -61,32 +61,25 @@ export function HojaLegal({ abierto, alCerrar }: { abierto: boolean; alCerrar: (
           <div className="mt-5 space-y-5 text-[13.5px] text-ink leading-relaxed">
             <Seccion titulo="1. Qué es Nora">
               <p>
-                Nora es una plataforma que conecta a personas que necesitan un servicio técnico para
-                su hogar (plomería, electricidad, cerrajería, gas, aire acondicionado, pintura,
-                carpintería, albañilería y limpieza) con técnicos independientes verificados. Nora
-                intermedia el pedido, el presupuesto, el seguimiento y el pago — no es la empresa que
-                realiza el trabajo: cada técnico es un prestador independiente, no un empleado de
-                Nora.
+                Nora es la plataforma de Enjinia para pedir servicios para el hogar (plomería,
+                electricidad, cerrajería, gas, aire acondicionado, pintura, carpintería, albañilería y
+                limpieza). A diferencia de un marketplace, no intermedia con terceros: cada pedido lo
+                atiende directamente el equipo de operaciones de Enjinia, que confirma el precio y
+                realiza el trabajo.
               </p>
             </Seccion>
 
             <Seccion titulo="2. Quién puede usar Nora">
-              <p>
-                Cualquier persona mayor de 18 años puede crear una cuenta como cliente. Para operar
-                como técnico hace falta pasar un proceso de verificación (documentación y matrícula
-                cuando el rubro la requiere) antes de recibir pedidos.
-              </p>
+              <p>Cualquier persona mayor de 18 años puede crear una cuenta y pedir un servicio.</p>
             </Seccion>
 
             <Seccion titulo="3. Cómo funciona el servicio">
               <p>
                 El cliente describe el problema (con texto y, opcionalmente, una foto). Nora estima un
-                rango de precio orientativo cuando puede identificar el trabajo; el precio final lo
-                confirma el técnico o el equipo de Nora antes de empezar. El pedido se asigna a un
-                técnico verificado del rubro y la zona. El cliente puede seguir el estado del pedido en
-                vivo (confirmado, en camino, trabajando, terminado) y chatear con el técnico dentro de
-                la app. El trabajo se marca como terminado sólo cuando el cliente le dicta al técnico
-                un código de confirmación — nadie puede cerrarlo sin eso.
+                rango de precio orientativo cuando puede identificar el trabajo. El equipo de
+                operaciones revisa el pedido y confirma un precio directo, u oferta uno para que el
+                cliente lo acepte o lo rechace. El cliente puede seguir el estado del pedido en vivo
+                (confirmado, en camino, trabajando, terminado) desde la app.
               </p>
             </Seccion>
 
@@ -100,28 +93,26 @@ export function HojaLegal({ abierto, alCerrar }: { abierto: boolean; alCerrar: (
 
             <Seccion titulo="5. Cancelaciones">
               <p>
-                El cliente puede cancelar un pedido antes de que un técnico lo confirme sin cargo. Una
-                vez que el técnico confirmó y especialmente si ya está en camino o trabajando, una
-                cancelación puede generar un cargo por el tiempo y el desplazamiento del técnico — la
-                app avisa esto de forma explícita antes de confirmar la cancelación en esos casos.
+                El cliente puede cancelar un pedido antes de que el equipo de Nora lo confirme, sin
+                cargo. Una vez confirmado — y especialmente si el equipo ya está en camino o
+                trabajando — una cancelación puede generar un cargo por el tiempo y el desplazamiento;
+                la app avisa esto de forma explícita antes de confirmar la cancelación en esos casos.
               </p>
             </Seccion>
 
             <Seccion titulo="6. Responsabilidad">
               <p>
-                Nora verifica la identidad y, cuando el rubro lo exige, la matrícula profesional de
-                cada técnico antes de habilitarlo — pero no garantiza el resultado del trabajo ni
-                actúa como aseguradora. Cualquier reclamo sobre la calidad de un trabajo se gestiona a
-                través del sistema de calificaciones y del soporte de Nora, y puede derivar en la
-                suspensión del técnico involucrado.
+                El trabajo lo realiza directamente el equipo de operaciones de Enjinia — Nora no
+                garantiza un resultado más allá de lo que ese equipo se compromete a entregar en cada
+                pedido. Cualquier reclamo sobre la calidad de un trabajo se gestiona a través del
+                sistema de calificaciones y del soporte de Nora.
               </p>
             </Seccion>
 
-            <Seccion titulo="7. Cuentas y verificación">
+            <Seccion titulo="7. Cuentas">
               <p>
                 Cada persona es responsable de la información que carga y de mantener segura su
-                contraseña. Los técnicos deben presentar documentación real y vigente; presentar
-                documentación falsa es motivo de baja inmediata y puede derivar en acciones legales.
+                contraseña.
               </p>
             </Seccion>
 
@@ -162,28 +153,22 @@ export function HojaLegal({ abierto, alCerrar }: { abierto: boolean; alCerrar: (
                 <li>Nombre, email y teléfono de contacto.</li>
                 <li>Domicilios cargados, con su ubicación geográfica.</li>
                 <li>Descripciones y fotos de los problemas que reportás.</li>
-                <li>
-                  Para técnicos: documentación de identidad y matrícula, y ubicación en vivo mientras
-                  el estado del pedido es &quot;en camino&quot;.
-                </li>
-                <li>Mensajes de chat dentro de un pedido.</li>
               </ul>
             </Seccion>
 
             <Seccion titulo="Para qué los usamos">
               <p>
-                Para conectar el pedido con un técnico disponible cerca tuyo, mostrarte su seguimiento
-                en vivo, procesar el pago, y contactarte por temas relacionados a tu pedido si hace
-                falta. No vendemos datos personales a terceros.
+                Para que el equipo de Nora atienda tu pedido, te muestre el seguimiento en vivo,
+                procese el pago, y te contacte por temas relacionados a tu pedido si hace falta. No
+                vendemos datos personales a terceros.
               </p>
             </Seccion>
 
             <Seccion titulo="Con quién se comparte">
               <p>
-                El técnico asignado ve tu nombre, domicilio y teléfono mientras el pedido está activo.
-                Vos ves el nombre, la foto, el promedio de calificación y la cantidad de trabajos del
-                técnico — nunca su documento de identidad, que sólo usa el equipo de Nora para
-                verificarlo. Mercado Pago procesa los pagos con sus propias políticas de privacidad.
+                Tus datos los ve únicamente el equipo interno de Enjinia que atiende tu pedido —
+                ningún tercero externo accede a ellos. Mercado Pago procesa los pagos con sus propias
+                políticas de privacidad.
               </p>
             </Seccion>
 

@@ -15,15 +15,7 @@ import { fechaCorta, pesos } from "@/lib/formato";
 /* Estos son los estados en los que el trabajo todavía está en curso.
    Se muestran arriba y con otro color: es lo que la persona quiere ver
    primero al abrir la pantalla. */
-const EN_CURSO = new Set([
-  "solicitado",
-  "buscando_tecnico",
-  "asignado",
-  "presupuestado",
-  "aceptado",
-  "en_camino",
-  "en_curso",
-]);
+const EN_CURSO = new Set(["solicitado", "presupuestado", "aceptado", "en_camino", "en_curso"]);
 
 export default function PaginaHistorial() {
   const { propiedad, cargando: cargandoApp, sesion } = useApp();
@@ -235,7 +227,7 @@ function EstadoVacio() {
       </span>
       <h2 className="text-[17px] font-bold font-display text-ink mt-4">Todavía no hay nada acá</h2>
       <p className="text-[13px] text-mute mt-1.5 max-w-[260px]">
-        Cuando pidas tu primer servicio, vas a ver acá el detalle, el reporte del técnico y la
+        Cuando pidas tu primer servicio, vas a ver acá el detalle, el reporte del trabajo y la
         factura.
       </p>
       <Link

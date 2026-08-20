@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 
-/* Chat genérico — lo usan tanto el servicio (cliente/técnico, vía
-   lib/chat.ts) como la obra (dueño/colaboradores, vía lib/obraChat.ts).
-   Mismo componente, cada uno le pasa sus propias funciones: quién
-   puede leer o escribir lo decide la base en cada caso, acá sólo se
-   pinta. */
+/* Chat genérico — hoy sólo lo usa la obra (dueño/colaboradores, vía
+   lib/obraChat.ts). Recibe sus funciones por props en vez de tener la
+   lógica hardcodeada: quién puede leer o escribir lo decide la base,
+   acá sólo se pinta — así, si en el futuro hace falta otro chat
+   (por ejemplo, cliente↔operaciones), se puede reusar sin tocar esto. */
 
 type MensajeChat = {
   id: string;
@@ -31,8 +31,8 @@ export function HiloChat({
   suscribirse: (alLlegarMensaje: (m: MensajeChat) => void) => () => void;
   /** Sólo hace falta cuando el chat puede tener más de dos personas
    *  (la obra, con dueño + colaboradores) — sin esto, un mensaje ajeno
-   *  no dice de quién es. El chat de un servicio (siempre cliente
-   *  ↔ técnico) no lo necesita. */
+   *  no dice de quién es. Un chat siempre entre las mismas dos
+   *  personas no lo necesita. */
   nombreDeAutor?: (autorId: string) => string | undefined;
 }) {
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);

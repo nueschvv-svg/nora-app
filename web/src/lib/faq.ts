@@ -44,7 +44,7 @@ export const MENU_ASISTENTE: NodoCategoria[] = [
         id: "precio",
         etiqueta: "¿Cuánto cuesta un servicio?",
         texto:
-          "Depende del trabajo — si mandás una foto, Nora te da un estimado al toque. El precio final lo confirmamos en tu Historial antes de que el técnico arranque, y no se cobra nada hasta que lo aceptás.",
+          "Depende del trabajo — si mandás una foto, Nora te da un estimado al toque. El precio final lo confirmamos en tu Historial antes de arrancar, y no se cobra nada hasta que lo aceptás.",
       },
       {
         tipo: "respuesta",
