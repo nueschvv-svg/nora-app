@@ -1,0 +1,34 @@
+-- ============================================================
+-- NORA — Limpieza de pedidos de prueba (pre-lanzamiento)
+--
+-- Borra TODOS los pedidos actuales y todo lo que cuelga de cada uno.
+-- No es un script para reutilizar tal cual después del lanzamiento —
+-- es un `delete from servicios` sin condición, pensado para dejar el
+-- historial en cero antes de las pruebas finales. Confirmado con el
+-- dueño del proyecto: no hay clientes reales todavía.
+--
+-- No hace falta borrar servicio_fotos, servicio_mensajes,
+-- calificaciones, servicio_enrutamientos (logs de Telegram/Enjinia),
+-- servicio_eventos (bitácora) ni las notificaciones ligadas a un
+-- pedido por separado: las seis referencian servicios(id) con
+-- `on delete cascade` (ver db/01_esquema.sql, db/09_enrutamiento.sql,
+-- db/12_tecnico_en_terreno.sql, db/28_notificaciones.sql) — se van
+-- solas con el pedido.
+--
+-- Lo único que el cascade NO alcanza son los archivos ya subidos al
+-- bucket de Storage (las filas de servicio_fotos apuntan a un
+-- archivo_path, pero borrar la fila no borra el archivo). Supabase
+-- bloquea el DELETE directo sobre storage.objects por SQL (protect_delete(),
+-- guardrail propio) — hay que borrarlos desde el dashboard: Storage →
+-- fotos-servicios → seleccionar todo → Delete. Son archivos huérfanos,
+-- no rotos: no hay ningún riesgo en dejarlos un rato si preferís
+-- hacerlo después, sólo ocupan espacio de más.
+--
+-- Las CUENTAS (perfiles, tecnicos, tecnico_categorias) NO se tocan:
+-- esto es sólo el historial de pedidos, no borra usuarios de prueba
+-- para poder seguir usándolos en la próxima ronda.
+--
+-- Cómo aplicarlo: Supabase → SQL Editor → pegar y ejecutar.
+-- ============================================================
+
+delete from servicios;
