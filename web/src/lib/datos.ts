@@ -66,6 +66,7 @@ function aEquipo(f: FilaEquipo): Equipo {
 
 type FilaServicio = {
   id: string;
+  numero_orden: number;
   propiedad_id: string;
   categoria_slug: string;
   descripcion: string;
@@ -83,11 +84,12 @@ type FilaServicio = {
 
 /** Columnas de `servicios` que necesita el lado cliente — sin técnico. */
 const COLUMNAS_SERVICIO =
-  "id, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
+  "id, numero_orden, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
 
 function aServicio(f: FilaServicio): Servicio {
   return {
     id: f.id,
+    numeroOrden: f.numero_orden,
     propiedadId: f.propiedad_id,
     categoriaSlug: f.categoria_slug,
     descripcion: f.descripcion,
@@ -197,17 +199,6 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
   return aPropiedad(data as FilaPropiedad);
 }
 
-/* TODAVÍA NO SE USA — ninguna pantalla la llama.
-   La dejo escrita pero sin botón a propósito: borrar un domicilio que
-   tiene servicios hechos no es obvio. ¿Se borra el historial también?
-   ¿Y la factura de un trabajo que el cliente pagó? Lo más probable es que
-   convenga ocultarlo en vez de borrarlo. Es una decisión de producto,
-   no técnica, y prefiero no resolverla por mi cuenta. */
-export async function borrarPropiedad(id: string): Promise<void> {
-  const { error } = await supabaseNavegador().from("propiedades").delete().eq("id", id);
-  if (error) fallar("borrar el domicilio", error);
-}
-
 /* ---------- Equipos ---------- */
 
 export async function listarEquipos(): Promise<Equipo[]> {
@@ -259,7 +250,7 @@ export async function listarServicios(): Promise<Servicio[]> {
     .eq("cliente_id", user.id)
     .order("creado_el", { ascending: false });
 
-  if (error) fallar("cargar tu historial", error);
+  if (error) fallar("cargar tus pedidos", error);
   return (data as FilaServicio[]).map(aServicio);
 }
 

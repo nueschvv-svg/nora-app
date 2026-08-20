@@ -37,76 +37,34 @@ export const MENU_ASISTENTE: NodoCategoria[] = [
         id: "pedir-servicio",
         etiqueta: "¿Cómo pido un servicio?",
         texto:
-          "Tocá el botón + del medio (abajo) o \"Pedir un servicio\". Elegís el rubro, contás qué pasa (o mandás una foto y Nora te tira un estimado ahí mismo) y decís cuándo te viene bien. El seguimiento y el precio confirmado los ves en tu Historial, todo dentro de la app.",
+          "Contanos qué pasa en el chat de Inicio — con texto o una foto, Nora te tira un estimado ahí mismo. Elegís el rubro, decís cuándo te viene bien, y al final dejás tu domicilio y teléfono para que te confirmemos.",
       },
       {
         tipo: "respuesta",
         id: "precio",
         etiqueta: "¿Cuánto cuesta un servicio?",
         texto:
-          "Depende del trabajo — si mandás una foto, Nora te da un estimado al toque. El precio final lo confirmamos en tu Historial antes de arrancar, y no se cobra nada hasta que lo aceptás.",
+          "Depende del trabajo — si mandás una foto, Nora te da un estimado al toque. El precio final te lo confirmamos antes de arrancar, y no se cobra nada hasta que lo aceptás.",
+      },
+      {
+        tipo: "respuesta",
+        id: "estado",
+        etiqueta: "¿Cómo veo el estado de mi pedido?",
+        texto:
+          "Al confirmar el pedido te damos un número de orden — guardalo. Escribinos por WhatsApp con ese número y te contamos en qué está.",
       },
       {
         tipo: "respuesta",
         id: "cancelar",
         etiqueta: "¿Puedo cancelar un pedido?",
-        texto:
-          "Sí, mientras todavía no arrancó. Por ahora escribinos por WhatsApp para cancelarlo — el botón para hacerlo vos mismo desde Historial todavía no está listo.",
+        texto: "Sí, mientras todavía no arrancó. Escribinos por WhatsApp con tu número de orden para cancelarlo.",
       },
       {
         tipo: "respuesta",
-        id: "historial",
-        etiqueta: "¿Dónde veo mis pedidos anteriores?",
-        texto: "En la pestaña Historial (abajo). Ahí separamos lo que está en curso de lo que ya se resolvió.",
-      },
-    ],
-  },
-  {
-    tipo: "categoria",
-    id: "propiedad",
-    etiqueta: "Mi propiedad",
-    hijos: [
-      {
-        tipo: "respuesta",
-        id: "domicilio",
-        etiqueta: "¿Cómo agrego un domicilio?",
+        id: "contacto",
+        etiqueta: "¿Cómo me confirman el pedido?",
         texto:
-          "Desde Perfil, tocá \"Agregar domicilio\" y completá calle, altura y localidad. Podés tener varios y elegir cuál está activo desde Inicio.",
-      },
-      {
-        tipo: "respuesta",
-        id: "equipos",
-        etiqueta: "¿Para qué sirve cargar mis equipos?",
-        texto:
-          "Con tus equipos (calefón, termotanque, aire, etc.) calculamos el score de salud de tu propiedad y te avisamos cuándo corresponde la próxima revisión — antes de que se rompan o venzan.",
-      },
-      {
-        tipo: "respuesta",
-        id: "score",
-        etiqueta: "¿Qué es el score de la propiedad?",
-        texto:
-          "Es un número de 0 a 100 que resume qué tan al día están tus equipos con sus revisiones obligatorias y recomendadas. Cuantos más equipos cargados y revisados, más alto el score.",
-      },
-    ],
-  },
-  {
-    tipo: "categoria",
-    id: "cuenta",
-    etiqueta: "Mi cuenta y trabajo",
-    hijos: [
-      {
-        tipo: "respuesta",
-        id: "cuenta",
-        etiqueta: "¿Cómo cierro sesión o cambio mi contraseña?",
-        texto:
-          "Cerrar sesión está al final de Perfil. Para cambiar la contraseña, usá \"Me olvidé la contraseña\" en la pantalla de inicio de sesión.",
-      },
-      {
-        tipo: "respuesta",
-        id: "trabajador",
-        etiqueta: "¿Cómo me sumo como trabajador de Nora?",
-        texto:
-          "Desde Perfil, abajo del todo, tocá \"Trabajá con Nora\" y completá tus datos y zona de cobertura. Tu ficha queda pendiente de verificación hasta que nuestro equipo la revise.",
+          "Nuestro equipo te llama o te escribe por WhatsApp al número que dejaste para cerrar el horario exacto y cualquier detalle antes de ir.",
       },
     ],
   },

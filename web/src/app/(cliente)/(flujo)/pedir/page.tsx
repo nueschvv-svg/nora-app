@@ -11,6 +11,7 @@ import {
   Check,
   Clock,
   Loader2,
+  MapPin,
   Sparkles,
   X,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } 
 import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 import { actualizarMisDatosPersonales } from "@/lib/perfil";
+import { type Propiedad, type Servicio } from "@/lib/tipos";
 
 const PROVINCIAS = [
   "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes",
@@ -49,12 +51,26 @@ const FRANJAS = [
   { id: "urgente", texto: "Lo antes posible" },
 ];
 
-const PASOS = ["Categoría", "El problema", "Cuándo", "Confirmar"];
-
 export default function PaginaPedir() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { propiedad, agregarPropiedad } = useApp();
+
+  /* Sin cuentas: nadie carga domicilio/teléfono en un registro aparte de
+     antemano — se piden como último paso del pedido, justo antes de
+     confirmar, y sólo la primera vez (si ya hay un domicilio guardado
+     en esta sesión, se salta directo a Confirmar). Se decide una única
+     vez al montar: si se recalculara en cada render, el guardado exitoso
+     de este mismo paso cambiaría la cantidad de pasos a mitad de flujo. */
+  const [necesitaContacto] = useState(() => !propiedad);
+  const [propiedadGuardada, setPropiedadGuardada] = useState<Propiedad | null>(null);
+  const propiedadActual = propiedad ?? propiedadGuardada;
+
+  const PASOS = necesitaContacto
+    ? ["Categoría", "El problema", "Cuándo", "Contacto", "Confirmar"]
+    : ["Categoría", "El problema", "Cuándo", "Confirmar"];
+  const pasoContacto = necesitaContacto ? 3 : -1;
+  const pasoConfirmar = PASOS.length - 1;
 
   const [paso, setPaso] = useState(0);
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -66,21 +82,14 @@ export default function PaginaPedir() {
   const [descripcion, setDescripcion] = useState(() => searchParams.get("texto") ?? "");
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
-  const [enviado, setEnviado] = useState(false);
+  const [servicioEnviado, setServicioEnviado] = useState<Servicio | null>(null);
 
-  /* Sin cuentas: nadie carga nombre/teléfono/domicilio en un registro
-     aparte — se piden acá, la primera vez que hace falta un domicilio
-     para mandar un pedido. agregarPropiedad() ya deja `propiedad`
-     con valor apenas resuelve (ver ContextoApp), así que ni bien se
-     guarda, este mismo componente sigue derecho al paso 0 solo. */
   const [nombreInicial, setNombreInicial] = useState("");
   const [telefonoInicial, setTelefonoInicial] = useState("");
   const [calleInicial, setCalleInicial] = useState("");
   const [numeroInicial, setNumeroInicial] = useState("");
   const [localidadInicial, setLocalidadInicial] = useState("");
   const [provinciaInicial, setProvinciaInicial] = useState("Buenos Aires");
-  const [guardandoInicial, setGuardandoInicial] = useState(false);
-  const [errorInicial, setErrorInicial] = useState<string | null>(null);
 
   const datosInicialesValidos =
     nombreInicial.trim().length >= 2 &&
@@ -88,28 +97,6 @@ export default function PaginaPedir() {
     numeroInicial.trim() !== "" &&
     localidadInicial.trim() !== "";
 
-  const enviarDatosIniciales = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!datosInicialesValidos || guardandoInicial) return;
-    setGuardandoInicial(true);
-    setErrorInicial(null);
-    try {
-      await Promise.all([
-        actualizarMisDatosPersonales({ nombre: nombreInicial, telefono: telefonoInicial }),
-        agregarPropiedad({
-          nombre: "Mi casa",
-          calle: calleInicial,
-          numero: numeroInicial,
-          localidad: localidadInicial,
-          provincia: provinciaInicial,
-          icono: "home",
-        }),
-      ]);
-    } catch (e) {
-      setErrorInicial(e instanceof Error ? e.message : "No pudimos guardar tus datos.");
-      setGuardandoInicial(false);
-    }
-  };
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -226,7 +213,8 @@ export default function PaginaPedir() {
     (paso === 0 && !!categoria) ||
     (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
     (paso === 2 && !!dia && !!franja) ||
-    paso === 3;
+    (paso === pasoContacto && datosInicialesValidos) ||
+    paso === pasoConfirmar;
 
   /* Lo que ve operaciones. La persona sigue viendo y
      editando sólo su propio texto en el campo — esto se arma recién al
@@ -250,13 +238,38 @@ export default function PaginaPedir() {
   const avanzar = async () => {
     if (!puedeAvanzar || enviando) return;
 
-    if (paso === 3) {
-      if (!propiedad || !categoria) return;
+    if (paso === pasoContacto) {
+      setEnviando(true);
+      setError(null);
+      try {
+        const [, nuevaPropiedad] = await Promise.all([
+          actualizarMisDatosPersonales({ nombre: nombreInicial, telefono: telefonoInicial }),
+          agregarPropiedad({
+            nombre: "Mi casa",
+            calle: calleInicial,
+            numero: numeroInicial,
+            localidad: localidadInicial,
+            provincia: provinciaInicial,
+            icono: "home",
+          }),
+        ]);
+        setPropiedadGuardada(nuevaPropiedad);
+        setPaso(paso + 1);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No pudimos guardar tus datos.");
+      } finally {
+        setEnviando(false);
+      }
+      return;
+    }
+
+    if (paso === pasoConfirmar) {
+      if (!propiedadActual || !categoria) return;
       setEnviando(true);
       setError(null);
       try {
         const nuevoServicio = await crearServicio({
-          propiedadId: propiedad.id,
+          propiedadId: propiedadActual.id,
           categoriaSlug: categoria,
           descripcion: descripcionFinal,
           fechaPreferida: dia,
@@ -290,7 +303,7 @@ export default function PaginaPedir() {
           }
         })();
 
-        setEnviado(true);
+        setServicioEnviado(nuevoServicio);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No pudimos enviar el pedido.");
       } finally {
@@ -302,115 +315,16 @@ export default function PaginaPedir() {
     setPaso(paso + 1);
   };
 
-  if (!propiedad) {
+  if (servicioEnviado) {
     return (
-      <div className="absolute inset-0 z-40 bg-sand flex flex-col">
-        <div className="px-5 pt-12 pb-3 flex items-center gap-3">
-          <Link
-            href="/inicio"
-            className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
-            aria-label="Salir"
-          >
-            <ArrowLeft className="w-[18px] h-[18px]" />
-          </Link>
-        </div>
-
-        <form onSubmit={enviarDatosIniciales} className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
-          <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
-            Antes de
-            <br />
-            arrancar
-          </h1>
-          <p className="text-[13px] text-mute mt-1.5">
-            Necesitamos saber quién sos y a dónde vamos — sólo una vez.
-          </p>
-
-          <CampoTexto
-            id="nombre-inicial"
-            etiqueta="Tu nombre"
-            value={nombreInicial}
-            onChange={(e) => setNombreInicial(e.target.value)}
-            autoComplete="name"
-          />
-          <CampoTexto
-            id="telefono-inicial"
-            etiqueta="Teléfono"
-            ayuda="Para avisarte del pedido si hace falta."
-            type="tel"
-            inputMode="tel"
-            value={telefonoInicial}
-            onChange={(e) => setTelefonoInicial(e.target.value)}
-            autoComplete="tel"
-            placeholder="11 1234 5678"
-          />
-
-          <div className="grid grid-cols-[1fr_92px] gap-2.5">
-            <CampoTexto
-              id="calle-inicial"
-              etiqueta="Calle"
-              value={calleInicial}
-              onChange={(e) => setCalleInicial(e.target.value)}
-              autoComplete="address-line1"
-            />
-            <CampoTexto
-              id="numero-inicial"
-              etiqueta="Altura"
-              inputMode="numeric"
-              value={numeroInicial}
-              onChange={(e) => setNumeroInicial(e.target.value)}
-            />
-          </div>
-
-          <CampoTexto
-            id="localidad-inicial"
-            etiqueta="Localidad"
-            value={localidadInicial}
-            onChange={(e) => setLocalidadInicial(e.target.value)}
-            autoComplete="address-level2"
-          />
-
-          <div className="mt-3">
-            <label
-              htmlFor="provincia-inicial"
-              className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5"
-            >
-              Provincia
-            </label>
-            <select
-              id="provincia-inicial"
-              value={provinciaInicial}
-              onChange={(e) => setProvinciaInicial(e.target.value)}
-              className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-[14px] text-ink outline-none focus:border-brand-300"
-            >
-              {PROVINCIAS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {errorInicial && (
-            <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mt-4">
-              {errorInicial}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={!datosInicialesValidos || guardandoInicial}
-            className="press mt-5 w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab text-[15.5px] font-semibold disabled:opacity-40 disabled:pointer-events-none"
-          >
-            {guardandoInicial && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
-            {guardandoInicial ? "Guardando…" : "Continuar"}
-            {!guardandoInicial && <ArrowRight className="w-[19px] h-[19px]" />}
-          </button>
-        </form>
-      </div>
+      <Confirmacion
+        servicio={servicioEnviado}
+        domicilio={propiedadActual ? `${propiedadActual.nombre} · ${propiedadActual.direccion}` : "—"}
+        diaTexto={proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—"}
+        franjaTexto={FRANJAS.find((f) => f.id === franja)?.texto ?? "—"}
+      />
     );
   }
-
-  if (enviado) return <Confirmacion propiedad={propiedad.nombre} />;
 
   return (
     <div className="absolute inset-0 z-40 bg-sand flex flex-col">
@@ -458,7 +372,7 @@ export default function PaginaPedir() {
               resolver?
             </h1>
             <p className="text-[13px] text-mute mt-1.5">
-              Arrancamos con estos rubros en {propiedad.localidad}. Vamos sumando más.
+              Arrancamos con estos rubros en {propiedadActual?.localidad ?? "tu zona"}. Vamos sumando más.
             </p>
 
             {cargandoCats && (
@@ -535,13 +449,15 @@ export default function PaginaPedir() {
 
             <div className="mt-4 rounded-2xl bg-surface border border-line shadow-card p-3 flex items-center gap-3">
               <span className="w-8 h-8 grid place-items-center rounded-lg bg-brand-50 text-brand-600">
-                <IconoEquipo nombre={propiedad.icono} className="w-4 h-4" />
+                <IconoEquipo nombre={catElegida?.icono ?? "wrench"} className="w-4 h-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-ink truncate">
-                  {propiedad.nombre} · {propiedad.direccion}
-                </p>
-                <p className="text-[11px] text-faint">{catElegida?.nombre}</p>
+                <p className="text-[12.5px] font-semibold text-ink truncate">{catElegida?.nombre}</p>
+                {propiedadActual && (
+                  <p className="text-[11px] text-faint truncate">
+                    {propiedadActual.nombre} · {propiedadActual.direccion}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -676,8 +592,88 @@ export default function PaginaPedir() {
           </section>
         )}
 
-        {/* ---------- PASO 3: confirmar ---------- */}
-        {paso === 3 && (
+        {/* ---------- PASO CONTACTO: domicilio y datos, último paso antes
+            de confirmar — sólo aparece la primera vez que hace falta. ---------- */}
+        {paso === pasoContacto && (
+          <section>
+            <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+              ¿A dónde
+              <br />
+              vamos?
+            </h1>
+            <p className="text-[13px] text-mute mt-1.5">
+              Necesitamos saber quién sos y a dónde vamos — sólo una vez.
+            </p>
+
+            <CampoTexto
+              id="nombre-inicial"
+              etiqueta="Tu nombre"
+              value={nombreInicial}
+              onChange={(e) => setNombreInicial(e.target.value)}
+              autoComplete="name"
+            />
+            <CampoTexto
+              id="telefono-inicial"
+              etiqueta="Teléfono"
+              ayuda="Para coordinar el pedido por WhatsApp o llamada."
+              type="tel"
+              inputMode="tel"
+              value={telefonoInicial}
+              onChange={(e) => setTelefonoInicial(e.target.value)}
+              autoComplete="tel"
+              placeholder="11 1234 5678"
+            />
+
+            <div className="grid grid-cols-[1fr_92px] gap-2.5">
+              <CampoTexto
+                id="calle-inicial"
+                etiqueta="Calle"
+                value={calleInicial}
+                onChange={(e) => setCalleInicial(e.target.value)}
+                autoComplete="address-line1"
+              />
+              <CampoTexto
+                id="numero-inicial"
+                etiqueta="Altura"
+                inputMode="numeric"
+                value={numeroInicial}
+                onChange={(e) => setNumeroInicial(e.target.value)}
+              />
+            </div>
+
+            <CampoTexto
+              id="localidad-inicial"
+              etiqueta="Localidad"
+              value={localidadInicial}
+              onChange={(e) => setLocalidadInicial(e.target.value)}
+              autoComplete="address-level2"
+            />
+
+            <div className="mt-3">
+              <label
+                htmlFor="provincia-inicial"
+                className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5"
+              >
+                Provincia
+              </label>
+              <select
+                id="provincia-inicial"
+                value={provinciaInicial}
+                onChange={(e) => setProvinciaInicial(e.target.value)}
+                className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-[14px] text-ink outline-none focus:border-brand-300"
+              >
+                {PROVINCIAS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
+
+        {/* ---------- PASO CONFIRMAR ---------- */}
+        {paso === pasoConfirmar && (
           <section>
             <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
               Revisá y
@@ -687,7 +683,10 @@ export default function PaginaPedir() {
 
             <div className="mt-5 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
               <Fila etiqueta="Servicio" valor={catElegida?.nombre ?? "—"} />
-              <Fila etiqueta="Domicilio" valor={`${propiedad.nombre} · ${propiedad.direccion}`} />
+              <Fila
+                etiqueta="Domicilio"
+                valor={propiedadActual ? `${propiedadActual.nombre} · ${propiedadActual.direccion}` : "—"}
+              />
               <Fila
                 etiqueta="Cuándo"
                 valor={(() => {
@@ -711,10 +710,9 @@ export default function PaginaPedir() {
             <div className="mt-3 flex items-start gap-2.5 rounded-xl2 bg-brand-50 border border-brand-100 px-3.5 py-3">
               <Clock className="w-[18px] h-[18px] text-brand-600 shrink-0 mt-0.5" />
               <p className="text-[12.5px] text-ink leading-snug">
-                En menos de <span className="font-semibold">2 horas</span> vas a ver en tu Historial el
-                estado de tu pedido y el precio confirmado — todo en Nora,{" "}
-                <span className="font-semibold">antes</span> de que arranque el trabajo: no se cobra
-                nada hasta entonces.
+                En menos de <span className="font-semibold">2 horas</span> te contactamos con el precio
+                confirmado — <span className="font-semibold">antes</span> de que arranque el trabajo: no
+                se cobra nada hasta entonces.
               </p>
             </div>
           </section>
@@ -735,7 +733,13 @@ export default function PaginaPedir() {
           className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab text-[15.5px] font-semibold disabled:opacity-40 disabled:pointer-events-none"
         >
           {enviando && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
-          {enviando ? "Enviando…" : paso === 3 ? "Enviar pedido" : "Continuar"}
+          {enviando
+            ? paso === pasoConfirmar
+              ? "Enviando…"
+              : "Guardando…"
+            : paso === pasoConfirmar
+              ? "Enviar pedido"
+              : "Continuar"}
           {!enviando && <ArrowRight className="w-[19px] h-[19px]" />}
         </button>
       </div>
@@ -830,23 +834,90 @@ function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   );
 }
 
-function Confirmacion({ propiedad }: { propiedad: string }) {
+/* Lo que ve la persona apenas manda el pedido — lo mismo que esperarías
+   de cualquier compra online prolija: cuándo llega, a dónde, y un
+   número corto para cualquier consulta con soporte (no hay "Mi
+   historial" para volver a buscarlo, así que tiene que quedar claro
+   acá, de una). El siguiente contacto es manual: alguien del equipo
+   llama o escribe por WhatsApp al teléfono que la persona dejó, para
+   cerrar el servicio — ver enrutarPedidoCliente.ts. */
+function Confirmacion({
+  servicio,
+  domicilio,
+  diaTexto,
+  franjaTexto,
+}: {
+  servicio: Servicio;
+  domicilio: string;
+  diaTexto: string;
+  franjaTexto: string;
+}) {
+  const franjaCorta = franjaTexto.includes(" · ") ? franjaTexto.split(" · ")[1] : franjaTexto;
+
   return (
-    <div className="absolute inset-0 z-40 bg-sand flex flex-col items-center justify-center text-center px-8">
-      <div className="w-24 h-24 grid place-items-center rounded-full bg-good/15 text-good">
-        <Check className="w-11 h-11" />
+    <div className="absolute inset-0 z-40 bg-sand flex flex-col overflow-y-auto no-scrollbar">
+      <div className="flex-1 flex flex-col items-center px-6 pt-16 pb-6 text-center">
+        <div className="w-20 h-20 grid place-items-center rounded-full bg-good/15 text-good">
+          <Check className="w-10 h-10" />
+        </div>
+        <h1 className="text-[23px] font-bold font-display text-ink mt-5">¡Pedido enviado!</h1>
+        <p className="text-[13.5px] text-mute mt-2 max-w-[300px] leading-relaxed">
+          Ya lo estamos viendo. En menos de 2 horas te contactamos por teléfono con el precio
+          confirmado.
+        </p>
+
+        <div
+          className="relative overflow-hidden mt-7 w-full max-w-[320px] rounded-xl3 text-white shadow-hero p-5"
+          style={{
+            backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
+          }}
+        >
+          <div className="pointer-events-none absolute -top-12 -right-8 w-36 h-36 rounded-full bg-brand-400/20 blur-2xl" />
+          <p className="relative text-[11px] font-bold uppercase tracking-wide text-brand-100">
+            Número de orden
+          </p>
+          <p className="relative num text-[36px] font-extrabold font-display leading-none mt-1.5">
+            #{servicio.numeroOrden}
+          </p>
+          <p className="relative text-[11.5px] text-brand-100 mt-2 leading-snug">
+            Guardalo — es tu referencia ante cualquier consulta con soporte.
+          </p>
+        </div>
+
+        <div className="mt-3.5 w-full max-w-[320px] rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden text-left">
+          <div className="flex items-start gap-3 px-4 py-3.5">
+            <span className="shrink-0 w-8 h-8 grid place-items-center rounded-lg bg-brand-50 text-brand-600">
+              <Clock className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">
+                ¿A qué hora vamos a venir?
+              </p>
+              <p className="text-[13.5px] font-semibold text-ink mt-0.5">
+                {diaTexto} · {franjaCorta}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 px-4 py-3.5">
+            <span className="shrink-0 w-8 h-8 grid place-items-center rounded-lg bg-brand-50 text-brand-600">
+              <MapPin className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">A dónde vamos</p>
+              <p className="text-[13.5px] font-semibold text-ink mt-0.5 truncate">{domicilio}</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <h1 className="text-[24px] font-bold font-display text-ink mt-6">¡Pedido enviado!</h1>
-      <p className="text-[13.5px] text-mute mt-2.5 max-w-[290px] leading-relaxed">
-        Ya lo estamos viendo. En menos de 2 horas vas a ver en tu Historial el estado y el precio
-        confirmado para {propiedad}.
-      </p>
-      <Link
-        href="/inicio"
-        className="press mt-8 w-full max-w-[290px] flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab"
-      >
-        Volver al inicio
-      </Link>
+
+      <div className="px-6 pb-8">
+        <Link
+          href="/inicio"
+          className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab"
+        >
+          Volver al inicio
+        </Link>
+      </div>
     </div>
   );
 }

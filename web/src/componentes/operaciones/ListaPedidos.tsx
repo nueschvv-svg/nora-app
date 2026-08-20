@@ -12,11 +12,7 @@ import { listarTodosLosServicios, suscribirseATodosLosServicios, type ServicioLi
 import { type EstadoServicio } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
 
-/* Mismo criterio que historial/page.tsx: qué está "en curso" y qué ya
-   se cerró. Está duplicado a propósito y no importado desde ahí — esa
-   página es del cliente, filtrada a un solo domicilio; esta es de
-   operaciones, sobre todos los pedidos de todos los clientes. Son
-   pantallas distintas que conviene no acoplar. */
+/* Estados en los que el pedido todavía está en curso. */
 const EN_CURSO = new Set<EstadoServicio>([
   "solicitado",
   "presupuestado",

@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, ChevronsUpDown, Send, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, Send, Sparkles } from "lucide-react";
 
 import { IconoEquipo } from "@/componentes/IconoEquipo";
-import { HojaPropiedades } from "@/componentes/HojaPropiedades";
 import { HojaServicio } from "@/componentes/HojaServicio";
 import { HojaNotificaciones } from "@/componentes/HojaNotificaciones";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
@@ -22,22 +21,17 @@ import {
 import { ETIQUETA_ESTADO, type EstadoServicio, type Servicio } from "@/lib/tipos";
 import { saludo } from "@/lib/formato";
 
-/* Mismo criterio que historial/page.tsx: qué está "en curso". Está
-   duplicado a propósito y no importado desde ahí — ver el comentario
-   en ese archivo, la razón es la misma acá. */
+/* Estados en los que el pedido todavía está en curso. */
 const EN_CURSO = new Set<EstadoServicio>(["solicitado", "presupuestado", "aceptado", "en_camino", "en_curso"]);
 
 export default function PaginaInicio() {
   const router = useRouter();
-  const { propiedad, indice, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
-  const [hojaAbierta, setHojaAbierta] = useState(false);
+  const { propiedad, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
 
-  /* Pedido en curso, arriba y grande — antes esto sólo se veía adentro
-     de Historial. La idea (pedida explícitamente): que al entrar se
-     vea de una si hay algo pasando ahora mismo, como el seguimiento de
-     pedido de Rappi. Se pide acá y no en ContextoApp porque Historial
-     ya hace exactamente este mismo fetch por su cuenta — mismo criterio
-     de "no compartir entre pantallas distintas" documentado ahí. */
+  /* Pedido en curso, arriba y grande: que al entrar se vea de una si
+     hay algo pasando ahora mismo, como el seguimiento de pedido de
+     Rappi. Se pide acá (no en ContextoApp) porque sólo Inicio lo
+     necesita — no tiene sentido cargarlo en todas las pantallas. */
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
   const [seleccionado, setSeleccionado] = useState<Servicio | null>(null);
@@ -153,35 +147,6 @@ export default function PaginaInicio() {
       </header>
 
       <div className="px-5 space-y-3.5">
-        {/* --- Selector de domicilio: sólo si ya hay uno cargado. Sin
-            cuentas, la primera vez no hay ninguno todavía — se carga
-            recién al mandar el primer pedido, no acá. --- */}
-        {propiedad && (
-          <button
-            type="button"
-            onClick={() => setHojaAbierta(true)}
-            className="press w-full flex items-center justify-between bg-surface border border-line rounded-2xl px-4 py-3 shadow-card"
-          >
-            <span className="flex items-center gap-3 min-w-0">
-              <span className="w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
-                <IconoEquipo nombre={propiedad.icono} className="w-[18px] h-[18px]" />
-              </span>
-              <span className="text-left min-w-0">
-                <span className="block text-[15px] font-semibold text-ink truncate">{propiedad.nombre}</span>
-                <span className="block text-[12.5px] text-faint truncate">
-                  {propiedad.direccion} · {propiedad.localidad}
-                </span>
-              </span>
-            </span>
-            <span className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[11px] font-medium text-faint">
-                {indice + 1}/{propiedades.length}
-              </span>
-              <ChevronsUpDown className="w-[18px] h-[18px] text-faint" />
-            </span>
-          </button>
-        )}
-
         {/* --- Pedido en curso: lo primero que hay que ver, si hay algo
             pasando ahora mismo --- */}
         {pedidoActivo && (
@@ -249,7 +214,6 @@ export default function PaginaInicio() {
         </section>
       </div>
 
-      <HojaPropiedades abierta={hojaAbierta} alCerrar={() => setHojaAbierta(false)} />
       <HojaNotificaciones
         abierto={notifAbierta}
         alCerrar={() => setNotifAbierta(false)}

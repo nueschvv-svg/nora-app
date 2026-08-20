@@ -191,6 +191,9 @@ export type MetodoPago = "efectivo" | "mercado_pago";
 
 export type Servicio = {
   id: string;
+  /** Número corto y secuencial (arranca en 1000) — lo que el cliente
+   *  usa como referencia con soporte, ver db/41_numero_de_orden.sql. */
+  numeroOrden: number;
   propiedadId: string;
   categoriaSlug: string;
   descripcion: string;
