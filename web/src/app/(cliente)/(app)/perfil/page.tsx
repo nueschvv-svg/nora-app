@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff, ChevronRight, LogOut, Plus, Settings } from "lucide-react";
+import { Bell, BellOff, ChevronRight, LogOut, Plus } from "lucide-react";
 
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
@@ -17,16 +17,11 @@ import {
 } from "@/lib/push";
 
 export default function PaginaPerfil() {
-  const { propiedades, equiposDe, sesion, cerrarSesion } = useApp();
+  const { propiedades, equiposDe, cerrarSesion } = useApp();
   const [formAbierto, setFormAbierto] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [datosAbierto, setDatosAbierto] = useState(false);
   const [legalAbierto, setLegalAbierto] = useState(false);
-  /* Sobreescribe el nombre de sesion sólo en esta pantalla: recargar()
-     no vuelve a leer perfiles.nombre (sólo propiedades/equipos), así
-     que sin esto el cambio recién se vería después de recargar la
-     página entera o volver a entrar. */
-  const [nombreLocal, setNombreLocal] = useState<string | null>(null);
 
   /* notifOn arranca en null tanto en el servidor como en el primer render
      del cliente (SSR no tiene `window`/`navigator` para saber si hay
@@ -69,31 +64,12 @@ export default function PaginaPerfil() {
   };
 
   return (
-    <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
-      <div className="px-5 pt-12 pb-2 flex items-center justify-between">
+    <main className="h-full overflow-y-auto no-scrollbar pb-8">
+      <div className="px-5 pt-6 pb-2">
         <h1 className="text-[24px] font-bold font-display text-ink">Perfil</h1>
-        <button
-          type="button"
-          className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
-          aria-label="Ajustes"
-        >
-          <Settings className="w-[18px] h-[18px]" />
-        </button>
       </div>
 
       <div className="px-5 mt-2 space-y-3.5">
-        <section className="flex items-center gap-4 bg-surface rounded-xl2 border border-line shadow-card p-4">
-          <span className="w-16 h-16 grid place-items-center rounded-2xl bg-brand-600 text-white text-[24px] font-bold font-display">
-            {sesion?.inicial ?? "·"}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[17px] font-bold font-display text-ink">
-              {nombreLocal ?? sesion?.nombre ?? "Cargando…"}
-            </p>
-            <p className="text-[12.5px] text-mute mt-0.5 truncate">{sesion?.email ?? ""}</p>
-          </div>
-        </section>
-
         <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Mis domicilios</p>
         <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
           {propiedades.map((p) => {
@@ -133,7 +109,7 @@ export default function PaginaPerfil() {
           </button>
         </div>
 
-        <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Cuenta</p>
+        <p className="text-[11px] font-bold tracking-wide uppercase text-faint px-0.5">Más</p>
         <div className="bg-surface rounded-xl2 border border-line shadow-card divide-y divide-line overflow-hidden">
           {["Datos personales", "Ayuda", "Términos y privacidad"].map((t) => (
             <button
@@ -200,11 +176,7 @@ export default function PaginaPerfil() {
       </div>
 
       <FormularioPropiedad abierto={formAbierto} alCerrar={() => setFormAbierto(false)} />
-      <HojaDatosPersonales
-        abierto={datosAbierto}
-        alCerrar={() => setDatosAbierto(false)}
-        alGuardar={setNombreLocal}
-      />
+      <HojaDatosPersonales abierto={datosAbierto} alCerrar={() => setDatosAbierto(false)} />
       <HojaLegal abierto={legalAbierto} alCerrar={() => setLegalAbierto(false)} />
     </main>
   );

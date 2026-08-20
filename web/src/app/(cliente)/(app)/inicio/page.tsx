@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, ChevronsUpDown, MoreHorizontal, Send, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, ChevronsUpDown, Send, Sparkles } from "lucide-react";
 
-import { LogotipoNora } from "@/componentes/LogoNora";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
 import { HojaServicio } from "@/componentes/HojaServicio";
@@ -133,44 +131,25 @@ export default function PaginaInicio() {
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
 
   return (
-    <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
-      <header className="px-5 pt-12 pb-2">
-        <div className="flex items-center justify-between">
-          <LogotipoNora />
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new Event("nora:abrir-ayuda"))}
-              className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
-              aria-label="Más opciones — soporte"
-            >
-              <MoreHorizontal className="w-[18px] h-[18px]" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setNotifAbierta(true)}
-              className="press relative w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
-              aria-label={hayAvisosSinLeer ? "Notificaciones — hay novedades sin leer" : "Notificaciones"}
-            >
-              <Bell className="w-[18px] h-[18px]" />
-              {hayAvisosSinLeer && (
-                <span
-                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-urgent ring-2 ring-surface"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-            <Link href="/perfil" aria-label="Ir a mi perfil">
-              <span className="w-10 h-10 grid place-items-center rounded-full bg-brand-600 text-white font-semibold text-[15px] ring-2 ring-white shadow-sm">
-                {sesion?.inicial ?? ""}
-              </span>
-            </Link>
-          </div>
-        </div>
-
-        <h1 className="mt-4 text-[23px] font-bold font-display text-ink leading-tight">
+    <main className="h-full overflow-y-auto no-scrollbar pb-8">
+      <header className="px-5 pt-6 pb-2 flex items-center justify-between gap-3">
+        <h1 className="text-[23px] font-bold font-display text-ink leading-tight">
           {saludo()}{sesion ? `, ${sesion.nombre.split(" ")[0]}` : ""}
         </h1>
+        <button
+          type="button"
+          onClick={() => setNotifAbierta(true)}
+          className="press relative w-10 h-10 shrink-0 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+          aria-label={hayAvisosSinLeer ? "Notificaciones — hay novedades sin leer" : "Notificaciones"}
+        >
+          <Bell className="w-[18px] h-[18px]" />
+          {hayAvisosSinLeer && (
+            <span
+              className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-urgent ring-2 ring-surface"
+              aria-hidden="true"
+            />
+          )}
+        </button>
       </header>
 
       <div className="px-5 space-y-3.5">

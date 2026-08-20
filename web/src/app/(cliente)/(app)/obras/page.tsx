@@ -67,7 +67,7 @@ export default function PaginaObras() {
   if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
   return (
-    <main className="h-dvh overflow-y-auto no-scrollbar px-5 pt-12 pb-28">
+    <main className="h-full overflow-y-auto no-scrollbar px-5 pt-6 pb-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[24px] font-bold font-display text-ink">Obras</h1>

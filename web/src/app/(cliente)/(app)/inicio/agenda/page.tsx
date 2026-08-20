@@ -23,8 +23,8 @@ export default function PaginaAgenda() {
   if (cargando || !propiedad) return <EsqueletoInicio />;
 
   return (
-    <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
-      <header className="px-5 pt-12 pb-3 flex items-center gap-3">
+    <main className="h-full overflow-y-auto no-scrollbar pb-8">
+      <header className="px-5 pt-6 pb-3 flex items-center gap-3">
         <Link
           href="/inicio"
           className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"

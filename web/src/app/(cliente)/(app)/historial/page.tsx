@@ -77,8 +77,8 @@ export default function PaginaHistorial() {
   if (error) return <ErrorCarga mensaje={error} alReintentar={traer} />;
 
   return (
-    <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
-      <div className="px-5 pt-12 pb-2">
+    <main className="h-full overflow-y-auto no-scrollbar pb-8">
+      <div className="px-5 pt-6 pb-2">
         <h1 className="text-[24px] font-bold font-display text-ink">Historial</h1>
         <p className="text-[13px] text-mute mt-0.5">
           {propiedad ? `${propiedad.nombre} · todo lo que Nora resolvió` : "Tus servicios"}
