@@ -188,9 +188,17 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     if (HAY_SUPABASE) await supabaseNavegador().auth.signOut();
     localStorage.removeItem(CLAVE_ACTIVA);
     /* signOut dispara SIGNED_OUT, que arriba vacía domicilios y equipos:
-       no queda nada del usuario anterior en memoria. El refresh() obliga
-       al servidor a releer la sesión (ahora vacía) antes de pintar. */
-    router.replace("/entrar");
+       no queda nada del usuario anterior en memoria.
+
+       A /inicio, no a /entrar: sin cuentas del lado cliente, /entrar es
+       sólo para el login real de operaciones — mandar ahí a alguien que
+       tocó "Empezar de nuevo" lo dejaría frente a un formulario de
+       email/contraseña que no puede (ni tiene que) usar. El middleware
+       ve que ya no hay sesión y crea una anónima nueva sola, así que
+       esto es, en los hechos, "borrar todo y arrancar de cero" — no un
+       logout real. El refresh() obliga al servidor a releer la sesión
+       (ahora vacía) antes de pintar. */
+    router.replace("/inicio");
     router.refresh();
   }, [router]);
 

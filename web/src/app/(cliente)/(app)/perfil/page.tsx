@@ -187,13 +187,15 @@ export default function PaginaPerfil() {
           type="button"
           disabled={saliendo}
           onClick={async () => {
+            if (!window.confirm("¿Empezar de nuevo? Vas a perder tus domicilios y pedidos guardados en este navegador."))
+              return;
             setSaliendo(true);
             await cerrarSesion();
           }}
           className="w-full flex items-center justify-center gap-2 text-[14px] font-semibold text-urgent py-3 disabled:opacity-50"
         >
           <LogOut className="w-[17px] h-[17px]" />
-          {saliendo ? "Cerrando sesión…" : "Cerrar sesión"}
+          {saliendo ? "Empezando de nuevo…" : "Empezar de nuevo"}
         </button>
       </div>
 

@@ -10,7 +10,6 @@ import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { HojaPropiedades } from "@/componentes/HojaPropiedades";
 import { HojaServicio } from "@/componentes/HojaServicio";
 import { HojaNotificaciones } from "@/componentes/HojaNotificaciones";
-import { PrimerDomicilio } from "@/componentes/PrimerDomicilio";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
 import { useApp } from "@/componentes/ContextoApp";
 import { recordatoriosDeMantenimiento } from "@/lib/score";
@@ -132,8 +131,6 @@ export default function PaginaInicio() {
 
   if (cargando) return <EsqueletoInicio />;
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
-  // Recién registrado: todavía no cargó ningún domicilio.
-  if (!propiedad) return <PrimerDomicilio />;
 
   return (
     <main className="h-dvh overflow-y-auto no-scrollbar pb-28">
@@ -177,30 +174,34 @@ export default function PaginaInicio() {
       </header>
 
       <div className="px-5 space-y-3.5">
-        {/* --- Selector de domicilio --- */}
-        <button
-          type="button"
-          onClick={() => setHojaAbierta(true)}
-          className="press w-full flex items-center justify-between bg-surface border border-line rounded-2xl px-4 py-3 shadow-card"
-        >
-          <span className="flex items-center gap-3 min-w-0">
-            <span className="w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
-              <IconoEquipo nombre={propiedad.icono} className="w-[18px] h-[18px]" />
-            </span>
-            <span className="text-left min-w-0">
-              <span className="block text-[15px] font-semibold text-ink truncate">{propiedad.nombre}</span>
-              <span className="block text-[12.5px] text-faint truncate">
-                {propiedad.direccion} · {propiedad.localidad}
+        {/* --- Selector de domicilio: sólo si ya hay uno cargado. Sin
+            cuentas, la primera vez no hay ninguno todavía — se carga
+            recién al mandar el primer pedido, no acá. --- */}
+        {propiedad && (
+          <button
+            type="button"
+            onClick={() => setHojaAbierta(true)}
+            className="press w-full flex items-center justify-between bg-surface border border-line rounded-2xl px-4 py-3 shadow-card"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <span className="w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
+                <IconoEquipo nombre={propiedad.icono} className="w-[18px] h-[18px]" />
+              </span>
+              <span className="text-left min-w-0">
+                <span className="block text-[15px] font-semibold text-ink truncate">{propiedad.nombre}</span>
+                <span className="block text-[12.5px] text-faint truncate">
+                  {propiedad.direccion} · {propiedad.localidad}
+                </span>
               </span>
             </span>
-          </span>
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] font-medium text-faint">
-              {indice + 1}/{propiedades.length}
+            <span className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[11px] font-medium text-faint">
+                {indice + 1}/{propiedades.length}
+              </span>
+              <ChevronsUpDown className="w-[18px] h-[18px] text-faint" />
             </span>
-            <ChevronsUpDown className="w-[18px] h-[18px] text-faint" />
-          </span>
-        </button>
+          </button>
+        )}
 
         {/* --- Pedido en curso: lo primero que hay que ver, si hay algo
             pasando ahora mismo --- */}

@@ -21,6 +21,14 @@ import { Bloque } from "@/componentes/Esqueleto";
 import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } from "@/lib/datos";
 import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
+import { actualizarMisDatosPersonales } from "@/lib/perfil";
+
+const PROVINCIAS = [
+  "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes",
+  "Entre Ríos", "Formosa", "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones",
+  "Neuquén", "Río Negro", "Salta", "San Juan", "San Luis", "Santa Cruz", "Santa Fe",
+  "Santiago del Estero", "Tierra del Fuego", "Tucumán",
+];
 
 /* FLUJO DE PEDIDO — versión MVP honesta.
 
@@ -46,7 +54,7 @@ const PASOS = ["Categoría", "El problema", "Cuándo", "Confirmar"];
 export default function PaginaPedir() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { propiedad } = useApp();
+  const { propiedad, agregarPropiedad } = useApp();
 
   const [paso, setPaso] = useState(0);
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -59,6 +67,49 @@ export default function PaginaPedir() {
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
+
+  /* Sin cuentas: nadie carga nombre/teléfono/domicilio en un registro
+     aparte — se piden acá, la primera vez que hace falta un domicilio
+     para mandar un pedido. agregarPropiedad() ya deja `propiedad`
+     con valor apenas resuelve (ver ContextoApp), así que ni bien se
+     guarda, este mismo componente sigue derecho al paso 0 solo. */
+  const [nombreInicial, setNombreInicial] = useState("");
+  const [telefonoInicial, setTelefonoInicial] = useState("");
+  const [calleInicial, setCalleInicial] = useState("");
+  const [numeroInicial, setNumeroInicial] = useState("");
+  const [localidadInicial, setLocalidadInicial] = useState("");
+  const [provinciaInicial, setProvinciaInicial] = useState("Buenos Aires");
+  const [guardandoInicial, setGuardandoInicial] = useState(false);
+  const [errorInicial, setErrorInicial] = useState<string | null>(null);
+
+  const datosInicialesValidos =
+    nombreInicial.trim().length >= 2 &&
+    calleInicial.trim() !== "" &&
+    numeroInicial.trim() !== "" &&
+    localidadInicial.trim() !== "";
+
+  const enviarDatosIniciales = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!datosInicialesValidos || guardandoInicial) return;
+    setGuardandoInicial(true);
+    setErrorInicial(null);
+    try {
+      await Promise.all([
+        actualizarMisDatosPersonales({ nombre: nombreInicial, telefono: telefonoInicial }),
+        agregarPropiedad({
+          nombre: "Mi casa",
+          calle: calleInicial,
+          numero: numeroInicial,
+          localidad: localidadInicial,
+          provincia: provinciaInicial,
+          icono: "home",
+        }),
+      ]);
+    } catch (e) {
+      setErrorInicial(e instanceof Error ? e.message : "No pudimos guardar tus datos.");
+      setGuardandoInicial(false);
+    }
+  };
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -253,17 +304,108 @@ export default function PaginaPedir() {
 
   if (!propiedad) {
     return (
-      <div className="absolute inset-0 z-40 bg-sand grid place-content-center px-8 text-center">
-        <p className="text-[15px] font-semibold text-ink">Primero cargá un domicilio</p>
-        <p className="text-[13.5px] text-mute mt-2 max-w-[280px]">
-          Necesitamos saber a dónde ir.
-        </p>
-        <Link
-          href="/inicio"
-          className="press mt-6 rounded-xl2 bg-brand-600 text-white px-6 py-3.5 text-[14.5px] font-semibold shadow-fab"
-        >
-          Ir al inicio
-        </Link>
+      <div className="absolute inset-0 z-40 bg-sand flex flex-col">
+        <div className="px-5 pt-12 pb-3 flex items-center gap-3">
+          <Link
+            href="/inicio"
+            className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+            aria-label="Salir"
+          >
+            <ArrowLeft className="w-[18px] h-[18px]" />
+          </Link>
+        </div>
+
+        <form onSubmit={enviarDatosIniciales} className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
+          <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+            Antes de
+            <br />
+            arrancar
+          </h1>
+          <p className="text-[13px] text-mute mt-1.5">
+            Necesitamos saber quién sos y a dónde vamos — sólo una vez.
+          </p>
+
+          <CampoTexto
+            id="nombre-inicial"
+            etiqueta="Tu nombre"
+            value={nombreInicial}
+            onChange={(e) => setNombreInicial(e.target.value)}
+            autoComplete="name"
+          />
+          <CampoTexto
+            id="telefono-inicial"
+            etiqueta="Teléfono"
+            ayuda="Para avisarte del pedido si hace falta."
+            type="tel"
+            inputMode="tel"
+            value={telefonoInicial}
+            onChange={(e) => setTelefonoInicial(e.target.value)}
+            autoComplete="tel"
+            placeholder="11 1234 5678"
+          />
+
+          <div className="grid grid-cols-[1fr_92px] gap-2.5">
+            <CampoTexto
+              id="calle-inicial"
+              etiqueta="Calle"
+              value={calleInicial}
+              onChange={(e) => setCalleInicial(e.target.value)}
+              autoComplete="address-line1"
+            />
+            <CampoTexto
+              id="numero-inicial"
+              etiqueta="Altura"
+              inputMode="numeric"
+              value={numeroInicial}
+              onChange={(e) => setNumeroInicial(e.target.value)}
+            />
+          </div>
+
+          <CampoTexto
+            id="localidad-inicial"
+            etiqueta="Localidad"
+            value={localidadInicial}
+            onChange={(e) => setLocalidadInicial(e.target.value)}
+            autoComplete="address-level2"
+          />
+
+          <div className="mt-3">
+            <label
+              htmlFor="provincia-inicial"
+              className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5"
+            >
+              Provincia
+            </label>
+            <select
+              id="provincia-inicial"
+              value={provinciaInicial}
+              onChange={(e) => setProvinciaInicial(e.target.value)}
+              className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-[14px] text-ink outline-none focus:border-brand-300"
+            >
+              {PROVINCIAS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {errorInicial && (
+            <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mt-4">
+              {errorInicial}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={!datosInicialesValidos || guardandoInicial}
+            className="press mt-5 w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab text-[15.5px] font-semibold disabled:opacity-40 disabled:pointer-events-none"
+          >
+            {guardandoInicial && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
+            {guardandoInicial ? "Guardando…" : "Continuar"}
+            {!guardandoInicial && <ArrowRight className="w-[19px] h-[19px]" />}
+          </button>
+        </form>
       </div>
     );
   }
@@ -653,6 +795,28 @@ function ResultadoAnalisis({ resultado }: { resultado: ResultadoDiagnostico }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function CampoTexto({
+  id,
+  etiqueta,
+  ayuda,
+  ...props
+}: { id: string; etiqueta: string; ayuda?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="mt-3">
+      <label htmlFor={id} className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">
+        {etiqueta}
+      </label>
+      <input
+        id={id}
+        type="text"
+        className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+        {...props}
+      />
+      {ayuda && <p className="text-[12px] text-faint mt-1 px-1">{ayuda}</p>}
     </div>
   );
 }

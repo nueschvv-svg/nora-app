@@ -5,6 +5,12 @@ import { HAY_SUPABASE, SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 /* Rutas que se pueden ver sin haber iniciado sesión. */
 const PUBLICAS = ["/entrar", "/auth"];
 
+/* Rutas que siguen exigiendo una cuenta real (operaciones no tiene
+   sesión anónima — es el equipo interno, con su email y contraseña
+   de siempre). Todo lo demás es "lado cliente": ahí, sin sesión, se
+   crea una anónima sola en vez de mandar a /entrar — ver más abajo. */
+const REQUIERE_CUENTA_REAL = ["/operaciones", "/cambiar-clave"];
+
 /* Refresca la sesión en cada pedido y decide si la persona puede pasar.
 
    Por qué hace falta: la sesión vive en una cookie con vencimiento corto.
@@ -40,6 +46,23 @@ export async function actualizarSesion(request: NextRequest) {
   const ruta = request.nextUrl.pathname;
   const esPublica = PUBLICAS.some((p) => ruta.startsWith(p));
   const esApi = ruta.startsWith("/api/");
+  const requiereCuentaReal = REQUIERE_CUENTA_REAL.some((p) => ruta.startsWith(p));
+
+  /* Lado cliente sin cuentas: sin sesión y sin pedir una cuenta real acá,
+     se crea una anónima sola — la persona nunca ve un login. Es una
+     sesión de Supabase de verdad (auth.uid() real), así que todo el
+     resto de la app (RLS, propiedades, pedidos) sigue funcionando
+     exactamente igual que con una cuenta con email. Sólo pasa la
+     primera vez: las visitas siguientes ya traen la cookie. */
+  if (!user && !esPublica && !esApi && !requiereCuentaReal) {
+    const { data, error: errorAnonimo } = await supabase.auth.signInAnonymously();
+    if (!errorAnonimo && data.user) {
+      return respuesta;
+    }
+    /* Si signInAnonymously() falla (ej. anonymous sign-ins deshabilitado
+       en el proyecto), no hay forma de mostrar la pantalla — cae al
+       comportamiento de siempre en vez de romper en blanco. */
+  }
 
   /* Sin sesión, una API responde 401; una pantalla redirige al login.
 

@@ -12,9 +12,5 @@
    entre los dos grupos de rutas desmontaba y volvía a montar todo eso
    de cero en cada navegación. */
 export default function LayoutFlujo({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative w-full max-w-[440px] mx-auto h-dvh bg-sand overflow-hidden">
-      {children}
-    </div>
-  );
+  return <div className="relative w-full h-dvh bg-sand overflow-hidden">{children}</div>;
 }

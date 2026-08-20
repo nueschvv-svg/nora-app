@@ -5,9 +5,10 @@ import { BotNora } from "@/componentes/BotNora";
 import { SplashBienvenida } from "@/componentes/SplashBienvenida";
 import { useApp } from "@/componentes/ContextoApp";
 
-/* Sitio web, no mockup de app: en el celular ocupa todo el ancho; en
-   pantallas grandes queda una columna centrada de lectura cómoda, sin
-   sombra de "dispositivo flotando" ni fondo distinto detrás.
+/* Sitio web, no mockup de app: ocupa TODO el ancho de la pantalla,
+   sin columna angosta centrada ni sombra de "dispositivo flotando" —
+   eso seguía leyéndose como una app metida en una página. Cada
+   pantalla adentro es la que decide su propio ancho de contenido.
    Uso dvh y no vh: en Safari de iPhone, vh queda tapado por la
    barra de direcciones y se come la navegación de abajo.
 
@@ -20,7 +21,7 @@ export default function LayoutApp({ children }: { children: React.ReactNode }) {
   const { sesion } = useApp();
 
   return (
-    <div className="relative w-full max-w-[440px] mx-auto h-dvh bg-sand overflow-hidden">
+    <div className="relative w-full h-dvh bg-sand overflow-hidden">
       {children}
       <BotNora />
       <NavInferior />
