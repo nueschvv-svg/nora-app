@@ -139,7 +139,7 @@ export default function PaginaInicio() {
           <button
             type="button"
             onClick={() => setSeleccionado(pedidoActivo)}
-            className="press relative overflow-hidden w-full flex items-center gap-3.5 text-left text-white rounded-xl3 shadow-hero p-4"
+            className="entra-suave press relative overflow-hidden w-full flex items-center gap-3.5 text-left text-white rounded-xl3 shadow-hero p-4"
             style={{
               backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
             }}

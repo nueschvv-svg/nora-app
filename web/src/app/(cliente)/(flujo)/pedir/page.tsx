@@ -368,7 +368,7 @@ export default function PaginaPedir() {
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
         {/* ---------- PASO 0: categoría ---------- */}
         {paso === 0 && (
-          <section>
+          <section className="entra-paso">
             <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
               ¿Qué necesitás
               <br />
@@ -440,7 +440,7 @@ export default function PaginaPedir() {
 
         {/* ---------- PASO 1: el problema ---------- */}
         {paso === 1 && (
-          <section>
+          <section className="entra-paso">
             <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
               Contanos qué
               <br />
@@ -527,7 +527,7 @@ export default function PaginaPedir() {
             {/* Estado del análisis: aplica tanto si mandaste foto como si
                 sólo escribiste — Nora mira lo que tenga, foto o texto. */}
             {(analizando || errorFoto || diagnostico) && (
-              <div className="mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
+              <div className="entra-analisis mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
                 {analizando && (
                   <p className="flex items-center gap-1.5 text-[12.5px] text-brand-600">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -549,7 +549,7 @@ export default function PaginaPedir() {
 
         {/* ---------- PASO 2: cuándo ---------- */}
         {paso === 2 && (
-          <section>
+          <section className="entra-paso">
             <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
               ¿Cuándo te
               <br />
@@ -598,7 +598,7 @@ export default function PaginaPedir() {
         {/* ---------- PASO CONTACTO: domicilio y datos, último paso antes
             de confirmar — sólo aparece la primera vez que hace falta. ---------- */}
         {paso === pasoContacto && (
-          <section>
+          <section className="entra-paso">
             <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
               ¿A dónde
               <br />
@@ -677,7 +677,7 @@ export default function PaginaPedir() {
 
         {/* ---------- PASO CONFIRMAR ---------- */}
         {paso === pasoConfirmar && (
-          <section>
+          <section className="entra-paso">
             <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
               Revisá y
               <br />

@@ -348,7 +348,7 @@ export function HojaServicio({
             {/* Operaciones ofertó un precio en vez de confirmar directo:
                 no puede avanzar hasta que el cliente responda. */}
             {estadoMostrado === "presupuestado" && (
-              <div className="mt-3 rounded-xl2 bg-brand-50 border border-brand-100 p-4">
+              <div className="entra-suave mt-3 rounded-xl2 bg-brand-50 border border-brand-100 p-4">
                 <p className="text-[11px] font-bold tracking-wide uppercase text-brand-600">
                   Te ofrecemos hacer el trabajo por
                 </p>
@@ -413,7 +413,7 @@ export function HojaServicio({
                 el momento; Mercado Pago está a la vista pero apagado
                 hasta tener credenciales reales — ver db/22_confirmar_pago.sql. */}
             {estadoMostrado === "finalizado" && !servicio.metodoPago && (
-              <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
+              <div className="entra-suave mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
                 <p className="text-[11px] font-bold tracking-wide uppercase text-faint">
                   ¿Cómo pagás?
                 </p>
@@ -455,7 +455,7 @@ export function HojaServicio({
             )}
 
             {servicio.metodoPago && (
-              <div className="mt-3 flex items-center gap-2.5 rounded-xl2 bg-good/10 px-3.5 py-3">
+              <div className="entra-suave mt-3 flex items-center gap-2.5 rounded-xl2 bg-good/10 px-3.5 py-3">
                 <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-good/15 text-good">
                   <Check className="w-4 h-4" />
                 </span>

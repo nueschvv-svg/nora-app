@@ -69,7 +69,10 @@ export function ChatNora({ nombre }: { nombre?: string }) {
     <section className="rounded-xl3 bg-surface border border-line shadow-card p-4">
       <div className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-0.5">
         {mensajes.map((m, i) => (
-          <div key={i} className={`flex items-start gap-2.5 ${m.rol === "cliente" ? "flex-row-reverse" : ""}`}>
+          <div
+            key={i}
+            className={`burbuja-chat flex items-start gap-2.5 ${m.rol === "cliente" ? "flex-row-reverse" : ""}`}
+          >
             {m.rol === "nora" && (
               <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white">
                 <Sparkles className="w-[16px] h-[16px]" />
@@ -88,7 +91,7 @@ export function ChatNora({ nombre }: { nombre?: string }) {
         ))}
 
         {enviando && (
-          <div className="flex items-start gap-2.5">
+          <div className="indicador-escribiendo flex items-start gap-2.5">
             <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white">
               <Sparkles className="w-[16px] h-[16px]" />
             </span>
@@ -112,7 +115,7 @@ export function ChatNora({ nombre }: { nombre?: string }) {
         <button
           type="button"
           onClick={solicitarServicio}
-          className="press mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-brand-600 text-white px-5 py-3 text-[14px] font-semibold shadow-fab"
+          className="cta-chat press mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-brand-600 text-white px-5 py-3 text-[14px] font-semibold shadow-fab"
         >
           Solicitar servicio
           <ArrowRight className="w-[17px] h-[17px]" />

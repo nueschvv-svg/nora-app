@@ -194,6 +194,104 @@ body {
   animation-delay: 0.7s;
 }
 
+/* Entrada de una burbuja nueva de chat (ChatNora). @starting-style anima
+   el montaje sin useEffect/estado: cada mensaje nuevo es un nodo recién
+   creado, así que su primer cálculo de estilo ya cuenta como "starting
+   style" — no hace falta lógica para animar sólo el último. Reusa el
+   mismo ease-out que ya usan las hojas modales del proyecto. */
+.burbuja-chat {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Entrada del CTA "Solicitar servicio" del chat de Nora — aparece una
+   sola vez por charla (cuando Nora ya identificó el rubro), así que se
+   gana un poco más de presupuesto de delight que el resto de la UI. */
+.cta-chat {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Indicador "Nora está escribiendo…" — sólo entra con fade, sin
+   transición de salida (lo reemplaza la burbuja real, no debe solaparse). */
+.indicador-escribiendo {
+  opacity: 1;
+  transition: opacity 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+/* Entrada suave para contenido que aparece de golpe sólo una vez por
+   sesión/pedido (banner de "pedido en curso", caja de análisis de
+   Nora, pasos del wizard de pedir) — mismo ease-out del proyecto,
+   duración estándar de UI. */
+.entra-suave {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* Entrada de la caja de análisis de Nora en /pedir — aparece una vez
+   por foto/descripción analizada, con un `scale` sutil (nunca desde 0)
+   en vez de deslizarse, porque acá el contenido "aparece" más que
+   "entra desde algún lado". */
+.entra-analisis {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* Entrada de cada paso del wizard de /pedir. Como sólo un paso está
+   montado a la vez (renders mutuamente excluyentes), el paso saliente
+   se va sin transición y el entrante aparece con @starting-style — un
+   corte instantáneo de salida y una entrada animada, no un crossfade
+   completo (evitaría tener los dos pasos montados a la vez, lo que acá
+   no vale la complejidad para algo que se ve 4-5 veces por pedido). */
+.entra-paso {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
 /* Feedback táctil de botones */
 .press {
   transition:
