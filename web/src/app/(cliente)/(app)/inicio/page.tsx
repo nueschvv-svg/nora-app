@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, Send, Sparkles } from "lucide-react";
+import { Bell, ChevronRight } from "lucide-react";
 
 import { IconoEquipo } from "@/componentes/IconoEquipo";
+import { ChatNora } from "@/componentes/ChatNora";
 import { HojaServicio } from "@/componentes/HojaServicio";
 import { HojaNotificaciones } from "@/componentes/HojaNotificaciones";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
@@ -25,7 +25,6 @@ import { saludo } from "@/lib/formato";
 const EN_CURSO = new Set<EstadoServicio>(["solicitado", "presupuestado", "aceptado", "en_camino", "en_curso"]);
 
 export default function PaginaInicio() {
-  const router = useRouter();
   const { propiedad, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
 
   /* Pedido en curso, arriba y grande: que al entrar se vea de una si
@@ -108,19 +107,6 @@ export default function PaginaInicio() {
     ? categorias.find((c) => c.slug === pedidoActivo.categoriaSlug)
     : undefined;
 
-  /* El "chat" para arrancar un pedido. No es un chat de verdad todavía
-     (eso ya lo resuelve /pedir, paso a paso, con el mismo diagnóstico
-     de Nora) — esto es la puerta de entrada: lo que la persona escribe
-     acá viaja como texto inicial y aparece ya cargado en el paso
-     "Contanos qué está pasando" de /pedir, para no hacerla escribir
-     dos veces. */
-  const [mensaje, setMensaje] = useState("");
-  const enviarMensaje = (e: React.FormEvent) => {
-    e.preventDefault();
-    const texto = mensaje.trim();
-    router.push(texto ? `/pedir?texto=${encodeURIComponent(texto)}` : "/pedir");
-  };
-
   if (cargando) return <EsqueletoInicio />;
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
 
@@ -181,37 +167,7 @@ export default function PaginaInicio() {
         )}
 
         {/* --- El chat: puerta de entrada para pedir un servicio --- */}
-        <section className="rounded-xl3 bg-surface border border-line shadow-card p-4">
-          <div className="flex items-start gap-2.5">
-            <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white">
-              <Sparkles className="w-[16px] h-[16px]" />
-            </span>
-            <p className="bg-sand border border-line rounded-2xl rounded-tl-md px-3.5 py-2.5 text-[13.5px] text-ink leading-snug">
-              ¿Qué necesitás resolver hoy? Contame qué está pasando y me ocupo.
-            </p>
-          </div>
-
-          <form onSubmit={enviarMensaje} className="mt-3 flex items-center gap-2">
-            <label htmlFor="mensaje-inicio" className="sr-only">
-              Contanos qué pasa
-            </label>
-            <input
-              id="mensaje-inicio"
-              type="text"
-              value={mensaje}
-              onChange={(e) => setMensaje(e.target.value)}
-              placeholder="Ej: pierde agua la canilla de la cocina…"
-              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
-            />
-            <button
-              type="submit"
-              className="press shrink-0 w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab disabled:opacity-50"
-              aria-label="Enviar"
-            >
-              <Send className="w-[18px] h-[18px]" />
-            </button>
-          </form>
-        </section>
+        <ChatNora nombre={sesion?.nombre?.split(" ")[0]} />
       </div>
 
       <HojaNotificaciones

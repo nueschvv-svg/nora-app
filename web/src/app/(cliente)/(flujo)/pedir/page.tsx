@@ -73,7 +73,10 @@ export default function PaginaPedir() {
   const pasoConfirmar = PASOS.length - 1;
 
   const [paso, setPaso] = useState(0);
-  const [categoria, setCategoria] = useState<string | null>(null);
+  /* Si Nora ya identificó el rubro en el chat de Inicio, viaja acá en la
+     URL y arranca preseleccionado — la persona igual puede cambiarlo en
+     este mismo paso, esto sólo le ahorra un toque. */
+  const [categoria, setCategoria] = useState<string | null>(() => searchParams.get("categoria"));
   /* Si se llega acá desde el chat de Inicio ("contanos qué pasa..."),
      el texto ya escrito viaja en la URL — se precarga acá para no
      hacer a la persona escribirlo dos veces. Sólo se lee una vez, al
