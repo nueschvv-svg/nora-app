@@ -40,7 +40,7 @@ export default function PaginaAgenda() {
         </div>
       </header>
 
-      <div className="px-5 space-y-3.5">
+      <div className="entra-suave px-5 space-y-3.5">
         {equipos.length === 0 && (
           <div className="rounded-xl2 bg-surface border border-line shadow-card p-6 text-center">
             <span className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-brand-50 text-brand-600">

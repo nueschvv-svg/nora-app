@@ -11,15 +11,16 @@ import { LogotipoNora } from "./LogoNora";
 export function NavSuperior() {
   return (
     <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur-xl border-b border-line">
-      <div className="flex items-center justify-between gap-3 px-5 h-16">
-        <Link href="/inicio" className="shrink-0" aria-label="Ir a inicio">
-          <LogotipoNora className="scale-90 origin-left" />
+      <div className="grid grid-cols-3 items-center gap-3 px-5 h-16">
+        <div />
+        <Link href="/inicio" className="justify-self-center" aria-label="Ir a inicio">
+          <LogotipoNora className="scale-90" />
         </Link>
 
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("nora:abrir-ayuda"))}
-          className="press w-10 h-10 grid place-items-center rounded-full bg-sand border border-line text-ink"
+          className="press justify-self-end w-10 h-10 grid place-items-center rounded-full bg-sand border border-line text-ink"
           aria-label="Ayuda"
         >
           <MoreHorizontal className="w-[18px] h-[18px]" />

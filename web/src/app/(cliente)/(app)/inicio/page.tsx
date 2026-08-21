@@ -103,7 +103,7 @@ export default function PaginaInicio() {
     <main className="h-full overflow-y-auto no-scrollbar pb-8">
       <header className="px-5 pt-6 pb-2 flex items-center justify-between gap-3">
         <h1 className="text-[23px] font-bold font-display text-ink leading-tight">
-          {saludo()}{sesion ? `, ${sesion.nombre.split(" ")[0]}` : ""}
+          {saludo()}, será un placer ayudarte
         </h1>
         <button
           type="button"
@@ -123,7 +123,7 @@ export default function PaginaInicio() {
 
       <div className="px-5 space-y-3.5">
         {/* --- El chat: puerta de entrada para pedir un servicio --- */}
-        <ChatNora nombre={sesion?.nombre?.split(" ")[0]} />
+        <ChatNora />
       </div>
 
       <HojaNotificaciones

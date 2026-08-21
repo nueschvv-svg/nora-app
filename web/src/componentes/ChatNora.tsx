@@ -13,12 +13,12 @@ type Mensaje = { rol: "cliente" | "nora"; texto: string };
    — que lleva al flujo de pedir de siempre (/pedir), con el rubro y el
    resumen ya cargados. El saludo inicial es fijo y local (no gasta un
    solo token): no hace falta llamar al modelo sólo para decir "hola". */
-export function ChatNora({ nombre }: { nombre?: string }) {
+export function ChatNora() {
   const router = useRouter();
   const [mensajes, setMensajes] = useState<Mensaje[]>(() => [
     {
       rol: "nora",
-      texto: `¡Hola${nombre ? `, ${nombre}` : ""}! Soy Nora 👋 Contame qué está pasando en tu casa y vemos cómo te ayudo.`,
+      texto: "¡Hola! Soy Nora 👋 Contame qué está pasando en tu casa y vemos cómo te ayudo.",
     },
   ]);
   const [entrada, setEntrada] = useState("");

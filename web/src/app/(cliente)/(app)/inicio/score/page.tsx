@@ -39,7 +39,7 @@ export default function PaginaScore() {
         </div>
       </header>
 
-      <div className="px-5 space-y-3.5">
+      <div className="entra-suave px-5 space-y-3.5">
         {/* --- Cómo se llega al número --- */}
         <section className="rounded-xl2 bg-surface border border-line shadow-card overflow-hidden">
           <div className="px-4 py-4 flex items-baseline justify-between border-b border-line">
