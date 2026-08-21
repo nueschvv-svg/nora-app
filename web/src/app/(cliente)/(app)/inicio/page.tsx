@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight } from "lucide-react";
+import { Bell } from "lucide-react";
 
-import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { ChatNora } from "@/componentes/ChatNora";
 import { HojaServicio } from "@/componentes/HojaServicio";
 import { HojaNotificaciones } from "@/componentes/HojaNotificaciones";
@@ -18,19 +17,17 @@ import {
   suscribirseANotificaciones,
   type Notificacion,
 } from "@/lib/notificaciones";
-import { ETIQUETA_ESTADO, type EstadoServicio, type Servicio } from "@/lib/tipos";
+import { type Servicio } from "@/lib/tipos";
 import { saludo } from "@/lib/formato";
 
-/* Estados en los que el pedido todavía está en curso. */
-const EN_CURSO = new Set<EstadoServicio>(["solicitado", "presupuestado", "aceptado", "en_camino", "en_curso"]);
-
 export default function PaginaInicio() {
-  const { propiedad, propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
+  const { propiedades, equiposDe, sesion, cargando, error, recargar } = useApp();
 
-  /* Pedido en curso, arriba y grande: que al entrar se vea de una si
-     hay algo pasando ahora mismo, como el seguimiento de pedido de
-     Rappi. Se pide acá (no en ContextoApp) porque sólo Inicio lo
-     necesita — no tiene sentido cargarlo en todas las pantallas. */
+  /* Sin banner de "pedido en curso" en Inicio — la persona ya vio el
+     resumen completo en la pantalla de confirmación apenas mandó el
+     pedido (número de orden, horario, domicilio). El estado se sigue
+     viendo si llega una notificación de novedades (ver campanita más
+     abajo), que abre el mismo HojaServicio. */
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
   const [seleccionado, setSeleccionado] = useState<Servicio | null>(null);
@@ -99,14 +96,6 @@ export default function PaginaInicio() {
     if (s) setSeleccionado(s);
   };
 
-  const enCurso = propiedad
-    ? servicios.filter((s) => s.propiedadId === propiedad.id && EN_CURSO.has(s.estado))
-    : [];
-  const pedidoActivo = enCurso[0];
-  const categoriaActiva = pedidoActivo
-    ? categorias.find((c) => c.slug === pedidoActivo.categoriaSlug)
-    : undefined;
-
   if (cargando) return <EsqueletoInicio />;
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
 
@@ -133,39 +122,6 @@ export default function PaginaInicio() {
       </header>
 
       <div className="px-5 space-y-3.5">
-        {/* --- Pedido en curso: lo primero que hay que ver, si hay algo
-            pasando ahora mismo --- */}
-        {pedidoActivo && (
-          <button
-            type="button"
-            onClick={() => setSeleccionado(pedidoActivo)}
-            className="entra-suave press relative overflow-hidden w-full flex items-center gap-3.5 text-left text-white rounded-xl3 shadow-hero p-4"
-            style={{
-              backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
-            }}
-          >
-            <div className="pointer-events-none absolute -top-10 -right-8 w-32 h-32 rounded-full bg-brand-400/20 blur-2xl" />
-            <span className="relative shrink-0 w-12 h-12 grid place-items-center rounded-2xl bg-white/15">
-              <IconoEquipo nombre={categoriaActiva?.icono ?? "wrench"} className="w-6 h-6" />
-            </span>
-            <div className="relative min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-2.5 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" aria-hidden="true" />
-                {ETIQUETA_ESTADO[pedidoActivo.estado]}
-              </span>
-              <p className="text-[15.5px] font-bold font-display leading-tight mt-1.5 truncate">
-                {categoriaActiva?.nombre ?? "Servicio"}
-              </p>
-            </div>
-            {enCurso.length > 1 && (
-              <span className="relative shrink-0 text-[11px] font-semibold text-brand-100 self-start mt-1">
-                +{enCurso.length - 1}
-              </span>
-            )}
-            <ChevronRight className="relative w-5 h-5 text-white/70 shrink-0" />
-          </button>
-        )}
-
         {/* --- El chat: puerta de entrada para pedir un servicio --- */}
         <ChatNora nombre={sesion?.nombre?.split(" ")[0]} />
       </div>

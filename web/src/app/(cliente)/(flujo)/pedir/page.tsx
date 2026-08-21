@@ -22,6 +22,7 @@ import { Bloque } from "@/componentes/Esqueleto";
 import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } from "@/lib/datos";
 import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
+import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
 import { actualizarMisDatosPersonales } from "@/lib/perfil";
 import { type Propiedad, type Servicio } from "@/lib/tipos";
 
@@ -44,11 +45,15 @@ const PROVINCIAS = [
 
    Todo eso vuelve en fase 3, cuando haya datos que lo sostengan. */
 
+/* `horaFin`: hasta qué hora del día tiene sentido ofrecer la franja —
+   pasada esa hora, mostrarla para "hoy" sería prometer un horario que
+   ya no existe. "Lo antes posible" no tiene franja fija, así que
+   siempre está disponible (null = sin límite). */
 const FRANJAS = [
-  { id: "manana", texto: "Mañana · 8 a 12 h" },
-  { id: "tarde-1", texto: "Tarde · 13 a 17 h" },
-  { id: "tarde-2", texto: "Tarde · 17 a 20 h" },
-  { id: "urgente", texto: "Lo antes posible" },
+  { id: "manana", texto: "Mañana · 8 a 12 h", horaFin: 12 },
+  { id: "tarde-1", texto: "Tarde · 13 a 17 h", horaFin: 17 },
+  { id: "tarde-2", texto: "Tarde · 17 a 20 h", horaFin: 20 },
+  { id: "urgente", texto: "Lo antes posible", horaFin: null as number | null },
 ];
 
 export default function PaginaPedir() {
@@ -89,6 +94,9 @@ export default function PaginaPedir() {
 
   const [nombreInicial, setNombreInicial] = useState("");
   const [telefonoInicial, setTelefonoInicial] = useState("");
+  /* Opcional a propósito: sólo sirve para mandar el comprobante por
+     mail, no bloquea el pedido si no lo cargan. */
+  const [mailInicial, setMailInicial] = useState("");
   const [calleInicial, setCalleInicial] = useState("");
   const [numeroInicial, setNumeroInicial] = useState("");
   const [localidadInicial, setLocalidadInicial] = useState("");
@@ -209,13 +217,28 @@ export default function PaginaPedir() {
   const proximosDias = obtenerProximosDias();
   const catElegida = categorias.find((c) => c.slug === categoria);
 
+  /* Si el día elegido es hoy, las franjas cuyo horario ya pasó no se
+     ofrecen — mostrarlas sería prometer un horario imposible. */
+  const franjasDisponibles =
+    dia === proximosDias[0]?.iso
+      ? FRANJAS.filter((f) => f.horaFin === null || new Date().getHours() < f.horaFin)
+      : FRANJAS;
+
+  /* Si cambiás de día y la franja que tenías elegida ya no es válida
+     para el nuevo día (ej: elegiste "hoy" tarde y quedó sólo "lo antes
+     posible"), se trata como no elegida — derivado en el render, no
+     hace falta un efecto ni un setState extra para "corregir" el
+     estado: ningún botón de franjasDisponibles queda marcado, y
+     puedeAvanzar se calcula sobre este valor, no sobre `franja` crudo. */
+  const franjaEfectiva = franjasDisponibles.some((f) => f.id === franja) ? franja : null;
+
   /* Igual que el endpoint: alcanza con la foto, no hace falta escribir
      nada. Antes de esto el paso 1 exigía 10 caracteres pase lo que
      pase, lo que no tenía sentido si ya mandaste una foto. */
   const puedeAvanzar =
     (paso === 0 && !!categoria) ||
     (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
-    (paso === 2 && !!dia && !!franja) ||
+    (paso === 2 && !!dia && !!franjaEfectiva) ||
     (paso === pasoContacto && datosInicialesValidos) ||
     paso === pasoConfirmar;
 
@@ -246,7 +269,11 @@ export default function PaginaPedir() {
       setError(null);
       try {
         const [, nuevaPropiedad] = await Promise.all([
-          actualizarMisDatosPersonales({ nombre: nombreInicial, telefono: telefonoInicial }),
+          actualizarMisDatosPersonales({
+            nombre: nombreInicial,
+            telefono: telefonoInicial,
+            mailContacto: mailInicial,
+          }),
           agregarPropiedad({
             nombre: "Mi casa",
             calle: calleInicial,
@@ -283,13 +310,13 @@ export default function PaginaPedir() {
 
         /* Lo único que de verdad tiene que pasar antes de mostrarle
            "pedido enviado" a la persona es crearServicio() de arriba —
-           eso es lo que lo hace visible para operaciones. Subir la foto
-           y avisar por Telegram son un plus, ninguno de los dos
-           requisito (si fallan, el pedido ya está adentro igual, ver
-           comentarios de cada función) — así que no hay motivo para
-           tener a la persona mirando un spinner mientras se suben y
-           esperan la vuelta de un servidor externo. Corren en
-           background, en el mismo orden de antes (foto primero, para
+           eso es lo que lo hace visible para operaciones. Subir la foto,
+           avisar por Telegram y mandar el comprobante por mail son un
+           plus, ninguno de los tres requisito (si fallan, el pedido ya
+           está adentro igual, ver comentarios de cada función) — así
+           que no hay motivo para tener a la persona mirando un spinner
+           mientras se suben y esperan la vuelta de un servidor externo.
+           Corren en background, en el mismo orden de antes (foto primero, para
            que el aviso pueda incluir su URL). */
         (async () => {
           if (foto) {
@@ -303,6 +330,11 @@ export default function PaginaPedir() {
             await enrutarPedido(nuevoServicio.id, diagnostico);
           } catch (e) {
             console.error("[pedir] no se pudo avisar del pedido:", e);
+          }
+          try {
+            await mandarComprobantePorMail(nuevoServicio.id);
+          } catch (e) {
+            console.error("[pedir] no se pudo mandar el comprobante:", e);
           }
         })();
 
@@ -578,7 +610,7 @@ export default function PaginaPedir() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {FRANJAS.map((f) => (
+              {franjasDisponibles.map((f) => (
                 <button
                   key={f.id}
                   type="button"
@@ -625,6 +657,17 @@ export default function PaginaPedir() {
               onChange={(e) => setTelefonoInicial(e.target.value)}
               autoComplete="tel"
               placeholder="11 1234 5678"
+            />
+            <CampoTexto
+              id="mail-inicial"
+              etiqueta="Mail (opcional)"
+              ayuda="Si lo dejás, te mandamos el comprobante del pedido."
+              type="email"
+              inputMode="email"
+              value={mailInicial}
+              onChange={(e) => setMailInicial(e.target.value)}
+              autoComplete="email"
+              placeholder="tu@mail.com"
             />
 
             <div className="grid grid-cols-[1fr_92px] gap-2.5">
@@ -925,13 +968,16 @@ function Confirmacion({
   );
 }
 
-/** Los próximos 7 días, listos para mostrar. */
+/** Los próximos 30 días, listos para mostrar. Un mes de horizonte para
+ *  quien quiere agendar con anticipación — antes eran sólo 7, y quien
+ *  quería agendar para dentro de dos semanas no tenía cómo. Ya scrollea
+ *  horizontal, así que no hace falta rediseñar nada para que quepan. */
 function obtenerProximosDias() {
   const DIAS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
   const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
   const hoy = new Date();
 
-  return Array.from({ length: 7 }, (_, i) => {
+  return Array.from({ length: 30 }, (_, i) => {
     const d = new Date(hoy);
     d.setDate(hoy.getDate() + i);
     return {

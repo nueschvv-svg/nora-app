@@ -22,7 +22,10 @@ function fallar(contexto: string, error: { message: string }): never {
 export type MisDatosPersonales = {
   nombre: string;
   telefono: string;
+  /** Mail de auth.users — vacío en sesiones anónimas. Distinto de
+   *  `mailContacto`, que la persona carga a mano para el comprobante. */
   email: string;
+  mailContacto: string;
 };
 
 export async function misDatosPersonales(): Promise<MisDatosPersonales> {
@@ -34,7 +37,7 @@ export async function misDatosPersonales(): Promise<MisDatosPersonales> {
 
   const { data, error } = await supabase
     .from("perfiles")
-    .select("nombre, telefono")
+    .select("nombre, telefono, mail_contacto")
     .eq("id", user.id)
     .maybeSingle();
   if (error) fallar("cargar tus datos", error);
@@ -43,12 +46,15 @@ export async function misDatosPersonales(): Promise<MisDatosPersonales> {
     nombre: data?.nombre ?? "",
     telefono: data?.telefono ?? "",
     email: user.email ?? "",
+    mailContacto: data?.mail_contacto ?? "",
   };
 }
 
 export async function actualizarMisDatosPersonales(datos: {
   nombre: string;
   telefono: string;
+  /** Opcional — sólo para recibir el comprobante del pedido por mail. */
+  mailContacto?: string;
 }): Promise<void> {
   const supabase = supabaseNavegador();
   const {
@@ -59,9 +65,18 @@ export async function actualizarMisDatosPersonales(datos: {
   const nombre = datos.nombre.trim();
   if (nombre.length < 2) throw new Error("Poné tu nombre completo.");
 
+  const mailContacto = datos.mailContacto?.trim() ?? "";
+  if (mailContacto && !mailContacto.includes("@")) {
+    throw new Error("Ese mail no parece válido.");
+  }
+
   const { error } = await supabase
     .from("perfiles")
-    .update({ nombre, telefono: datos.telefono.trim() || null })
+    .update({
+      nombre,
+      telefono: datos.telefono.trim() || null,
+      mail_contacto: mailContacto || null,
+    })
     .eq("id", user.id);
   if (error) fallar("guardar tus datos", error);
 }

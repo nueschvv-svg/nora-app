@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "helvetica",
+        "files": [
+          "web/src/lib/mail.ts"
+        ],
+        "createdAt": "2026-08-21T01:36:22.192Z",
+        "reason": "HTML de mail transaccional (lib/mail.ts) — los clientes de correo no leen el stylesheet de la app, necesita fuentes web-safe inline"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "16px",
+        "files": [
+          "web/src/lib/mail.ts"
+        ],
+        "createdAt": "2026-08-21T01:36:22.266Z",
+        "reason": "HTML de mail transaccional (lib/mail.ts) — mismo motivo, valores en px porque el email va con CSS inline, no con los tokens de Tailwind de la app"
+      }
+    ]
+  }
+}
