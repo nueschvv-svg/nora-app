@@ -58,11 +58,21 @@ export function EscenaCinema() {
     });
   }, []);
 
-  if (!listo) return <div className="h-[46vh] min-h-[320px] escena-fondo" aria-hidden="true" />;
+  /* El placeholder y el modo reposo NO fijan una altura (antes era
+     `h-[46vh] min-h-[320px]` con `overflow-hidden` + centrado) —
+     probado en vivo en producción: en pantallas anchas el saludo + el
+     logo (que crecen de tamaño en el corte "sm:") miden más que esa
+     caja, y con overflow-hidden + place-items-center el contenido se
+     recorta arriba Y abajo por igual — el "BIENVENIDO A" quedaba
+     literalmente comido, no tapado por la barra de arriba como
+     parecía. Con py-16 en vez de una altura fija, la caja se ajusta
+     sola al contenido — nunca se recorta, sin importar el tamaño de
+     pantalla ni el idioma/tamaño de fuente. */
+  if (!listo) return <div className="min-h-[320px] escena-fondo" aria-hidden="true" />;
 
   if (modoReposo) {
     return (
-      <div className="relative h-[46vh] min-h-[320px] escena-fondo overflow-hidden grid place-items-center">
+      <div className="escena-fondo py-16 grid place-items-center">
         <div className="cinema-reposo">
           <HeroLlaveCasa />
         </div>
