@@ -26,7 +26,7 @@ import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } 
 import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
-import { actualizarMisDatosPersonales } from "@/lib/perfil";
+import { actualizarMisDatosPersonales, misDatosPersonales } from "@/lib/perfil";
 import { type Propiedad, type Servicio } from "@/lib/tipos";
 
 const PROVINCIAS = [
@@ -65,19 +65,66 @@ export default function PaginaPedir() {
   const { propiedad, agregarPropiedad } = useApp();
 
   /* Sin cuentas: nadie carga domicilio/teléfono en un registro aparte de
-     antemano — se piden como último paso del pedido, justo antes de
-     confirmar, y sólo la primera vez (si ya hay un domicilio guardado
-     en esta sesión, se salta directo a Confirmar). Se decide una única
-     vez al montar: si se recalculara en cada render, el guardado exitoso
-     de este mismo paso cambiaría la cantidad de pasos a mitad de flujo. */
-  const [necesitaContacto] = useState(() => !propiedad);
+     antemano — se piden como parte del pedido. El paso "Contacto"
+     SIEMPRE está en el flujo (antes se salteaba entero si ya había un
+     domicilio guardado de una sesión anterior — eso reusaba nombre,
+     teléfono y dirección viejos EN SILENCIO, sin mostrárselos a la
+     persona: si esta vez el pedido era para otra casa, no había forma
+     de notarlo antes de mandarlo). Ahora, si ya hay datos guardados,
+     este paso los muestra para CONFIRMAR — "Continuar con estos
+     datos" sigue de largo sin re-preguntar nada, "Usar otros datos"
+     abre el formulario de siempre. */
   const [propiedadGuardada, setPropiedadGuardada] = useState<Propiedad | null>(null);
   const propiedadActual = propiedad ?? propiedadGuardada;
 
-  const PASOS = necesitaContacto
-    ? ["Categoría", "El problema", "Cuándo", "Contacto", "Confirmar"]
-    : ["Categoría", "El problema", "Cuándo", "Confirmar"];
-  const pasoContacto = necesitaContacto ? 3 : -1;
+  /* true = mostrando el formulario editable (como era antes, siempre);
+     false = mostrando el resumen de "¿seguimos con esto?". Arranca en
+     `false` sólo si YA hay una propiedad guardada al montar — recién
+     ahí tiene sentido preguntar "¿seguimos con estos datos?". Se
+     decide una vez, no en cada render, por el mismo motivo de antes:
+     que no cambie de golpe a mitad de flujo. */
+  const [editandoContacto, setEditandoContacto] = useState(() => !propiedad);
+  const [perfilPrevio, setPerfilPrevio] = useState<{ nombre: string; telefono: string } | null>(null);
+  const [cargandoPerfilPrevio, setCargandoPerfilPrevio] = useState(() => !!propiedad);
+
+  useEffect(() => {
+    if (!propiedad) return;
+    let vivo = true;
+    misDatosPersonales()
+      .then((datos) => {
+        if (vivo) setPerfilPrevio({ nombre: datos.nombre, telefono: datos.telefono });
+      })
+      .catch(() => {
+        /* Si falla, no bloqueamos el pedido — pasamos directo al
+           formulario editable, como si no hubiera datos guardados. */
+        if (vivo) setEditandoContacto(true);
+      })
+      .finally(() => {
+        if (vivo) setCargandoPerfilPrevio(false);
+      });
+    return () => {
+      vivo = false;
+    };
+    // Sólo depende de si HABÍA propiedad al montar, no de `propiedad`
+    // en cada render (mismo motivo que arriba).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Al pasar a "usar otros datos": nombre y teléfono se prellenan (son
+     de la persona, casi nunca cambian entre pedidos) pero el domicilio
+     queda en blanco a propósito — si está acá es porque quiere cargar
+     una dirección distinta, precargar la vieja sería justo el error
+     que se está tratando de evitar. */
+  const usarOtrosDatos = () => {
+    if (perfilPrevio) {
+      setNombreInicial(perfilPrevio.nombre);
+      setTelefonoInicial(perfilPrevio.telefono);
+    }
+    setEditandoContacto(true);
+  };
+
+  const PASOS = ["Categoría", "El problema", "Cuándo", "Contacto", "Confirmar"];
+  const pasoContacto = 3;
   const pasoConfirmar = PASOS.length - 1;
 
   const [paso, setPaso] = useState(0);
@@ -122,6 +169,11 @@ export default function PaginaPedir() {
     calleInicial.trim() !== "" &&
     numeroInicial.trim() !== "" &&
     localidadInicial.trim() !== "";
+
+  /* En el paso de contacto se puede avanzar si: se está mostrando el
+     resumen de datos ya guardados (nada que validar, sólo confirmar),
+     o si se está editando y esos datos ya son válidos. */
+  const puedeConfirmarPasoContacto = !editandoContacto ? !cargandoPerfilPrevio : datosInicialesValidos;
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -255,7 +307,7 @@ export default function PaginaPedir() {
     (paso === 0 && !!categoria) ||
     (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
     (paso === 2 && !!dia && !!franjaEfectiva) ||
-    (paso === pasoContacto && datosInicialesValidos) ||
+    (paso === pasoContacto && puedeConfirmarPasoContacto) ||
     paso === pasoConfirmar;
 
   /* Lo que ve operaciones. La persona sigue viendo y
@@ -281,6 +333,13 @@ export default function PaginaPedir() {
     if (!puedeAvanzar || enviando) return;
 
     if (paso === pasoContacto) {
+      /* "Continuar con estos datos": ya están guardados de un pedido
+         anterior, no hay nada que volver a mandar a la base. */
+      if (!editandoContacto) {
+        setPaso(paso + 1);
+        return;
+      }
+
       setEnviando(true);
       setError(null);
       try {
@@ -643,9 +702,48 @@ export default function PaginaPedir() {
           </section>
         )}
 
-        {/* ---------- PASO CONTACTO: domicilio y datos, último paso antes
-            de confirmar — sólo aparece la primera vez que hace falta. ---------- */}
-        {paso === pasoContacto && (
+        {/* ---------- PASO CONTACTO: domicilio y datos. Si ya hay datos
+            guardados de un pedido anterior en esta sesión, primero se
+            muestran para CONFIRMAR (o cambiar) — nunca se reusan en
+            silencio. ---------- */}
+        {paso === pasoContacto && !editandoContacto && (
+          <section className="entra-paso">
+            <TituloPaso>
+              ¿Seguimos
+              <br />
+              con esto?
+            </TituloPaso>
+            <p className="text-[13px] text-mute mt-1.5">
+              Ya tenemos estos datos de un pedido anterior. Si es para el mismo lugar, seguí de largo.
+            </p>
+
+            {cargandoPerfilPrevio ? (
+              <div className="mt-4 space-y-2.5">
+                <Bloque className="h-[76px] rounded-xl2" />
+                <Bloque className="h-[52px] rounded-xl2" />
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
+                <Fila etiqueta="Nombre" valor={perfilPrevio?.nombre || "—"} />
+                <Fila etiqueta="Teléfono" valor={perfilPrevio?.telefono || "—"} />
+                <Fila
+                  etiqueta="Domicilio"
+                  valor={propiedadActual ? `${propiedadActual.direccion}, ${propiedadActual.localidad}` : "—"}
+                />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={usarOtrosDatos}
+              className="press mt-3 w-full text-center text-[13px] font-semibold text-brand-600 underline underline-offset-2 py-1.5"
+            >
+              Usar otros datos (otra dirección, otro contacto)
+            </button>
+          </section>
+        )}
+
+        {paso === pasoContacto && editandoContacto && (
           <section className="entra-paso">
             <TituloPaso>
               ¿A dónde
@@ -653,7 +751,7 @@ export default function PaginaPedir() {
               vamos?
             </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
-              Necesitamos saber quién sos y a dónde vamos — sólo una vez.
+              Necesitamos saber quién sos y a dónde vamos.
             </p>
 
             <CampoTexto
