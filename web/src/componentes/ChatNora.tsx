@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Send, Sparkles } from "lucide-react";
 import { chatearConNora, type TurnoChat } from "@/lib/chatCliente";
+import { IsotipoNora } from "@/componentes/LogoNora";
 
 type Mensaje = { rol: "cliente" | "nora"; texto: string };
 
@@ -76,6 +77,24 @@ export function ChatNora() {
 
   return (
     <section className="glass rounded-xl3 p-4">
+      {/* Encabezado de marca: sin esto el chat es una lista de globos
+          sin firma — con el isotipo real y "en línea" (el mismo
+          .live-dot que ya usa el resto de la app para estados en
+          vivo) se lee como un producto de verdad, no un widget
+          genérico pegado a la pantalla. */}
+      <div className="flex items-center gap-2.5 pb-3 mb-3 border-b border-line/60">
+        <span className="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-brand-600">
+          <IsotipoNora className="w-5 h-5" variante="oscuro" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13.5px] font-bold font-display text-ink leading-tight">Nora</p>
+          <p className="flex items-center gap-1.5 text-[11px] text-mute">
+            <span className="live-dot w-[6px] h-[6px] rounded-full bg-good" aria-hidden="true" />
+            En línea
+          </p>
+        </div>
+      </div>
+
       <div ref={listaRef} className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-0.5">
         {mensajes.map((m, i) => (
           <div
@@ -83,12 +102,12 @@ export function ChatNora() {
             className={`burbuja-chat flex items-start gap-2.5 ${m.rol === "cliente" ? "flex-row-reverse" : ""}`}
           >
             {m.rol === "nora" && (
-              <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white">
+              <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white shadow-card">
                 <Sparkles className="w-[16px] h-[16px]" />
               </span>
             )}
             <p
-              className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-snug whitespace-pre-line ${
+              className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-snug whitespace-pre-line shadow-card ${
                 m.rol === "nora"
                   ? "bg-sand border border-line rounded-2xl rounded-tl-md text-ink"
                   : "bg-brand-600 text-white rounded-2xl rounded-tr-md"
@@ -101,12 +120,13 @@ export function ChatNora() {
 
         {enviando && (
           <div className="indicador-escribiendo flex items-start gap-2.5">
-            <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white">
+            <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white shadow-card">
               <Sparkles className="w-[16px] h-[16px]" />
             </span>
-            <p className="flex items-center gap-1.5 bg-sand border border-line rounded-2xl rounded-tl-md px-3.5 py-2.5 text-[12.5px] text-mute">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Nora está escribiendo…
+            <p className="flex items-center gap-1 bg-sand border border-line rounded-2xl rounded-tl-md px-4 py-3.5 text-mute shadow-card">
+              <span className="punto-escribiendo" />
+              <span className="punto-escribiendo" />
+              <span className="punto-escribiendo" />
             </p>
           </div>
         )}
