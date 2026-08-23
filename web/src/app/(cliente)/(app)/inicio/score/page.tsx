@@ -9,6 +9,7 @@ import { EsqueletoInicio } from "@/componentes/Esqueleto";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { textoVencimiento } from "@/lib/formato";
+import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
 
 /* Esta pantalla es la que vuelve creíble al score.
    Un número solo ("73") no significa nada; acá se muestra
@@ -20,6 +21,8 @@ export default function PaginaScore() {
     [equiposDe, propiedad],
   );
   const equipos = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
+  const desgloseRef = useEntradaEscalonada<HTMLUListElement>(!cargando && !!propiedad);
+  const equiposRef = useEntradaEscalonada<HTMLDivElement>(!cargando && !!propiedad && equipos.length > 0);
 
   if (cargando || !propiedad) return <EsqueletoInicio />;
 
@@ -49,7 +52,7 @@ export default function PaginaScore() {
               <span className="text-[15px] font-semibold text-faint"> / 100</span>
             </span>
           </div>
-          <ul className="divide-y divide-line">
+          <ul ref={desgloseRef} className="divide-y divide-line">
             {score.desglose.map((d, i) => (
               <li key={i} className="flex items-center justify-between px-4 py-3">
                 <span className="text-[13px] text-ink">{d.concepto}</span>
@@ -80,7 +83,7 @@ export default function PaginaScore() {
           Equipo por equipo
         </p>
 
-        <div className="rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
+        <div ref={equiposRef} className="rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
           {equipos.map((e) => {
             const estilo = {
               vencido: { chip: "bg-urgent/10 text-urgent", texto: "text-urgent", etiqueta: "Vencido" },

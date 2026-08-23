@@ -4,15 +4,22 @@ import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import { LogotipoNora } from "./LogoNora";
 
-/* Barra de arriba, mínima: la app es un solo flujo (pedir un
-   servicio) — no hay más secciones entre las que navegar. Sólo queda
-   la marca (lleva a Inicio, es "empezar de nuevo" en los hechos) y el
-   acceso a soporte. */
+/* Barra de arriba: la marca (lleva a Inicio), el acceso directo a
+   pedir un servicio, y soporte. "Pedir servicio" vive ACÁ, en la
+   misma línea del logo, no como pastilla flotante aparte — así queda
+   disponible en todas las pantallas de (app) (Inicio, Agenda, Score),
+   no sólo en Inicio, y no compite por su propio espacio en cada una. */
 export function NavSuperior() {
   return (
-    <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur-xl border-b border-line">
+    <header className="glass-nav sticky top-0 z-30">
       <div className="grid grid-cols-3 items-center gap-3 px-5 h-16">
-        <div />
+        <Link
+          href="/pedir"
+          className="press justify-self-start w-fit flex items-center gap-1 rounded-full bg-brand-600 text-white pl-3 pr-2.5 py-2 text-[12.5px] font-semibold shadow-fab"
+        >
+          Pedir
+        </Link>
+
         <Link href="/inicio" className="justify-self-center" aria-label="Ir a inicio">
           <LogotipoNora className="scale-90" />
         </Link>

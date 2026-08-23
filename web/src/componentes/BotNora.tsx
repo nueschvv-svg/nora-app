@@ -16,7 +16,13 @@ import { linkWhatsapp, MENU_ASISTENTE, type NodoCategoria, type NodoRespuesta } 
    alrededor del chat para PEDIR un servicio, una segunda burbuja
    siempre visible para soporte competía por el mismo espacio visual.
    Este panel se sigue abriendo igual, disparando el evento
-   "nora:abrir-ayuda" — desde el menú "···" de Inicio o desde Perfil. */
+   "nora:abrir-ayuda" — desde el botón "···" de NavSuperior o desde
+   Perfil.
+
+   Recuadro anclado arriba a la derecha (no hoja de pantalla completa
+   desde abajo): esto es soporte puntual de preguntas frecuentes, no un
+   flujo que merezca tapar toda la pantalla — se abre y cierra ahí
+   mismo, cerca de donde está el botón que lo dispara. */
 
 type Mensaje = {
   id: string;
@@ -50,6 +56,7 @@ export function BotNora() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([{ id: "saludo", autor: "nora", texto: SALUDO }]);
   const [opciones, setOpciones] = useState<Opciones>({ tipo: "menu" });
   const finRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(0);
   const proximoId = (prefijo: string) => `${prefijo}-${++idRef.current}`;
 
@@ -65,6 +72,21 @@ export function BotNora() {
     };
     document.addEventListener("keydown", alPresionar);
     return () => document.removeEventListener("keydown", alPresionar);
+  }, [abierto]);
+
+  /* Sin backdrop que oscurezca el resto de la pantalla (es un recuadro
+     chico, no una hoja modal) — así que el cierre al tocar afuera hay
+     que armarlo a mano. Si el clic cae justo sobre el botón "···" que
+     lo abre, este handler lo cierra y el propio onClick del botón lo
+     vuelve a abrir en el mismo gesto — parpadeo imperceptible, no vale
+     la complejidad de coordinar los dos componentes para evitarlo. */
+  useEffect(() => {
+    if (!abierto) return;
+    const alTocarAfuera = (e: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setAbierto(false);
+    };
+    document.addEventListener("pointerdown", alTocarAfuera);
+    return () => document.removeEventListener("pointerdown", alTocarAfuera);
   }, [abierto]);
 
   /* El botón "Ayuda" de Perfil dispara este evento en vez de recibir un
@@ -117,13 +139,14 @@ export function BotNora() {
 
   return (
     <>
-      {/* Panel de chat */}
+      {/* Panel de chat — recuadro anclado arriba a la derecha, cerca
+          del botón "···" de NavSuperior (h-16 = 4rem) que lo abre. */}
       <div
+        ref={panelRef}
         role="dialog"
-        aria-modal="true"
         aria-label="Asistente Nora"
-        className={`absolute right-3 left-3 bottom-3 z-50 max-h-[70%] bg-surface rounded-xl2 border border-line shadow-sheet flex flex-col overflow-hidden transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)] origin-bottom-right ${
-          abierto ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-3 pointer-events-none"
+        className={`absolute right-3 top-[4.75rem] z-50 w-[min(340px,calc(100vw-1.5rem))] max-h-[70vh] bg-surface rounded-xl2 border border-line shadow-sheet flex flex-col overflow-hidden transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)] origin-top-right ${
+          abierto ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
         }`}
       >
         {/* Encabezado */}

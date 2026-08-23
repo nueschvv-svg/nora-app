@@ -83,6 +83,13 @@
   /* --- Radios --- */
   --radius-xl2: 20px;
   --radius-xl3: 26px;
+
+  /* --- Escenario cinema (sólo EscenaCinema, ver globals.css más abajo) --- */
+  /* El verde oscuro que YA usa la app para su "héroe de pedido en
+     curso" (ver DESIGN.md) — no negro. El cliente pidió explícitamente
+     sacar el fondo negro; esto reusa un degradé que ya existe en el
+     producto real en vez de inventar un tono nuevo. */
+  --color-stage: #0b3b38;
 }
 
 /* ============================================================
@@ -94,8 +101,18 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+/* Antes fondo plano `sand`. El sistema "Liquid Glass" necesita algo de
+   color debajo para que el vidrio tenga qué refractar — dos manchas
+   muy sutiles con los dos colores que YA son de la marca (el verde de
+   siempre y el rosa del corazón del logo, ver LogoNora.tsx) en vez de
+   inventar una paleta nueva. */
 body {
-  background: var(--color-sand);
+  background:
+    radial-gradient(65% 50% at 10% -5%, rgba(20, 133, 122, 0.26) 0%, transparent 65%),
+    radial-gradient(55% 42% at 105% 20%, rgba(255, 107, 157, 0.2) 0%, transparent 62%),
+    radial-gradient(60% 45% at 15% 100%, rgba(20, 133, 122, 0.16) 0%, transparent 62%),
+    var(--color-sand);
+  background-attachment: fixed;
 }
 
 /* Números tabulares: evita que los precios "bailen" al animarse */
@@ -308,6 +325,89 @@ body {
 }
 .lift:hover {
   transform: translateY(-2px);
+}
+
+/* ============================================================
+   ESCENA CINEMA
+   Hero de scroll de /inicio (EscenaCinema + HeroLlaveCasa). Ruptura de
+   estilo deliberada y ACOTADA a esta sección — ver DESIGN.md: el resto
+   de la app sigue en `sand`, mono-acento. No reusar `--color-stage`
+   fuera de acá.
+   ============================================================ */
+.escena-fondo {
+  /* Mismo degradé documentado en DESIGN.md como "Héroe de pedido en
+     curso" (ver Confirmacion en /pedir y SplashBienvenida) — reusado
+     acá, no un color nuevo. Las dos manchas extra (rosa del corazón
+     del logo + un verde más claro abajo) son lo que le suma la
+     riqueza que pedía el cliente sin salirse de la marca. */
+  background:
+    radial-gradient(52% 42% at 18% 8%, rgba(255, 107, 157, 0.16) 0%, transparent 62%),
+    radial-gradient(70% 60% at 50% 100%, rgba(20, 133, 122, 0.35) 0%, transparent 65%),
+    radial-gradient(120% 80% at 100% 0%, #14857a 0%, #0e5c54 38%, var(--color-stage) 100%);
+}
+
+/* Grano sutil sobre la escena — sin esto, un degradé grande a pantalla
+   completa se ve "banding", plano, como un PNG de baja calidad. Una
+   textura de ruido finísima (SVG feTurbulence, sin archivo que
+   descargar) rompe esa lisura y da sensación de profundidad real. */
+.grano-escena {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes cinema-reposo {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.035) rotate(1.5deg);
+  }
+}
+.cinema-reposo {
+  animation: cinema-reposo 6s ease-in-out infinite;
+}
+
+/* ============================================================
+   LIQUID GLASS
+   Material traslúcido de Apple (WWDC 2025) para la CAPA DE
+   CONTROLES/SUPERFICIES flotantes — barra superior, hojas, tarjetas,
+   chat — no para el fondo de página en sí (Apple tampoco lo usa así:
+   el vidrio flota sobre el contenido, no es el contenido). El brillo
+   especular se aproxima con un borde superior claro vía box-shadow
+   inset — no hay luz real que capturar en CSS, pero el highlight en
+   el borde de arriba es lo que más vende la sensación de vidrio.
+   ============================================================ */
+.glass {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(20px) saturate(2);
+  -webkit-backdrop-filter: blur(20px) saturate(2);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(11, 59, 56, 0.04),
+    0 8px 24px -12px rgba(11, 59, 56, 0.18);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(24px) saturate(1.9);
+  -webkit-backdrop-filter: blur(24px) saturate(1.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.glass-sheet {
+  background: rgba(242, 240, 234, 0.78);
+  backdrop-filter: blur(28px) saturate(1.5);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 -12px 40px -10px rgba(8, 45, 43, 0.35);
 }
 
 /* Anillo del score */

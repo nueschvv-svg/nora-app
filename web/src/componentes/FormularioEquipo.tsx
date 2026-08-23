@@ -100,7 +100,7 @@ export function FormularioEquipo({
         role="dialog"
         aria-modal="true"
         aria-label="Agregar un equipo"
-        className={`absolute bottom-0 inset-x-0 z-[56] bg-sand rounded-t-[26px] shadow-sheet max-h-[92%] overflow-y-auto no-scrollbar transition-transform duration-[400ms] ease-[cubic-bezier(.22,1,.36,1)] ${
+        className={`absolute bottom-0 inset-x-0 z-[56] glass-sheet rounded-t-[26px] max-h-[92%] overflow-y-auto no-scrollbar transition-transform duration-[400ms] ease-[cubic-bezier(.22,1,.36,1)] ${
           abierto ? "translate-y-0" : "translate-y-full"
         }`}
       >

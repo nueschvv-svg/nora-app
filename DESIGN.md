@@ -103,6 +103,39 @@ seriedad es literalmente el producto.
 
 **La Regla de los Dos Tenues.** `faint` es para texto (cumple AA); `faint-deco` es para decoración (no cumple AA como texto). No intercambiarlos.
 
+## Liquid Glass (2026)
+
+Rediseño pedido explícitamente por el cliente: llevar el sistema a un
+material traslúcido tipo "Liquid Glass" (Apple, WWDC 2025) en la CAPA
+DE CONTROLES/SUPERFICIES — barra superior, hojas inferiores, tarjetas
+de categoría, el card del chat — no en el fondo de página en sí, igual
+que en el sistema real de Apple: el vidrio flota sobre el contenido,
+no es el contenido.
+
+- **Fondo de página:** `body` (`globals.css`) ya no es `sand` plano —
+  tiene tres manchas radiales muy grandes y difusas en los dos colores
+  que YA son de la marca (`brand-500` verde y el rosa `#FF6B9D` del
+  corazón del logo, ver `LogoNora.tsx`) para que el vidrio tenga algo
+  de color debajo. Sigue siendo mono-marca: no se inventó una paleta
+  nueva, sólo se usó lo que ya existía en otro tono de opacidad.
+- **Clases de utilidad** (`globals.css`): `.glass` (tarjetas y
+  botones secundarios — fondo blanco al 40%, `backdrop-filter: blur(20px)
+  saturate(2)`, borde con brillo especular vía `box-shadow: inset`),
+  `.glass-nav` (barra superior) y `.glass-sheet` (hojas inferiores,
+  más opaca que `.glass` porque ahí hay texto largo que tiene que
+  seguir siendo legible).
+- **Dónde SÍ va vidrio:** `NavSuperior`, las hojas (`HojaServicio`,
+  `HojaNotificaciones`, `HojaLegal`, `FormularioEquipo`), el card de
+  `ChatNora`, la grilla de categorías de `/pedir`.
+- **Dónde NO va vidrio, a propósito:** el botón primario (`bg-brand-600`
+  sólido) — el vidrio baja contraste, y ahí es justo donde más importa
+  no bajarlo. Tampoco en `/pedir` sobre la alerta de riesgo real
+  (gas/agua+electricidad) ni en `/operaciones` (panel interno, fuera
+  de este rediseño).
+- **`--color-stage`** (el hero de scroll de `/inicio`) sigue siendo la
+  única ruptura total de estilo — ver la sección "Escena Cinema" más
+  abajo si existe, o `globals.css` directamente.
+
 ## Typography
 
 **Display Font:** Sora (con Inter de respaldo)

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -19,6 +20,8 @@ import {
 import { useApp } from "@/componentes/ContextoApp";
 import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { Bloque } from "@/componentes/Esqueleto";
+import { TituloPaso } from "@/componentes/TituloPaso";
+import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
 import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } from "@/lib/datos";
 import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
@@ -113,6 +116,7 @@ export default function PaginaPedir() {
 
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
   const [cargandoCats, setCargandoCats] = useState(true);
+  const gridCategoriasRef = useEntradaEscalonada<HTMLDivElement>(categorias.length > 0);
 
   /* Foto + diagnóstico. La foto vive sólo acá (en memoria del navegador)
      hasta que se manda a analizar — no se sube a ningún lado todavía:
@@ -401,11 +405,11 @@ export default function PaginaPedir() {
         {/* ---------- PASO 0: categoría ---------- */}
         {paso === 0 && (
           <section className="entra-paso">
-            <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+            <TituloPaso>
               ¿Qué necesitás
               <br />
               resolver?
-            </h1>
+            </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
               Arrancamos con estos rubros en {propiedadActual?.localidad ?? "tu zona"}. Vamos sumando más.
             </p>
@@ -433,7 +437,7 @@ export default function PaginaPedir() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3 mt-5">
+            <div ref={gridCategoriasRef} className="grid grid-cols-3 gap-3 mt-5">
               {categorias.map((c) => {
                 const elegida = categoria === c.slug;
                 return (
@@ -444,12 +448,12 @@ export default function PaginaPedir() {
                     onClick={() => setCategoria(c.slug)}
                     aria-pressed={elegida}
                     aria-label={c.activa ? c.nombre : `${c.nombre} — todavía no disponible`}
-                    className={`press relative flex flex-col items-center gap-2 rounded-2xl border shadow-card py-4 px-1 ${
+                    className={`press glass relative flex flex-col items-center gap-2 rounded-2xl py-4 px-1 ${
                       !c.activa
-                        ? "bg-surface/50 border-line opacity-55 cursor-not-allowed"
+                        ? "opacity-55 cursor-not-allowed"
                         : elegida
-                          ? "bg-surface border-brand-500 ring-2 ring-brand-500"
-                          : "bg-surface border-line"
+                          ? "ring-2 ring-brand-500"
+                          : ""
                     }`}
                   >
                     <span className={c.activa ? "text-brand-600" : "text-faint"}>
@@ -473,11 +477,11 @@ export default function PaginaPedir() {
         {/* ---------- PASO 1: el problema ---------- */}
         {paso === 1 && (
           <section className="entra-paso">
-            <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+            <TituloPaso>
               Contanos qué
               <br />
               está pasando
-            </h1>
+            </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
               Cuanto más detalle nos des, mejor preparados llegamos.
             </p>
@@ -582,11 +586,11 @@ export default function PaginaPedir() {
         {/* ---------- PASO 2: cuándo ---------- */}
         {paso === 2 && (
           <section className="entra-paso">
-            <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+            <TituloPaso>
               ¿Cuándo te
               <br />
               viene bien?
-            </h1>
+            </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
               Elegí día y franja. Te confirmamos el horario exacto.
             </p>
@@ -631,11 +635,11 @@ export default function PaginaPedir() {
             de confirmar — sólo aparece la primera vez que hace falta. ---------- */}
         {paso === pasoContacto && (
           <section className="entra-paso">
-            <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+            <TituloPaso>
               ¿A dónde
               <br />
               vamos?
-            </h1>
+            </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
               Necesitamos saber quién sos y a dónde vamos — sólo una vez.
             </p>
@@ -721,11 +725,11 @@ export default function PaginaPedir() {
         {/* ---------- PASO CONFIRMAR ---------- */}
         {paso === pasoConfirmar && (
           <section className="entra-paso">
-            <h1 className="text-[22px] font-bold font-display text-ink leading-tight">
+            <TituloPaso>
               Revisá y
               <br />
               enviá el pedido
-            </h1>
+            </TituloPaso>
 
             <div className="mt-5 rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden">
               <Fila etiqueta="Servicio" valor={catElegida?.nombre ?? "—"} />
@@ -899,14 +903,26 @@ function Confirmacion({
   franjaTexto: string;
 }) {
   const franjaCorta = franjaTexto.includes(" · ") ? franjaTexto.split(" · ")[1] : franjaTexto;
+  const checkRef = useRef<HTMLDivElement>(null);
+
+  /* El check merece un poco más de presupuesto de delight que el resto
+     del wizard — es el único momento de "listo, terminaste" de todo el
+     flujo. Elástico y una sola vez, no en loop. */
+  useEffect(() => {
+    const el = checkRef.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    gsap.fromTo(el, { scale: 0, rotate: -35 }, { scale: 1, rotate: 0, duration: 0.6, ease: "elastic.out(1, 0.6)" });
+  }, []);
 
   return (
     <div className="absolute inset-0 z-40 bg-sand flex flex-col overflow-y-auto no-scrollbar">
       <div className="flex-1 flex flex-col items-center px-6 pt-16 pb-6 text-center">
-        <div className="w-20 h-20 grid place-items-center rounded-full bg-good/15 text-good">
+        <div ref={checkRef} className="w-20 h-20 grid place-items-center rounded-full bg-good/15 text-good">
           <Check className="w-10 h-10" />
         </div>
-        <h1 className="text-[23px] font-bold font-display text-ink mt-5">¡Pedido enviado!</h1>
+        <TituloPaso className="text-[23px] font-bold font-display text-ink mt-5">
+          ¡Pedido enviado!
+        </TituloPaso>
         <p className="text-[13.5px] text-mute mt-2 max-w-[300px] leading-relaxed">
           Ya lo estamos viendo. En menos de 2 horas te contactamos por teléfono con el precio
           confirmado.

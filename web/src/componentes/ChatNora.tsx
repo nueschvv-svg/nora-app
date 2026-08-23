@@ -66,7 +66,7 @@ export function ChatNora() {
   };
 
   return (
-    <section className="rounded-xl3 bg-surface border border-line shadow-card p-4">
+    <section className="glass rounded-xl3 p-4">
       <div className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-0.5">
         {mensajes.map((m, i) => (
           <div

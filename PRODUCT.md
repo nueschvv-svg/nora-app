@@ -102,10 +102,17 @@ no por orden de llegada ni por quién paga más.
 
 - Catálogo real de categorías de servicio y tarifas ya cargado en la
   base (`db/`), sin datos de ejemplo inventados.
-- Cuentas de prueba reales usadas durante el desarrollo
-  (`noraprueba1@gmail.com` / `noraprueba2@gmail.com`, cliente
-  `hola123`, técnico `tecnico`) — no usar estos nombres como ejemplos de
-  producto final ni en copy visible a usuarios reales.
+- **Cliente: sin cuentas.** El middleware (`web/src/lib/supabase/middleware.ts`)
+  crea una sesión anónima real de Supabase (`auth.uid()` real, RLS
+  funciona igual) apenas alguien entra a cualquier pantalla de cliente
+  — nunca ve un login ni se registra. `/entrar` (email/contraseña)
+  existe en el código pero sólo es alcanzable desde rutas que exigen
+  cuenta real (`/operaciones`, `/cambiar-clave`); no es parte del
+  camino de un cliente. Las credenciales de prueba que estaban acá
+  antes (`noraprueba1@gmail.com`, etc.) quedaron de una versión previa
+  del producto y ya no sirven para nada del lado cliente — verificar
+  de nuevo antes de asumir que alguna cuenta de operaciones/técnico
+  sigue viva.
 - Sin testimonios, casos de estudio ni prensa todavía — la app no
   lanzó. No inventar ninguno.
 

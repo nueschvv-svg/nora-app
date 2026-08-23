@@ -10,6 +10,7 @@ import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { FormularioEquipo } from "@/componentes/FormularioEquipo";
 import { calcularScore, ordenarPorUrgencia } from "@/lib/score";
 import { mesAnio, textoVencimiento } from "@/lib/formato";
+import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
 
 export default function PaginaAgenda() {
   const { propiedad, equiposDe, cargando } = useApp();
@@ -19,6 +20,7 @@ export default function PaginaAgenda() {
     [equiposDe, propiedad],
   );
   const equipos = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
+  const listaRef = useEntradaEscalonada<HTMLDivElement>(equipos.length > 0);
 
   if (cargando || !propiedad) return <EsqueletoInicio />;
 
@@ -57,6 +59,7 @@ export default function PaginaAgenda() {
         )}
 
         <div
+          ref={listaRef}
           className={`rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden ${
             equipos.length === 0 ? "hidden" : ""
           }`}

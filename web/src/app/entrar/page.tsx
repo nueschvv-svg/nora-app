@@ -147,7 +147,7 @@ function Formulario() {
   if (revisarMail || mailRecuperacion) {
     return (
       <Marco>
-        <div className="text-center">
+        <div className="entra-suave text-center">
           <span className="inline-grid place-items-center w-16 h-16 rounded-2xl bg-brand-50 text-brand-600">
             <MailCheck className="w-7 h-7" />
           </span>
@@ -184,7 +184,7 @@ function Formulario() {
 
   return (
     <Marco>
-      <div className="flex flex-col items-center text-center">
+      <div className="entra-suave flex flex-col items-center text-center">
         <IsotipoNora className="h-14 w-auto" />
         <h1 className="text-[24px] font-bold font-display text-ink mt-3">
           {recuperando ? "Recuperar acceso" : registrando ? "Creá tu cuenta" : "Hola de nuevo"}
