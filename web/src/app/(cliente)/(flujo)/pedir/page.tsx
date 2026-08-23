@@ -105,8 +105,20 @@ export default function PaginaPedir() {
   const [localidadInicial, setLocalidadInicial] = useState("");
   const [provinciaInicial, setProvinciaInicial] = useState("Buenos Aires");
 
+  /* El teléfono es el dato que más importa de los tres que pide este
+     paso — sin él, operaciones no tiene forma de coordinar el pedido
+     ni de avisarle al cliente si algo cambia. Antes era el único
+     campo del paso que NO bloqueaba "Continuar" si quedaba vacío; el
+     mensaje que le llega al equipo por Telegram literalmente decía
+     "Teléfono: no cargado" en ese caso (ver lib/enrutamiento/telegram.ts).
+     8 dígitos sin contar espacios/guiones alcanza para no aceptar "123"
+     pero sin exigir un formato exacto — los números argentinos varían
+     bastante en longitud según si llevan código de área. */
+  const telefonoValido = telefonoInicial.replace(/\D/g, "").length >= 8;
+
   const datosInicialesValidos =
     nombreInicial.trim().length >= 2 &&
+    telefonoValido &&
     calleInicial.trim() !== "" &&
     numeroInicial.trim() !== "" &&
     localidadInicial.trim() !== "";
@@ -646,7 +658,8 @@ export default function PaginaPedir() {
 
             <CampoTexto
               id="nombre-inicial"
-              etiqueta="Tu nombre"
+              etiqueta="Nombre completo"
+              placeholder="Nombre y apellido"
               value={nombreInicial}
               onChange={(e) => setNombreInicial(e.target.value)}
               autoComplete="name"
@@ -654,7 +667,7 @@ export default function PaginaPedir() {
             <CampoTexto
               id="telefono-inicial"
               etiqueta="Teléfono"
-              ayuda="Para coordinar el pedido por WhatsApp o llamada."
+              ayuda="Para coordinar el pedido por WhatsApp o llamada — obligatorio, sin este dato no podemos avisarte nada."
               type="tel"
               inputMode="tel"
               value={telefonoInicial}
