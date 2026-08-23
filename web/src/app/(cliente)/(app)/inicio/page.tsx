@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { ChatNora } from "@/componentes/ChatNora";
 import { EscenaCinema } from "@/componentes/cinema/EscenaCinema";
 import { EsqueletoInicio, ErrorCarga } from "@/componentes/Esqueleto";
@@ -8,12 +9,27 @@ import { saludo } from "@/lib/formato";
 
 export default function PaginaInicio() {
   const { cargando, error, recargar } = useApp();
+  const mainRef = useRef<HTMLElement>(null);
+
+  /* Safari (a diferencia de Chrome) restaura la posición de scroll de
+     contenedores internos —no sólo de la ventana— al recargar la
+     misma pestaña (Cmd/Ctrl+R). Como EscenaCinema decide qué mostrar
+     según en qué posición de scroll está `main`, si arranca en una
+     posición vieja en vez de cero, la escena queda a mitad de camino
+     en vez de mostrar el estado inicial. Forzamos scroll cero acá
+     apenas `main` existe, pisando lo que haya restaurado el navegador.
+     Depende de `cargando` (no []) porque `main` recién se monta cuando
+     termina de cargar — antes de eso la ref todavía es null. */
+  useLayoutEffect(() => {
+    if (cargando) return;
+    mainRef.current?.scrollTo(0, 0);
+  }, [cargando]);
 
   if (cargando) return <EsqueletoInicio />;
   if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
 
   return (
-    <main className="h-full overflow-y-auto no-scrollbar pb-8">
+    <main ref={mainRef} className="h-full overflow-y-auto no-scrollbar pb-8">
       <EscenaCinema />
 
       {/* pt-[18vh] fijo, no centrado con flex: `justify-center`
