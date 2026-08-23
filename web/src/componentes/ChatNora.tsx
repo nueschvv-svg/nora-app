@@ -25,10 +25,19 @@ export function ChatNora() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState<{ categoriaSlug: string; resumen: string } | null>(null);
-  const finRef = useRef<HTMLDivElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
 
+  /* scrollTo() sobre el propio contenedor de mensajes, no
+     scrollIntoView() sobre un div sentinela al final: scrollIntoView
+     mueve TODOS los ancestros con scroll que hagan falta para que el
+     elemento quede a la vista, y acá arriba (ver PaginaInicio) main
+     también scrollea — así que cada mensaje nuevo empujaba la página
+     entera hacia abajo, tapando la barra superior. Moviendo el scroll
+     directo del contenedor interno, main nunca se entera. */
   useEffect(() => {
-    finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = listaRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [mensajes, enviando]);
 
   const enviar = async (e: React.FormEvent) => {
@@ -67,7 +76,7 @@ export function ChatNora() {
 
   return (
     <section className="glass rounded-xl3 p-4">
-      <div className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-0.5">
+      <div ref={listaRef} className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-0.5">
         {mensajes.map((m, i) => (
           <div
             key={i}
@@ -107,8 +116,6 @@ export function ChatNora() {
             {error}
           </p>
         )}
-
-        <div ref={finRef} />
       </div>
 
       {listo ? (

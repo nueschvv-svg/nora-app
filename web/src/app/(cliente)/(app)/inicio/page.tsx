@@ -16,13 +16,14 @@ export default function PaginaInicio() {
     <main className="h-full overflow-y-auto no-scrollbar pb-8">
       <EscenaCinema />
 
-      {/* min-h-[65vh] + centrado vertical: la escena se disuelve hacia
-          acá, y el pedido concreto era "que el chat quede a mitad de
-          pantalla, no abajo del todo". Con el 100dvh completo (probado
-          en vivo) quedaba demasiado espacio vacío antes de llegar al
-          contenido — 65vh es el punto donde aparece pronto Y centrado,
-          sin exigir una pantalla entera de scroll de más. */}
-      <div className="min-h-[65vh] flex flex-col justify-center">
+      {/* pt-[18vh] fijo, no centrado con flex: `justify-center`
+          recalculaba la posición cada vez que el chat crecía en alto
+          (cada mensaje nuevo, hasta llegar a su tope de 360px) — el
+          bloque entero saltaba de lugar mientras alguien escribía. Un
+          padding fijo pone el saludo a una altura razonable UNA sola
+          vez y ya no se mueve nunca más, sin importar cuánto crezca
+          la conversación. */}
+      <div className="pt-[18vh]">
         <header className="px-5 pb-2">
           <h1 className="text-[23px] font-bold font-display text-ink leading-tight">
             {saludo()}, será un placer ayudarte
