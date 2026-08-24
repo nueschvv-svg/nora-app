@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { HeroLlaveCasa } from "./HeroLlaveCasa";
+import type { ModoBienvenida } from "./useModoBienvenida";
 
-const CLAVE_SESION = "nora:cinema-visto";
-
-/* Primera vez en la sesión (mismo patrón que SplashBienvenida.tsx —
-   sessionStorage, no localStorage): la escena completa reacciona al
-   scroll — crece, gira, se disuelve. En visitas siguientes de la
-   misma sesión, y siempre que el sistema pida "reducir movimiento",
-   se muestra el ícono ya armado con una animación de reposo, sin
-   pedir scroll.
+/* `modo` llega por prop, decidido una sola vez en PaginaInicio con
+   useModoBienvenida — no se vuelve a leer sessionStorage acá. Dos
+   instancias del hook (una por componente) pisarían el resultado de
+   la otra: la primera en correr marca la sesión como "ya vista" antes
+   de que la segunda lea el flag, así que la segunda vería siempre
+   "oculto", incluso en la primera visita real. Con un único dueño del
+   estado (PaginaInicio) y esta pasándolo por prop, no hay carrera.
 
    La escena arranca como una capa `position: fixed` a pantalla
    completa — tapa TODO, incluida la barra superior y el botón "Pedir
@@ -37,26 +37,9 @@ const CLAVE_SESION = "nora:cinema-visto";
    contenido interactivo adentro, `pointer-events-none` es seguro y
    deja pasar el gesto directo a `main`, que es quien de verdad tiene
    que scrollear. */
-export function EscenaCinema() {
+export function EscenaCinema({ modo }: { modo: ModoBienvenida }) {
   const driverRef = useRef<HTMLDivElement>(null);
   const capaRef = useRef<HTMLDivElement>(null);
-  const [listo, setListo] = useState(false);
-  const [modoReposo, setModoReposo] = useState(true);
-  const decidido = useRef(false);
-
-  useEffect(() => {
-    if (decidido.current) return;
-    decidido.current = true;
-    if (typeof window === "undefined") return;
-    const yaVista = window.sessionStorage.getItem(CLAVE_SESION);
-    if (!yaVista) window.sessionStorage.setItem(CLAVE_SESION, "1");
-    const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    Promise.resolve().then(() => {
-      setModoReposo(!!yaVista || reducido);
-      setListo(true);
-    });
-  }, []);
 
   /* El placeholder y el modo reposo NO fijan una altura (antes era
      `h-[46vh] min-h-[320px]` con `overflow-hidden` + centrado) —
@@ -68,9 +51,11 @@ export function EscenaCinema() {
      parecía. Con py-16 en vez de una altura fija, la caja se ajusta
      sola al contenido — nunca se recorta, sin importar el tamaño de
      pantalla ni el idioma/tamaño de fuente. */
-  if (!listo) return <div className="min-h-[320px] escena-fondo" aria-hidden="true" />;
+  if (modo === "cargando") return <div className="min-h-[320px] escena-fondo" aria-hidden="true" />;
 
-  if (modoReposo) {
+  if (modo === "oculto") return null;
+
+  if (modo === "reposo") {
     return (
       <div className="escena-fondo py-16 grid place-items-center">
         <div className="cinema-reposo">
