@@ -62,10 +62,12 @@ fuerte (`brand-600`/`brand-700`) se reserva para los momentos donde
 hace falta autoridad real: el héroe de un pedido en curso, los botones
 de acción primaria, el marco del técnico en camino.
 
-La app vive dentro de un marco de teléfono (incluso en pantallas
-grandes) y se navega con hojas que suben desde abajo, no con páginas de
-pantalla completa — el efecto es el de una libreta de bolsillo, no el
-de un sitio web.
+Se navega con hojas que suben desde abajo, no con páginas de pantalla
+completa — el efecto es el de una libreta de bolsillo. El producto es
+mobile-first estricto (ver PRODUCT.md: "no hay versión de escritorio
+dedicada"); en pantallas anchas el sitio ocupa TODO el ancho, sin marco
+de teléfono ni columna angosta centrada — decisión explícita, ver
+`web/src/app/(cliente)/(app)/layout.tsx`: "sitio web, no mockup de app".
 
 **Key Characteristics:**
 - Cálido, no corporativo: arena en vez de blanco, verde azulado en vez de azul.
@@ -155,12 +157,17 @@ no es el contenido.
 
 ## Layout
 
-Mobile-first estricto, envuelto en un marco de teléfono incluso en
-viewports grandes (el "shell" `#ddd8ce` es el fondo detrás del marco en
-desktop). Padding de tarjeta estándar 14px; los héroes usan más aire
-(20–24px). El scroll vertical dentro de una hoja inferior nunca hace
-scroll horizontal en el body — cada tabla o contenido ancho tiene su
-propio contenedor con overflow controlado.
+Mobile-first estricto — sin versión de escritorio dedicada (ver
+PRODUCT.md). En viewports grandes, el sitio ocupa todo el ancho de la
+pantalla; no hay marco de teléfono ni columna angosta centrada
+(decisión explícita en `(cliente)/(app)/layout.tsx`, revirtiendo lo que
+esta sección decía antes). El token `shell` (`#ddd8ce`) queda del
+enfoque anterior y hoy no lo usa ningún componente — no reintroducirlo
+sin una decisión real de agregar un tratamiento de escritorio.
+Padding de tarjeta estándar 14px; los héroes usan más aire (20–24px).
+El scroll vertical dentro de una hoja inferior nunca hace scroll
+horizontal en el body — cada tabla o contenido ancho tiene su propio
+contenedor con overflow controlado.
 
 ## Elevation & Depth
 
