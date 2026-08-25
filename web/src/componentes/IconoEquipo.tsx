@@ -1,6 +1,5 @@
 import {
   AirVent,
-  BrickWall,
   Building2,
   CircleHelp,
   Droplet,
@@ -8,11 +7,12 @@ import {
   FireExtinguisher,
   Flame,
   Hammer,
+  HardHat,
   Heater,
   Home,
   House,
   KeyRound,
-  PaintRoller,
+  Paintbrush,
   Sparkles,
   Thermometer,
   Waves,
@@ -26,9 +26,17 @@ import {
    lo que significa que un cambio de la librería podía romper la app
    sin que tocáramos nada. Acá los íconos vienen del paquete instalado,
    con versión fija, y sólo viaja al navegador el que se usa. */
+/* "brick-wall" y "paint-roller" son los slugs guardados en la base
+   (columna `icono` de categorías) — no se tocan para no requerir una
+   migración. Lo que cambió es a qué ícono apuntan: BrickWall y
+   PaintRoller traen cada uno un <rect> grande de fondo (ver Lucide),
+   así que entre íconos de puro trazo se leían más "en caja"/pesados
+   que el resto — se notaba de verdad, un usuario probando la grilla
+   de rubros lo marcó. HardHat y Paintbrush son 100% trazo, sin relleno
+   de fondo, y quedan parejos con Wrench/Zap/Flame/etc. */
 const ICONOS = {
   "air-vent": AirVent,
-  "brick-wall": BrickWall,
+  "brick-wall": HardHat,
   "building-2": Building2,
   droplet: Droplet,
   droplets: Droplets,
@@ -41,7 +49,7 @@ const ICONOS = {
   home: Home,
   house: House,
   "key-round": KeyRound,
-  "paint-roller": PaintRoller,
+  "paint-roller": Paintbrush,
   sparkles: Sparkles,
   wind: Wind,
   wrench: Wrench,

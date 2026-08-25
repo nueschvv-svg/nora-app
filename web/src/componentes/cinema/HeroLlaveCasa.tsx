@@ -5,11 +5,11 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   AirVent,
-  BrickWall,
   Flame,
   Hammer,
+  HardHat,
   KeyRound,
-  PaintRoller,
+  Paintbrush,
   Sparkles,
   Wrench,
   Zap,
@@ -29,9 +29,9 @@ const CATEGORIAS: { Icono: LucideIcon; angulo: number }[] = [
   { Icono: KeyRound, angulo: 80 }, // Cerrajería
   { Icono: Flame, angulo: 120 }, // Gas
   { Icono: AirVent, angulo: 160 }, // Aire acondicionado
-  { Icono: PaintRoller, angulo: 200 }, // Pintura
+  { Icono: Paintbrush, angulo: 200 }, // Pintura
   { Icono: Hammer, angulo: 240 }, // Carpintería
-  { Icono: BrickWall, angulo: 280 }, // Albañilería
+  { Icono: HardHat, angulo: 280 }, // Albañilería
   { Icono: Sparkles, angulo: 320 }, // Limpieza
 ];
 
