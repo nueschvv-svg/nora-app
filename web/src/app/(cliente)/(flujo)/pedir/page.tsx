@@ -527,18 +527,25 @@ export default function PaginaPedir() {
                     onClick={() => setCategoria(c.slug)}
                     aria-pressed={elegida}
                     aria-label={c.activa ? c.nombre : `${c.nombre} — todavía no disponible`}
-                    className={`press glass relative flex flex-col items-center gap-2 rounded-2xl py-4 px-1 ${
+                    className={`press relative flex flex-col items-center gap-2 rounded-2xl py-4 px-1 transition-colors ${
                       !c.activa
-                        ? "opacity-55 cursor-not-allowed"
+                        ? "glass opacity-55 cursor-not-allowed"
                         : elegida
-                          ? "ring-2 ring-brand-500"
-                          : ""
+                          ? "bg-brand-600 shadow-fab"
+                          : "glass"
                     }`}
                   >
-                    <span className={c.activa ? "text-brand-600" : "text-faint"}>
+                    {elegida && (
+                      <span className="absolute top-1.5 right-1.5 w-4 h-4 grid place-items-center rounded-full bg-white text-brand-600">
+                        <Check className="w-3 h-3" strokeWidth={3} />
+                      </span>
+                    )}
+                    <span className={elegida ? "text-white" : c.activa ? "text-brand-600" : "text-faint"}>
                       <IconoEquipo nombre={c.icono} className="w-6 h-6" />
                     </span>
-                    <span className="text-[12px] font-medium text-mute text-center leading-tight">
+                    <span
+                      className={`text-[12px] font-medium text-center leading-tight ${elegida ? "text-white" : "text-mute"}`}
+                    >
                       {c.nombre}
                     </span>
                     {!c.activa && (
@@ -688,13 +695,17 @@ export default function PaginaPedir() {
                   type="button"
                   onClick={() => setDia(d.iso)}
                   aria-pressed={dia === d.iso}
-                  className={`press shrink-0 w-[64px] rounded-2xl border bg-surface shadow-card py-3 flex flex-col items-center gap-0.5 ${
-                    dia === d.iso ? "border-brand-500 ring-2 ring-brand-500" : "border-line"
+                  className={`press shrink-0 w-[64px] rounded-2xl shadow-card py-3 flex flex-col items-center gap-0.5 transition-colors ${
+                    dia === d.iso ? "bg-brand-600" : "border border-line bg-surface"
                   }`}
                 >
-                  <span className="text-[11px] text-faint uppercase">{d.diaSemana}</span>
-                  <span className="num text-[18px] font-bold text-ink">{d.numero}</span>
-                  <span className="text-[11px] text-faint">{d.mes}</span>
+                  <span className={`text-[11px] uppercase ${dia === d.iso ? "text-brand-100" : "text-faint"}`}>
+                    {d.diaSemana}
+                  </span>
+                  <span className={`num text-[18px] font-bold ${dia === d.iso ? "text-white" : "text-ink"}`}>
+                    {d.numero}
+                  </span>
+                  <span className={`text-[11px] ${dia === d.iso ? "text-brand-100" : "text-faint"}`}>{d.mes}</span>
                 </button>
               ))}
             </div>
@@ -706,8 +717,8 @@ export default function PaginaPedir() {
                   type="button"
                   onClick={() => setFranja(f.id)}
                   aria-pressed={franja === f.id}
-                  className={`press rounded-2xl border bg-surface shadow-card py-3.5 px-2 text-[13.5px] font-semibold text-ink ${
-                    franja === f.id ? "border-brand-500 ring-2 ring-brand-500" : "border-line"
+                  className={`press rounded-2xl shadow-card py-3.5 px-2 text-[13.5px] font-semibold transition-colors ${
+                    franja === f.id ? "bg-brand-600 text-white" : "border border-line bg-surface text-ink"
                   }`}
                 >
                   {f.texto}
