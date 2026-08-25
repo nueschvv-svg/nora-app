@@ -75,14 +75,31 @@ export function ChatNora() {
     router.push(`/pedir?${params.toString()}`);
   };
 
+  /* Pantalla completa, como WhatsApp: antes esto era una tarjeta
+     acotada (`max-h-[360px]` para los mensajes) flotando en medio de
+     la página — en el celular dejaba un montón de aire vacío abajo, y
+     en desktop se veía como una tira angosta perdida arriba de una
+     pantalla enorme. Ahora la sección ocupa el 100% del alto que le
+     da el padre (PaginaInicio la mete en un contenedor `flex-1`) y se
+     reparte en tres franjas: encabezado y pie fijos (`shrink-0`), la
+     lista de mensajes se lleva TODO el resto (`flex-1 min-h-0` — el
+     min-h-0 es necesario, si no un hijo flex no se achica más allá de
+     su contenido y el scroll interno deja de funcionar).
+
+     En el celular header y pie son `.glass` de punta a punta, sin
+     bordes redondeados ni margen — la sensación de "esto ES la
+     pantalla", no una tarjeta apoyada encima. Desde `sm:` para arriba
+     se envuelve en un panel con esquinas y sombra, apropiado para una
+     pantalla más grande donde ya no hace falta fingir que es la app
+     entera. */
   return (
-    <section className="glass rounded-xl3 p-4">
+    <section className="h-full flex flex-col overflow-hidden sm:rounded-xl3 sm:border sm:border-line/60 sm:shadow-card">
       {/* Encabezado de marca: sin esto el chat es una lista de globos
           sin firma — con el isotipo real y "en línea" (el mismo
           .live-dot que ya usa el resto de la app para estados en
           vivo) se lee como un producto de verdad, no un widget
           genérico pegado a la pantalla. */}
-      <div className="flex items-center gap-2.5 pb-3 mb-3 border-b border-line/60">
+      <div className="glass shrink-0 flex items-center gap-2.5 px-4 py-3 border-b border-line/50">
         <span className="shrink-0 w-9 h-9 grid place-items-center rounded-full bg-brand-600">
           <IsotipoNora className="w-5 h-5" variante="oscuro" />
         </span>
@@ -95,7 +112,7 @@ export function ChatNora() {
         </div>
       </div>
 
-      <div ref={listaRef} className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-0.5">
+      <div ref={listaRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto no-scrollbar px-4 py-4">
         {mensajes.map((m, i) => (
           <div
             key={i}
@@ -138,39 +155,41 @@ export function ChatNora() {
         )}
       </div>
 
-      {listo ? (
-        <button
-          type="button"
-          onClick={solicitarServicio}
-          className="cta-chat press mt-3 w-full flex items-center justify-center gap-2 rounded-full bg-brand-600 text-white px-5 py-3 text-[14px] font-semibold shadow-fab"
-        >
-          Solicitar servicio
-          <ArrowRight className="w-[17px] h-[17px]" />
-        </button>
-      ) : (
-        <form onSubmit={enviar} className="mt-3 flex items-center gap-2">
-          <label htmlFor="mensaje-nora" className="sr-only">
-            Escribile a Nora
-          </label>
-          <input
-            id="mensaje-nora"
-            type="text"
-            value={entrada}
-            onChange={(e) => setEntrada(e.target.value)}
-            placeholder="Ej: pierde agua la canilla de la cocina…"
-            disabled={enviando}
-            className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300 disabled:opacity-60"
-          />
+      <div className="glass shrink-0 px-4 py-3 border-t border-line/50">
+        {listo ? (
           <button
-            type="submit"
-            disabled={!entrada.trim() || enviando}
-            className="press shrink-0 w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab disabled:opacity-50"
-            aria-label="Enviar"
+            type="button"
+            onClick={solicitarServicio}
+            className="cta-chat press w-full flex items-center justify-center gap-2 rounded-full bg-brand-600 text-white px-5 py-3 text-[14px] font-semibold shadow-fab"
           >
-            <Send className="w-[18px] h-[18px]" />
+            Solicitar servicio
+            <ArrowRight className="w-[17px] h-[17px]" />
           </button>
-        </form>
-      )}
+        ) : (
+          <form onSubmit={enviar} className="flex items-center gap-2">
+            <label htmlFor="mensaje-nora" className="sr-only">
+              Escribile a Nora
+            </label>
+            <input
+              id="mensaje-nora"
+              type="text"
+              value={entrada}
+              onChange={(e) => setEntrada(e.target.value)}
+              placeholder="Ej: pierde agua la canilla de la cocina…"
+              disabled={enviando}
+              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300 disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={!entrada.trim() || enviando}
+              className="press shrink-0 w-11 h-11 grid place-items-center rounded-full bg-brand-600 text-white shadow-fab disabled:opacity-50"
+              aria-label="Enviar"
+            >
+              <Send className="w-[18px] h-[18px]" />
+            </button>
+          </form>
+        )}
+      </div>
     </section>
   );
 }
