@@ -59,9 +59,18 @@ export async function actualizarSesion(request: NextRequest) {
     if (!errorAnonimo && data.user) {
       return respuesta;
     }
-    /* Si signInAnonymously() falla (ej. anonymous sign-ins deshabilitado
-       en el proyecto), no hay forma de mostrar la pantalla — cae al
-       comportamiento de siempre en vez de romper en blanco. */
+    /* Si signInAnonymously() falla (ej. rate limit de Supabase en el
+       endpoint de alta anónima — pasó de verdad en desarrollo con
+       tráfico automatizado pesado, error_code "over_request_rate_limit"),
+       ANTES esto caía al chequeo de "sin sesión → /entrar" de más abajo.
+       Eso manda a un cliente real, sin cuenta ni credenciales, a la
+       pantalla de login del EQUIPO — un cliente en un pico de tráfico
+       real quedaría con la app completamente inaccesible, sin ninguna
+       salida. Se deja pasar el pedido en vez de eso: bastante de la app
+       sigue andando sin sesión (el catálogo y las tarifas son de
+       lectura pública), y lo que sí necesita `auth.uid()` falla más
+       adelante con su propio manejo de error, no con un login ajeno. */
+    return respuesta;
   }
 
   /* Sin sesión, una API responde 401; una pantalla redirige al login.
