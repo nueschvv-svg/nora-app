@@ -14,7 +14,20 @@ type Mensaje = { rol: "cliente" | "nora"; texto: string };
    — que lleva al flujo de pedir de siempre (/pedir), con el rubro y el
    resumen ya cargados. El saludo inicial es fijo y local (no gasta un
    solo token): no hace falta llamar al modelo sólo para decir "hola". */
-export function ChatNora() {
+export function ChatNora({
+  alEnviarPrimerMensaje,
+  siempreTarjeta = false,
+}: {
+  alEnviarPrimerMensaje?: () => void;
+  /* Por defecto, chrome de tarjeta (esquinas, borde, sombra) sólo
+     desde `sm:` — en el celular es a pantalla completa, sin bordes,
+     como WhatsApp. La escena cinema de /inicio necesita lo contrario
+     mientras el chat todavía es la tarjeta chica de bienvenida (antes
+     de que la persona escriba su primer mensaje): ahí SÍ hace falta
+     que se vea como tarjeta incluso en el celular, porque está
+     sentada en medio de la página, no ocupando toda la pantalla. */
+  siempreTarjeta?: boolean;
+} = {}) {
   const router = useRouter();
   const [mensajes, setMensajes] = useState<Mensaje[]>(() => [
     {
@@ -45,6 +58,10 @@ export function ChatNora() {
     e.preventDefault();
     const texto = entrada.trim();
     if (!texto || enviando) return;
+
+    // mensajes.length === 1 acá es sólo el saludo fijo de Nora — este
+    // es el primer mensaje que escribe la persona.
+    if (mensajes.length === 1) alEnviarPrimerMensaje?.();
 
     const nuevos: Mensaje[] = [...mensajes, { rol: "cliente", texto }];
     setMensajes(nuevos);
@@ -93,7 +110,13 @@ export function ChatNora() {
      pantalla más grande donde ya no hace falta fingir que es la app
      entera. */
   return (
-    <section className="h-full flex flex-col overflow-hidden sm:rounded-xl3 sm:border sm:border-line/60 sm:shadow-card">
+    <section
+      className={`h-full flex flex-col overflow-hidden ${
+        siempreTarjeta
+          ? "rounded-xl3 border border-line/60 shadow-card"
+          : "sm:rounded-xl3 sm:border sm:border-line/60 sm:shadow-card"
+      }`}
+    >
       {/* Encabezado de marca: sin esto el chat es una lista de globos
           sin firma — con el isotipo real y "en línea" (el mismo
           .live-dot que ya usa el resto de la app para estados en
