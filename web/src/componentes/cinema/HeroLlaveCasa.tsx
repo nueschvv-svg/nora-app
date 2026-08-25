@@ -5,12 +5,12 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   AirVent,
+  Broom,
   Flame,
   Hammer,
   HardHat,
   KeyRound,
   Paintbrush,
-  Sparkles,
   Wrench,
   Zap,
   type LucideIcon,
@@ -32,7 +32,7 @@ const CATEGORIAS: { Icono: LucideIcon; angulo: number }[] = [
   { Icono: Paintbrush, angulo: 200 }, // Pintura
   { Icono: Hammer, angulo: 240 }, // Carpintería
   { Icono: HardHat, angulo: 280 }, // Albañilería
-  { Icono: Sparkles, angulo: 320 }, // Limpieza
+  { Icono: Broom, angulo: 320 }, // Limpieza
 ];
 
 const RADIO_MAX = 128; // px, antes de aplicar la escala del contenedor

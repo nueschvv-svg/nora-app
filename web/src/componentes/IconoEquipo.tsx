@@ -1,5 +1,6 @@
 import {
   AirVent,
+  Broom,
   Building2,
   CircleHelp,
   Droplet,
@@ -13,7 +14,6 @@ import {
   House,
   KeyRound,
   Paintbrush,
-  Sparkles,
   Thermometer,
   Waves,
   Wind,
@@ -26,14 +26,21 @@ import {
    lo que significa que un cambio de la librería podía romper la app
    sin que tocáramos nada. Acá los íconos vienen del paquete instalado,
    con versión fija, y sólo viaja al navegador el que se usa. */
-/* "brick-wall" y "paint-roller" son los slugs guardados en la base
-   (columna `icono` de categorías) — no se tocan para no requerir una
-   migración. Lo que cambió es a qué ícono apuntan: BrickWall y
-   PaintRoller traen cada uno un <rect> grande de fondo (ver Lucide),
-   así que entre íconos de puro trazo se leían más "en caja"/pesados
-   que el resto — se notaba de verdad, un usuario probando la grilla
-   de rubros lo marcó. HardHat y Paintbrush son 100% trazo, sin relleno
-   de fondo, y quedan parejos con Wrench/Zap/Flame/etc. */
+/* "brick-wall", "paint-roller" y "sparkles" son los slugs guardados en
+   la base (columna `icono` de categorías) — no se tocan para no
+   requerir una migración. Lo que cambió es a qué ícono apuntan:
+   - BrickWall/PaintRoller traían cada uno un <rect> grande de fondo,
+     así que entre íconos de puro trazo se leían más "en caja"/pesados
+     que el resto.
+   - Sparkles medía lo mismo en el contenedor (24x24) que cualquier
+     otro, pero su propio dibujo ocupa una fracción mucho más chica de
+     ese cuadro que el resto (comprobado renderizando los 9 íconos uno
+     al lado del otro a 96px con el mismo cuadro delimitador) — se veía
+     visiblemente más chico/liviano, no una percepción, una diferencia
+     real de cuánto "tinta" tiene cada uno.
+   HardHat, Paintbrush y Broom son 100% trazo, sin relleno de fondo, y
+   ocupan un porcentaje del cuadro mucho más parecido al resto
+   (Wrench/Zap/Flame/etc). */
 const ICONOS = {
   "air-vent": AirVent,
   "brick-wall": HardHat,
@@ -50,7 +57,7 @@ const ICONOS = {
   house: House,
   "key-round": KeyRound,
   "paint-roller": Paintbrush,
-  sparkles: Sparkles,
+  sparkles: Broom,
   wind: Wind,
   wrench: Wrench,
   zap: Zap,
