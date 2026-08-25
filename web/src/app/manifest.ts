@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
    Los íconos hay que generarlos a partir del isotipo (pendiente). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Nora — Tu hogar, en control",
+    name: "Nora, tu hogar en control",
     short_name: "Nora",
     description:
       "Pedí un servicio para tu casa y seguí todo desde el celular. Técnicos verificados y presupuesto claro.",

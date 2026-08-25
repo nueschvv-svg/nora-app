@@ -508,3 +508,18 @@ body {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Selección de texto y cursor de escritura con la marca — sin esto
+   quedan en el azul por defecto del navegador, que no pertenece a
+   ningún lado del sistema (dos colores de acento donde debería haber
+   uno solo). Costaba cero notarlo, así que no había razón para no
+   tenerlo hecho. */
+::selection {
+  background: var(--color-brand-300);
+  color: var(--color-brand-900);
+}
+
+input,
+textarea {
+  caret-color: var(--color-brand-500);
+}

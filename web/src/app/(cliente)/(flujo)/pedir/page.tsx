@@ -582,10 +582,17 @@ export default function PaginaPedir() {
               placeholder="Ej: pierde agua la conexión de abajo de la bacha de la cocina, gotea desde ayer."
               className="mt-3 w-full rounded-2xl bg-surface border border-line shadow-card p-4 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
             />
+            {/* "alcanza" acá se refería sólo al mínimo para poder analizar
+                el texto, no a si el detalle es suficiente para un
+                diagnóstico preciso — pero la respuesta de Nora de abajo
+                también usa "alcanza"/"no alcanza" para ESO otro, y las dos
+                frases una debajo de la otra se leían como si se
+                contradijeran. Frases sin la palabra en común, mismo
+                significado, sin choque. */}
             <p className="text-[11.5px] text-faint mt-1.5 px-1">
               {descripcion.trim().length >= 10 || foto
-                ? "Perfecto, con eso alcanza."
-                : "Escribí unas palabras o mandá una foto — con cualquiera de las dos alcanza."}
+                ? "Perfecto, ya podemos analizarlo."
+                : "Escribí unas palabras o mandá una foto para que Nora lo analice."}
             </p>
 
             {/* La foto se manda a analizar apenas se elige: es lo que

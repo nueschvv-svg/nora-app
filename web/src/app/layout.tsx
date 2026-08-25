@@ -27,7 +27,7 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Nora — Tu hogar, en control",
+  title: "Nora, tu hogar en control",
   description:
     "Pedí un servicio para tu casa y seguí todo desde el celular. Precio claro y equipo propio de confianza.",
   applicationName: "Nora",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   openGraph: {
-    title: "Nora — Tu hogar, en control",
+    title: "Nora, tu hogar en control",
     description:
       "Pedí un servicio para tu casa y seguí todo desde el celular. Precio claro y equipo propio de confianza.",
     type: "website",
