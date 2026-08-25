@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
-import { HeroLlaveCasa } from "./HeroLlaveCasa";
+import { HeroLlaveCasa, contenedorScrolleable } from "./HeroLlaveCasa";
 import type { ModoBienvenida } from "./useModoBienvenida";
 
 /* `modo` llega por prop, decidido una sola vez en PaginaInicio con
@@ -33,13 +33,36 @@ import type { ModoBienvenida } from "./useModoBienvenida";
    sacarla con el portal, deja de ser descendiente de `main` en el DOM
    real — y como tapa toda la pantalla, cualquier gesto de rueda o
    touch caía sobre ELLA, no sobre `main`, así que el scroll real (no
-   el que yo simulaba por código en las pruebas) no hacía nada. Sin
-   contenido interactivo adentro, `pointer-events-none` es seguro y
-   deja pasar el gesto directo a `main`, que es quien de verdad tiene
-   que scrollear. */
+   el que yo simulaba por código en las pruebas) no hacía nada. El
+   botón "Ir al chat" de abajo es la ÚNICA excepción — lleva su propio
+   `pointer-events-auto` para recibir el click, todo lo demás de la
+   capa sigue dejando pasar el gesto directo a `main`. */
 export function EscenaCinema({ modo }: { modo: ModoBienvenida }) {
   const driverRef = useRef<HTMLDivElement>(null);
   const capaRef = useRef<HTMLDivElement>(null);
+
+  /* Saltar directo al chat: alguien que abre la app con un problema
+     real en la casa no tiene por qué depender de encontrar la pista de
+     scroll — antes esa pista era el único camino (un chevron chico y
+     semitransparente, sin texto). El destino es el FINAL del driver
+     (`driver.offsetTop + driver.offsetHeight`), no el punto donde
+     ScrollTrigger marca `end: "bottom bottom"` (fondo del driver
+     alineado con el fondo del contenedor) — probado en vivo: en ESE
+     punto la capa fija ya está transparente, pero el driver (un div
+     vacío, sólo de altura) todavía ocupa toda la pantalla, así que se
+     ve un hueco en blanco antes de que el saludo entre en pantalla.
+     Scrolleando hasta el final real del driver, el saludo queda
+     pegado arriba del todo, sin hueco. */
+  const saltarAlChat = () => {
+    const driver = driverRef.current;
+    if (!driver) return;
+    const scroller = contenedorScrolleable(driver);
+    const destino = driver.offsetTop + driver.offsetHeight;
+    const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const opciones: ScrollToOptions = { top: destino, behavior: reducido ? "auto" : "smooth" };
+    if (scroller) scroller.scrollTo(opciones);
+    else window.scrollTo(opciones);
+  };
 
   /* El placeholder y el modo reposo NO fijan una altura (antes era
      `h-[46vh] min-h-[320px]` con `overflow-hidden` + centrado) —
@@ -74,7 +97,14 @@ export function EscenaCinema({ modo }: { modo: ModoBienvenida }) {
         >
           <div className="grano-escena" />
           <HeroLlaveCasa driverRef={driverRef} capaRef={capaRef} />
-          <ChevronDown className="absolute bottom-8 left-1/2 -translate-x-1/2 w-5 h-5 text-brand-200/50 animate-bounce" />
+          <button
+            type="button"
+            onClick={saltarAlChat}
+            className="respira-cta press pointer-events-auto absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-brand-100/85"
+          >
+            <span className="text-[12px] font-medium tracking-wide">Ir al chat</span>
+            <ChevronDown className="w-5 h-5" />
+          </button>
         </div>,
         document.body,
       )}

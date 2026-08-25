@@ -368,11 +368,24 @@ body {
      curso" (ver Confirmacion en /pedir y SplashBienvenida) — reusado
      acá, no un color nuevo. Las dos manchas extra (rosa del corazón
      del logo + un verde más claro abajo) son lo que le suma la
-     riqueza que pedía el cliente sin salirse de la marca. */
+     riqueza que pedía el cliente sin salirse de la marca.
+
+     background-color explícito (mismo tono que el último stop del
+     degradé) además del shorthand: un chequeo de contraste automático
+     que sólo lee `background-color` (no `background-image`) ve
+     transparente acá y cae hasta `sand` dos niveles arriba — un falso
+     positivo real, verificado en vivo esta sesión (el texto blanco de
+     la bienvenida SÍ tiene contraste real contra el degradé oscuro).
+     Este color de respaldo no cambia nada visual, sólo le da a esa
+     clase de herramienta el dato correcto para leer. El shorthand
+     `background` resetea `background-color` a transparente salvo que
+     el color vaya DENTRO de la lista (como acá, al final) — el mismo
+     patrón que ya usa `body` más arriba con `--color-sand`. */
   background:
     radial-gradient(52% 42% at 18% 8%, rgba(255, 107, 157, 0.16) 0%, transparent 62%),
     radial-gradient(70% 60% at 50% 100%, rgba(20, 133, 122, 0.35) 0%, transparent 65%),
-    radial-gradient(120% 80% at 100% 0%, #14857a 0%, #0e5c54 38%, var(--color-stage) 100%);
+    radial-gradient(120% 80% at 100% 0%, #14857a 0%, #0e5c54 38%, var(--color-stage) 100%),
+    var(--color-stage);
 }
 
 /* Grano sutil sobre la escena — sin esto, un degradé grande a pantalla
@@ -386,6 +399,25 @@ body {
   mix-blend-mode: overlay;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Pista de "seguí scrolleando"/salto directo al chat — antes usaba
+   animate-bounce de Tailwind (elástico, se lee viejo); un respiro lento
+   de opacidad+traslado en ease-out combina mejor con el resto del
+   sistema, que no usa rebotes en ningún otro lado. */
+@keyframes respira-cta {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(5px);
+  }
+}
+.respira-cta {
+  animation: respira-cta 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 @keyframes cinema-reposo {

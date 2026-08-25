@@ -50,7 +50,7 @@ function faseOrbita(progreso: number) {
   return (progreso - 0.18) / (0.8 - 0.18);
 }
 
-function contenedorScrolleable(el: HTMLElement | null): HTMLElement | null {
+export function contenedorScrolleable(el: HTMLElement | null): HTMLElement | null {
   let nodo = el?.parentElement ?? null;
   while (nodo) {
     if (/(auto|scroll)/.test(getComputedStyle(nodo).overflowY)) return nodo;
