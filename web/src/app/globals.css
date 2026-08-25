@@ -502,6 +502,24 @@ body {
   }
 }
 
+/* Safari de iPhone hace zoom automático a pantalla completa al tocar
+   cualquier input/textarea/select con letra de menos de 16px — no es
+   configurable, es el navegador decidiendo que el texto es "muy
+   chico" para leer. La solución NO es bloquear el zoom del usuario
+   (ver el bloque de arriba: eso ya se identificó como un error del
+   prototipo y se sacó a propósito) — es que ningún campo de texto
+   tenga letra menor a 16px en el celular, así Safari nunca activa el
+   zoom en primer lugar. Sólo hasta el corte `sm` (640px): en
+   desktop/tablet con mouse este comportamiento de Safari no existe,
+   así que ahí cada campo mantiene el tamaño de letra que ya tenía. */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Foco visible para navegación por teclado */
 :focus-visible {
   outline: 2px solid var(--color-brand-500);
