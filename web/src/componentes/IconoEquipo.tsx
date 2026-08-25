@@ -13,6 +13,7 @@ import {
   Home,
   House,
   KeyRound,
+  type LucideIcon,
   Paintbrush,
   Thermometer,
   Waves,
@@ -34,34 +35,42 @@ import {
      que el resto.
    - Sparkles medía lo mismo en el contenedor (24x24) que cualquier
      otro, pero su propio dibujo ocupa una fracción mucho más chica de
-     ese cuadro que el resto (comprobado renderizando los 9 íconos uno
-     al lado del otro a 96px con el mismo cuadro delimitador) — se veía
-     visiblemente más chico/liviano, no una percepción, una diferencia
-     real de cuánto "tinta" tiene cada uno.
-   HardHat, Paintbrush y Broom son 100% trazo, sin relleno de fondo, y
-   ocupan un porcentaje del cuadro mucho más parecido al resto
-   (Wrench/Zap/Flame/etc). */
-const ICONOS = {
-  "air-vent": AirVent,
-  "brick-wall": HardHat,
-  "building-2": Building2,
-  droplet: Droplet,
-  droplets: Droplets,
-  flame: Flame,
-  "fire-extinguisher": FireExtinguisher,
-  hammer: Hammer,
-  heater: Heater,
-  thermometer: Thermometer,
-  waves: Waves,
-  home: Home,
-  house: House,
-  "key-round": KeyRound,
-  "paint-roller": Paintbrush,
-  sparkles: Broom,
-  wind: Wind,
-  wrench: Wrench,
-  zap: Zap,
-} as const;
+     ese cuadro que el resto — se veía visiblemente más chico/liviano.
+   HardHat, Paintbrush y Broom son 100% trazo, sin relleno de fondo.
+
+   Con eso corregido, seguía habiendo una diferencia real entre wrench
+   (Plomería) y key-round (Cerrajería): medí ambos a fondo (bounding
+   box, densidad real de píxeles pintados, tamaño y posición del <svg>
+   dentro de la tarjeta) y los dos salieron técnicamente idénticos al
+   resto — mismo contenedor 24x24, mismo `fill:none`, mismo
+   `strokeWidth:2` de Lucide, misma posición. La diferencia no es un
+   bug: es la forma de cada trazo. Wrench dibuja curvas anchas que con
+   punta y unión redondeadas (default de Lucide) se leen macizas; el
+   cuerpo de key-round es un vástago fino con mucho espacio vacío
+   alrededor. Se corrige con un `strokeWidth` por ícono, no reemplazando
+   ninguno de los dos — wrench y key-round son los términos correctos y
+   no traen relleno de fondo, no hay razón real para sacarlos. */
+const ICONOS: Record<string, { Componente: LucideIcon; strokeWidth?: number }> = {
+  "air-vent": { Componente: AirVent },
+  "brick-wall": { Componente: HardHat },
+  "building-2": { Componente: Building2 },
+  droplet: { Componente: Droplet },
+  droplets: { Componente: Droplets },
+  flame: { Componente: Flame },
+  "fire-extinguisher": { Componente: FireExtinguisher },
+  hammer: { Componente: Hammer },
+  heater: { Componente: Heater },
+  thermometer: { Componente: Thermometer },
+  waves: { Componente: Waves },
+  home: { Componente: Home },
+  house: { Componente: House },
+  "key-round": { Componente: KeyRound, strokeWidth: 2.5 },
+  "paint-roller": { Componente: Paintbrush },
+  sparkles: { Componente: Broom },
+  wind: { Componente: Wind },
+  wrench: { Componente: Wrench, strokeWidth: 1.75 },
+  zap: { Componente: Zap },
+};
 
 export type NombreIcono = keyof typeof ICONOS;
 
@@ -72,6 +81,7 @@ export function IconoEquipo({
   nombre: string;
   className?: string;
 }) {
-  const Componente = ICONOS[nombre as NombreIcono] ?? CircleHelp;
-  return <Componente className={className} />;
+  const entrada = ICONOS[nombre];
+  const Componente = entrada?.Componente ?? CircleHelp;
+  return <Componente className={className} strokeWidth={entrada?.strokeWidth} />;
 }
