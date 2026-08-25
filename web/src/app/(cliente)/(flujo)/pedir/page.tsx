@@ -438,8 +438,16 @@ export default function PaginaPedir() {
 
   return (
     <div className="absolute inset-0 z-40 bg-sand flex flex-col">
-      {/* --- Encabezado con progreso --- */}
-      <div className="px-5 pt-12 pb-3 flex items-center gap-3">
+      {/* --- Encabezado con progreso ---
+          max-w-xl mx-auto en las tres franjas (encabezado, contenido
+          scrolleable, pie) — antes cada una ocupaba el ancho entero de
+          la pantalla sin límite. En el celular no se nota (ya es
+          angosto), pero en tablet/desktop la grilla de categorías y el
+          textarea se estiraban a 1400px+ y quedaban con muchísimo aire
+          vacío a los costados, más parecido a un layout roto que a un
+          sitio prolijo. El fondo (bg-sand) sigue ocupando todo el
+          ancho — sólo el contenido en sí se centra y se limita. */}
+      <div className="px-5 pt-12 pb-3 flex items-center gap-3 max-w-xl mx-auto w-full">
         <button
           type="button"
           onClick={() => (paso === 0 ? router.push("/inicio") : setPaso(paso - 1))}
@@ -472,7 +480,7 @@ export default function PaginaPedir() {
         </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-xl mx-auto w-full">
         {/* ---------- PASO 0: categoría ---------- */}
         {paso === 0 && (
           <section className="entra-paso">
@@ -888,7 +896,7 @@ export default function PaginaPedir() {
       </div>
 
       {/* --- Pie con el botón de avance --- */}
-      <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent">
+      <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent max-w-xl mx-auto w-full">
         {error && (
           <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mb-2.5">
             {error}

@@ -48,16 +48,24 @@ export default function PaginaInicio() {
     <main ref={mainRef} className="h-full overflow-y-auto no-scrollbar pb-8">
       <EscenaCinema modo={modoBienvenida} />
 
+      {/* max-w-xl mx-auto: el saludo y el chat quedaban estirados al
+          ancho entero de la pantalla en tablet/desktop — el título se
+          leía como un renglón gigante y el chat como una tira angosta
+          perdida en medio de muchísimo aire. La escena cinema de arriba
+          sigue a pantalla completa (es el momento dramático), esto sólo
+          limita el contenido de después. */}
       <div className={conEscena ? "pt-[18vh]" : "pt-6"}>
-        <header className="px-5 pb-2">
-          <h1 className="text-[23px] font-bold font-display text-ink leading-tight">
-            {saludo()}, será un placer ayudarte
-          </h1>
-        </header>
+        <div className="max-w-xl mx-auto w-full">
+          <header className="px-5 pb-2">
+            <h1 className="text-[23px] font-bold font-display text-ink leading-tight">
+              {saludo()}, será un placer ayudarte
+            </h1>
+          </header>
 
-        <div className="px-5 space-y-3.5">
-          {/* --- El chat: puerta de entrada para pedir un servicio --- */}
-          <ChatNora />
+          <div className="px-5 space-y-3.5">
+            {/* --- El chat: puerta de entrada para pedir un servicio --- */}
+            <ChatNora />
+          </div>
         </div>
       </div>
     </main>
