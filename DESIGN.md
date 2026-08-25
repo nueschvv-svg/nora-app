@@ -157,13 +157,23 @@ no es el contenido.
 
 ## Layout
 
-Mobile-first estricto — sin versión de escritorio dedicada (ver
-PRODUCT.md). En viewports grandes, el sitio ocupa todo el ancho de la
-pantalla; no hay marco de teléfono ni columna angosta centrada
-(decisión explícita en `(cliente)/(app)/layout.tsx`, revirtiendo lo que
-esta sección decía antes). El token `shell` (`#ddd8ce`) queda del
-enfoque anterior y hoy no lo usa ningún componente — no reintroducirlo
-sin una decisión real de agregar un tratamiento de escritorio.
+Mobile-first — sin versión de escritorio dedicada como producto (ver
+PRODUCT.md), pero sí responsive: la app tiene que verse prolija en
+teléfono, tablet y desktop, no sólo funcionar en los tres.
+
+El fondo (`bg-sand`, la barra superior, la escena cinema de /inicio)
+ocupa todo el ancho de la pantalla siempre. El CONTENIDO adentro
+(saludo, chat, los pasos de /pedir) va en una columna `max-w-xl
+mx-auto` — en el celular no se nota (ya es angosto), pero evita que en
+tablet/desktop el texto y las tarjetas se estiren a un ancho absurdo
+con aire vacío a los costados. Esto NO es el "marco de teléfono con
+sombra" que describía antes esta sección — `(cliente)/(app)/layout.tsx`
+sigue rechazando eso explícitamente ("sitio web, no mockup de app").
+Es sólo un ancho de lectura razonable, el mismo patrón que usa casi
+cualquier sitio responsive. El token `shell` (`#ddd8ce`) sigue sin
+usarlo ningún componente — era del enfoque de marco-de-teléfono
+abandonado, no de este.
+
 Padding de tarjeta estándar 14px; los héroes usan más aire (20–24px).
 El scroll vertical dentro de una hoja inferior nunca hace scroll
 horizontal en el body — cada tabla o contenido ancho tiene su propio
