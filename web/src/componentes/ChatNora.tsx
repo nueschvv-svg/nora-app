@@ -86,6 +86,18 @@ export function ChatNora({
 
   const solicitarServicio = () => {
     if (!listo) return;
+    /* El query string sólo lleva el resumen de una frase — acá guardamos
+       la conversación real (lo que escribió la persona, no lo que
+       respondió Nora) para que /pedir arranque el análisis con contexto
+       de verdad. sessionStorage porque es sólo para este handoff en la
+       misma pestaña; si está deshabilitado (privado) no rompe nada, el
+       resumen de la URL sigue funcionando solo. */
+    try {
+      sessionStorage.setItem(
+        "nora:contextoChat",
+        JSON.stringify({ mensajesCliente: mensajes.filter((m) => m.rol === "cliente").map((m) => m.texto) })
+      );
+    } catch {}
     const params = new URLSearchParams();
     if (listo.resumen) params.set("texto", listo.resumen);
     params.set("categoria", listo.categoriaSlug);

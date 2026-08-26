@@ -29,12 +29,11 @@ import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
 import { actualizarMisDatosPersonales, misDatosPersonales } from "@/lib/perfil";
 import { type Propiedad, type Servicio } from "@/lib/tipos";
 
-const PROVINCIAS = [
-  "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes",
-  "Entre Ríos", "Formosa", "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones",
-  "Neuquén", "Río Negro", "Salta", "San Juan", "San Luis", "Santa Cruz", "Santa Fe",
-  "Santiago del Estero", "Tierra del Fuego", "Tucumán",
-];
+/* Acotado a la zona donde de verdad tenemos cobertura hoy — antes
+   listaba las 24 provincias argentinas, dando a entender que
+   podíamos llegar a cualquier lado del país. Volver a sumar
+   provincias cuando haya técnicos reales fuera de CABA/GBA. */
+const PROVINCIAS = ["CABA", "Buenos Aires"];
 
 /* FLUJO DE PEDIDO — versión MVP honesta.
 
@@ -123,11 +122,21 @@ export default function PaginaPedir() {
     setEditandoContacto(true);
   };
 
-  const PASOS = ["Categoría", "El problema", "Cuándo", "Contacto", "Confirmar"];
-  const pasoContacto = 3;
+  const PASOS = ["Categoría", "El problema", "Análisis", "Cuándo", "Contacto", "Confirmar"];
+  const pasoAnalisis = 2;
+  const pasoCuando = 3;
+  const pasoContacto = 4;
   const pasoConfirmar = PASOS.length - 1;
 
-  const [paso, setPaso] = useState(0);
+  /* Si Nora ya identificó el rubro Y ya tiene contexto real del chat
+     (los dos viajan juntos, ver ChatNora.tsx), no tiene sentido
+     hacerla elegir categoría y volver a escribir el problema — eso ya
+     pasó en la charla. Arranca directo en Análisis, que dispara solo
+     el primer diagnóstico apenas monta (ver PasoAnalisis). Quien entra
+     directo a /pedir (sin pasar por el chat) sigue el camino de
+     siempre. */
+  const [llegoDesdeChat] = useState(() => !!(searchParams.get("categoria") && searchParams.get("texto")));
+  const [paso, setPaso] = useState(() => (llegoDesdeChat ? pasoAnalisis : 0));
   /* Si Nora ya identificó el rubro en el chat de Inicio, viaja acá en la
      URL y arranca preseleccionado — la persona igual puede cambiarlo en
      este mismo paso, esto sólo le ahorra un toque. */
@@ -136,8 +145,27 @@ export default function PaginaPedir() {
      el texto ya escrito viaja en la URL — se precarga acá para no
      hacer a la persona escribirlo dos veces. Sólo se lee una vez, al
      montar: si después cambia la URL (el usuario vuelve atrás y
-     entra de nuevo, por ejemplo) no le pisa lo que ya haya tipeado. */
-  const [descripcion, setDescripcion] = useState(() => searchParams.get("texto") ?? "");
+     entra de nuevo, por ejemplo) no le pisa lo que ya haya tipeado.
+
+     El resumen de la URL es sólo una frase de Nora — el contexto real
+     (lo que la persona realmente escribió en la charla) viaja aparte
+     por sessionStorage, ver ChatNora.tsx. Se lee una sola vez acá
+     también, y se borra apenas se lee, para no reusarlo si más
+     adelante se vuelve a entrar a /pedir de otra forma. */
+  const [descripcion, setDescripcion] = useState(() => {
+    const textoUrl = searchParams.get("texto") ?? "";
+    if (typeof window === "undefined") return textoUrl;
+    try {
+      const crudo = sessionStorage.getItem("nora:contextoChat");
+      if (!crudo) return textoUrl;
+      sessionStorage.removeItem("nora:contextoChat");
+      const datos = JSON.parse(crudo) as { mensajesCliente?: string[] };
+      if (!datos.mensajesCliente?.length) return textoUrl;
+      return [textoUrl, ...datos.mensajesCliente].join("\n\n").slice(0, 4000);
+    } catch {
+      return textoUrl;
+    }
+  });
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [servicioEnviado, setServicioEnviado] = useState<Servicio | null>(null);
@@ -163,17 +191,30 @@ export default function PaginaPedir() {
      bastante en longitud según si llevan código de área. */
   const telefonoValido = telefonoInicial.replace(/\D/g, "").length >= 8;
 
+  /* Mail sigue siendo opcional (sólo sirve para el comprobante) — acá
+     sólo se valida el FORMATO, y sólo si escribieron algo. Antes no
+     había ninguna validación de mail en el código, pese a que el
+     campo ya pedía type="email": un mail mal escrito se guardaba tal
+     cual, sin avisar a nadie. */
+  const MAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const mailValido = mailInicial.trim() === "" || MAIL_REGEX.test(mailInicial.trim());
+
   const datosInicialesValidos =
     nombreInicial.trim().length >= 2 &&
     telefonoValido &&
+    mailValido &&
     calleInicial.trim() !== "" &&
     numeroInicial.trim() !== "" &&
     localidadInicial.trim() !== "";
 
-  /* En el paso de contacto se puede avanzar si: se está mostrando el
-     resumen de datos ya guardados (nada que validar, sólo confirmar),
-     o si se está editando y esos datos ya son válidos. */
-  const puedeConfirmarPasoContacto = !editandoContacto ? !cargandoPerfilPrevio : datosInicialesValidos;
+  /* Antes, si los datos no eran válidos, "Continuar" quedaba
+     deshabilitado sin ninguna explicación — la única pista era el
+     botón en 40% de opacidad. Ahora el botón de este paso nunca se
+     deshabilita por validación (ver puedeAvanzar): el click siempre
+     llega a avanzar(), que revela los errores puntuales recién en ese
+     momento (ver más abajo) — así cada campo dice específicamente qué
+     falta, en vez de dejar a la persona adivinando. */
+  const [intentoContinuarContacto, setIntentoContinuarContacto] = useState(false);
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,23 +236,21 @@ export default function PaginaPedir() {
 
   const elegirFoto = () => inputFotoRef.current?.click();
 
-  const alCambiarFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* Ya no dispara el análisis acá — sólo guarda el archivo y limpia el
+     diagnóstico viejo. La única llamada a diagnosticarFoto() vive
+     ahora en PasoAnalisis (ver más abajo), en un único efecto que
+     reacciona tanto a la foto como al texto. Antes había DOS caminos
+     (éste, más un efecto de sólo-texto que se cortaba en seco apenas
+     había una foto puesta — `if (foto) return`) — ese era el motivo
+     real de que, después de sumar una foto, seguir editando el texto
+     no volviera a analizar nada. */
+  const alCambiarFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
     e.target.value = ""; // permite volver a elegir el mismo archivo después
     if (!archivo) return;
-
     setFoto(archivo);
     setDiagnostico(null);
     setErrorFoto(null);
-    setAnalizando(true);
-    try {
-      const resultado = await diagnosticarFoto({ foto: archivo, descripcion, categoriaSlug: categoria });
-      setDiagnostico(resultado);
-    } catch (err) {
-      setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar la foto.");
-    } finally {
-      setAnalizando(false);
-    }
   };
 
   const quitarFoto = () => {
@@ -219,45 +258,6 @@ export default function PaginaPedir() {
     setDiagnostico(null);
     setErrorFoto(null);
   };
-
-  /* Antes esto sólo pasaba si mandabas una foto — la mitad de la gracia
-     de Nora (contarle qué pasa y que te tire un estimado ahí mismo) no
-     andaba para quien sólo escribe. Se dispara solo, con un respiro
-     después de dejar de tipear, y sólo si no hay foto puesta (la foto
-     ya dispara su propio análisis en alCambiarFoto — no tiene sentido
-     duplicar la llamada). Si el rubro no tiene catálogo de IA todavía,
-     el endpoint devuelve identificado:false — no se inventa nada, se
-     lo decimos de frente más abajo (ResultadoAnalisis). */
-  useEffect(() => {
-    if (foto) return;
-    const texto = descripcion.trim();
-    if (texto.length < 10) return;
-
-    let vigente = true;
-    const espera = setTimeout(() => {
-      setAnalizando(true);
-      setErrorFoto(null);
-      diagnosticarFoto({ descripcion: texto, categoriaSlug: categoria })
-        .then((resultado) => {
-          /* Si mientras esperábamos la respuesta la persona siguió
-             tipeando, ya hay un pedido más nuevo en camino — descartar
-             éste evita que una respuesta lenta y vieja pise el
-             diagnóstico de lo que realmente escribió al final. */
-          if (vigente) setDiagnostico(resultado);
-        })
-        .catch((err) => {
-          if (vigente) setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar el problema.");
-        })
-        .finally(() => {
-          if (vigente) setAnalizando(false);
-        });
-    }, 900);
-
-    return () => {
-      vigente = false;
-      clearTimeout(espera);
-    };
-  }, [descripcion, foto, categoria]);
 
   /* Los rubros salen de la base, no del código: así podés activar
      "Gas" cuando consigas un gasista matriculado, sin tocar la app.
@@ -306,8 +306,16 @@ export default function PaginaPedir() {
   const puedeAvanzar =
     (paso === 0 && !!categoria) ||
     (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
-    (paso === 2 && !!dia && !!franjaEfectiva) ||
-    (paso === pasoContacto && puedeConfirmarPasoContacto) ||
+    /* El paso Análisis nunca bloquea "Continuar" — Nora puede seguir
+       pensando, puede no haber identificado nada todavía, o puede
+       haber fallado: nada de eso debería trabar a la persona (puntos
+       2 y 9 del pedido). */
+    paso === pasoAnalisis ||
+    (paso === pasoCuando && !!dia && !!franjaEfectiva) ||
+    /* Ya no se gatea en datosInicialesValidos: el click siempre tiene
+       que llegar a avanzar() para poder revelar los errores puntuales
+       (ver avanzar() e intentoContinuarContacto). */
+    (paso === pasoContacto && (editandoContacto || !cargandoPerfilPrevio)) ||
     paso === pasoConfirmar;
 
   /* Lo que ve operaciones. La persona sigue viendo y
@@ -337,6 +345,11 @@ export default function PaginaPedir() {
          anterior, no hay nada que volver a mandar a la base. */
       if (!editandoContacto) {
         setPaso(paso + 1);
+        return;
+      }
+
+      if (!datosInicialesValidos) {
+        setIntentoContinuarContacto(true);
         return;
       }
 
@@ -610,9 +623,8 @@ export default function PaginaPedir() {
                 : "Escribí unas palabras o mandá una foto para que Nora lo analice."}
             </p>
 
-            {/* La foto se manda a analizar apenas se elige: es lo que
-                más ayuda a llegar preparados, y de paso le
-                muestra a la persona qué ve Nora en el momento. */}
+            {/* Input oculto compartido: también lo usa ControlFoto en el
+                paso Análisis, no hace falta un segundo <input>. */}
             <input
               ref={inputFotoRef}
               type="file"
@@ -622,62 +634,31 @@ export default function PaginaPedir() {
               className="hidden"
               aria-label="Sacar o elegir una foto del problema"
             />
-
-            {!foto ? (
-              <button
-                type="button"
-                onClick={elegirFoto}
-                className="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
-              >
-                <Camera className="w-[17px] h-[17px]" />
-                Sumar una foto (opcional)
-              </button>
-            ) : (
-              <div className="mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
-                <div className="flex items-center gap-2.5">
-                  <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
-                    <Camera className="w-4 h-4" />
-                  </span>
-                  <p className="flex-1 min-w-0 text-[13px] font-medium text-ink truncate">
-                    {foto.name}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={quitarFoto}
-                    className="press shrink-0 w-7 h-7 grid place-items-center rounded-full bg-sand border border-line text-faint"
-                    aria-label="Quitar foto"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Estado del análisis: aplica tanto si mandaste foto como si
-                sólo escribiste — Nora mira lo que tenga, foto o texto. */}
-            {(analizando || errorFoto || diagnostico) && (
-              <div className="entra-analisis mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
-                {analizando && (
-                  <p className="flex items-center gap-1.5 text-[12.5px] text-brand-600">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    {foto ? "Nora está mirando la foto…" : "Nora está analizando…"}
-                  </p>
-                )}
-
-                {errorFoto && (
-                  <p role="alert" className="text-[12.5px] text-urgent">
-                    {errorFoto}
-                  </p>
-                )}
-
-                {diagnostico && <ResultadoAnalisis resultado={diagnostico} />}
-              </div>
-            )}
+            <ControlFoto foto={foto} onElegir={elegirFoto} onQuitar={quitarFoto} />
           </section>
         )}
 
-        {/* ---------- PASO 2: cuándo ---------- */}
-        {paso === 2 && (
+        {/* ---------- PASO ANÁLISIS ---------- */}
+        {paso === pasoAnalisis && (
+          <PasoAnalisis
+            catElegida={catElegida}
+            descripcion={descripcion}
+            onDescripcionChange={setDescripcion}
+            foto={foto}
+            onElegirFoto={elegirFoto}
+            onQuitarFoto={quitarFoto}
+            categoria={categoria}
+            analizando={analizando}
+            errorFoto={errorFoto}
+            diagnostico={diagnostico}
+            setAnalizando={setAnalizando}
+            setErrorFoto={setErrorFoto}
+            setDiagnostico={setDiagnostico}
+          />
+        )}
+
+        {/* ---------- PASO CUÁNDO ---------- */}
+        {paso === pasoCuando && (
           <section className="entra-paso">
             <TituloPaso>
               ¿Cuándo te
@@ -787,6 +768,11 @@ export default function PaginaPedir() {
               value={nombreInicial}
               onChange={(e) => setNombreInicial(e.target.value)}
               autoComplete="name"
+              error={
+                intentoContinuarContacto && nombreInicial.trim().length < 2
+                  ? "Ingresá tu nombre y apellido."
+                  : undefined
+              }
             />
             <CampoTexto
               id="telefono-inicial"
@@ -798,6 +784,11 @@ export default function PaginaPedir() {
               onChange={(e) => setTelefonoInicial(e.target.value)}
               autoComplete="tel"
               placeholder="11 1234 5678"
+              error={
+                intentoContinuarContacto && !telefonoValido
+                  ? "Ingresá un teléfono válido (mínimo 8 dígitos)."
+                  : undefined
+              }
             />
             <CampoTexto
               id="mail-inicial"
@@ -809,6 +800,11 @@ export default function PaginaPedir() {
               onChange={(e) => setMailInicial(e.target.value)}
               autoComplete="email"
               placeholder="tu@mail.com"
+              error={
+                intentoContinuarContacto && !mailValido
+                  ? "Revisá el formato del mail (ej: nombre@dominio.com)."
+                  : undefined
+              }
             />
 
             <div className="grid grid-cols-[1fr_92px] gap-2.5">
@@ -818,6 +814,9 @@ export default function PaginaPedir() {
                 value={calleInicial}
                 onChange={(e) => setCalleInicial(e.target.value)}
                 autoComplete="address-line1"
+                error={
+                  intentoContinuarContacto && calleInicial.trim() === "" ? "Ingresá la calle." : undefined
+                }
               />
               <CampoTexto
                 id="numero-inicial"
@@ -825,6 +824,9 @@ export default function PaginaPedir() {
                 inputMode="numeric"
                 value={numeroInicial}
                 onChange={(e) => setNumeroInicial(e.target.value)}
+                error={
+                  intentoContinuarContacto && numeroInicial.trim() === "" ? "Ingresá la altura." : undefined
+                }
               />
             </div>
 
@@ -834,6 +836,11 @@ export default function PaginaPedir() {
               value={localidadInicial}
               onChange={(e) => setLocalidadInicial(e.target.value)}
               autoComplete="address-level2"
+              error={
+                intentoContinuarContacto && localidadInicial.trim() === ""
+                  ? "Ingresá la localidad."
+                  : undefined
+              }
             />
 
             <div className="mt-3">
@@ -994,8 +1001,9 @@ function CampoTexto({
   id,
   etiqueta,
   ayuda,
+  error,
   ...props
-}: { id: string; etiqueta: string; ayuda?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: { id: string; etiqueta: string; ayuda?: string; error?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div className="mt-3">
       <label htmlFor={id} className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">
@@ -1004,11 +1012,218 @@ function CampoTexto({
       <input
         id={id}
         type="text"
-        className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={`w-full rounded-2xl bg-surface border shadow-card px-4 py-3.5 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300 ${
+          error ? "border-urgent" : "border-line"
+        }`}
         {...props}
       />
-      {ayuda && <p className="text-[12px] text-faint mt-1 px-1">{ayuda}</p>}
+      {/* Mientras haya error, reemplaza el texto de ayuda — no se
+          muestran los dos a la vez, para no duplicar mensajes. */}
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="text-[12px] text-urgent bg-urgent/10 rounded-lg px-2 py-1 mt-1">
+          {error}
+        </p>
+      ) : (
+        ayuda && <p className="text-[12px] text-faint mt-1 px-1">{ayuda}</p>
+      )}
     </div>
+  );
+}
+
+/* Picker de foto compartido entre el paso "El problema" y el paso
+   "Análisis" — antes este bloque estaba duplicado a mano en el
+   archivo; ahora vive una sola vez. */
+function ControlFoto({
+  foto,
+  onElegir,
+  onQuitar,
+}: {
+  foto: File | null;
+  onElegir: () => void;
+  onQuitar: () => void;
+}) {
+  if (!foto) {
+    return (
+      <button
+        type="button"
+        onClick={onElegir}
+        className="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
+      >
+        <Camera className="w-[17px] h-[17px]" />
+        Sumar una foto (opcional)
+      </button>
+    );
+  }
+  return (
+    <div className="mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
+      <div className="flex items-center gap-2.5">
+        <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
+          <Camera className="w-4 h-4" />
+        </span>
+        <p className="flex-1 min-w-0 text-[13px] font-medium text-ink truncate">{foto.name}</p>
+        <button
+          type="button"
+          onClick={onQuitar}
+          className="press shrink-0 w-7 h-7 grid place-items-center rounded-full bg-sand border border-line text-faint"
+          aria-label="Quitar foto"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* El paso "Análisis" — pantalla propia para lo que antes quedaba
+   apretado debajo del botón de foto en "El problema". Dueño único de
+   la llamada a diagnosticarFoto(): un solo efecto que reacciona tanto
+   a la foto como al texto (antes había dos caminos separados, y el de
+   sólo-texto se cortaba en seco apenas había una foto puesta — ahí
+   estaba el bug real de "se congela después de la primera foto").
+   Por eso mismo, cuando se llega acá con contexto ya cargado del chat
+   de Inicio, el análisis arranca solo, sin ningún código extra. */
+function PasoAnalisis({
+  catElegida,
+  descripcion,
+  onDescripcionChange,
+  foto,
+  onElegirFoto,
+  onQuitarFoto,
+  categoria,
+  analizando,
+  errorFoto,
+  diagnostico,
+  setAnalizando,
+  setErrorFoto,
+  setDiagnostico,
+}: {
+  catElegida: CategoriaBD | undefined;
+  descripcion: string;
+  onDescripcionChange: (v: string) => void;
+  foto: File | null;
+  onElegirFoto: () => void;
+  onQuitarFoto: () => void;
+  categoria: string | null;
+  analizando: boolean;
+  errorFoto: string | null;
+  diagnostico: ResultadoDiagnostico | null;
+  setAnalizando: (v: boolean) => void;
+  setErrorFoto: (v: string | null) => void;
+  setDiagnostico: (v: ResultadoDiagnostico | null) => void;
+}) {
+  const fotoAnteriorRef = useRef<File | null>(foto);
+
+  useEffect(() => {
+    const texto = descripcion.trim();
+    if (!foto && texto.length < 10) return;
+
+    const cambioFoto = foto !== fotoAnteriorRef.current;
+    fotoAnteriorRef.current = foto;
+
+    let vigente = true;
+    const espera = setTimeout(
+      () => {
+        setAnalizando(true);
+        setErrorFoto(null);
+        diagnosticarFoto({ descripcion: texto, foto: foto ?? undefined, categoriaSlug: categoria })
+          .then((resultado) => {
+            if (vigente) setDiagnostico(resultado);
+          })
+          .catch((err) => {
+            if (vigente) setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar el problema.");
+          })
+          .finally(() => {
+            if (vigente) setAnalizando(false);
+          });
+      },
+      cambioFoto ? 0 : 900,
+    );
+
+    return () => {
+      vigente = false;
+      clearTimeout(espera);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [descripcion, foto, categoria]);
+
+  return (
+    <section className="entra-paso">
+      <TituloPaso>
+        Nora está
+        <br />
+        mirando esto
+      </TituloPaso>
+      <p className="text-[13px] text-mute mt-1.5">
+        Podés seguir sumando fotos o contándole más — Nora vuelve a mirar todo junto apenas se lo mandás.
+      </p>
+
+      <div className="mt-4 rounded-2xl bg-surface border border-line shadow-card p-3 flex items-center gap-3">
+        <span className="w-8 h-8 grid place-items-center rounded-lg bg-brand-50 text-brand-600">
+          <IconoEquipo nombre={catElegida?.icono ?? "wrench"} className="w-4 h-4" />
+        </span>
+        <p className="text-[12.5px] font-semibold text-ink truncate">{catElegida?.nombre}</p>
+      </div>
+
+      {/* Panel del análisis — vidrio (Liquid Glass, DESIGN.md lo
+          documenta para el card del chat) + los mismos blobs de marca
+          que ya usa el fondo de página, no una paleta inventada.
+          Reusa el mismo indicador de "escribiendo" de ChatNora
+          (.punto-escribiendo) para que se sienta la misma Nora. */}
+      <div
+        className="entra-analisis relative overflow-hidden rounded-xl3 glass mt-4 p-4"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 90% at 0% 0%, rgba(20,133,122,0.14) 0%, transparent 60%), radial-gradient(90% 70% at 100% 100%, rgba(255,107,157,0.10) 0%, transparent 65%)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <span className="shrink-0 w-8 h-8 grid place-items-center rounded-full bg-brand-600 text-white shadow-card">
+            <Sparkles className="w-4 h-4" />
+          </span>
+          <div>
+            <p className="text-[12.5px] font-bold font-display text-ink leading-tight">Análisis de Nora</p>
+            {analizando && (
+              <p className="flex items-center gap-1.5 text-[11px] text-brand-600">
+                <span className="live-dot w-[6px] h-[6px] rounded-full bg-brand-600" aria-hidden="true" />
+                Mirando {foto ? "la foto" : "lo que contaste"}…
+              </p>
+            )}
+          </div>
+        </div>
+
+        {analizando && (
+          <p className="flex items-center gap-1 py-2">
+            <span className="punto-escribiendo" />
+            <span className="punto-escribiendo" />
+            <span className="punto-escribiendo" />
+          </p>
+        )}
+
+        {!analizando && errorFoto && (
+          <p role="alert" className="text-[12.5px] text-urgent bg-urgent/10 rounded-xl2 px-3 py-2.5">
+            {errorFoto}
+          </p>
+        )}
+
+        {!analizando && !errorFoto && diagnostico && <ResultadoAnalisis resultado={diagnostico} />}
+
+        {!analizando && !errorFoto && !diagnostico && (
+          <p className="text-[12.5px] text-mute">Contanos un poco más o sumá una foto para que Nora empiece.</p>
+        )}
+      </div>
+
+      <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-faint px-1">Sumar más info</p>
+      <textarea
+        rows={3}
+        value={descripcion}
+        onChange={(e) => onDescripcionChange(e.target.value)}
+        placeholder="¿Algo más para contarle a Nora?"
+        className="mt-1.5 w-full rounded-2xl bg-surface border border-line shadow-card p-4 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+      />
+      <ControlFoto foto={foto} onElegir={onElegirFoto} onQuitar={onQuitarFoto} />
+    </section>
   );
 }
 
@@ -1060,7 +1275,11 @@ function Confirmacion({
         <TituloPaso className="text-[23px] font-bold font-display text-ink mt-5">
           ¡Pedido enviado!
         </TituloPaso>
-        <p className="text-[13.5px] text-mute mt-2 max-w-[300px] leading-relaxed">
+        {/* Titular corto y tranquilizador primero, el compromiso
+            concreto (2 horas, por teléfono) como detalle debajo — uno
+            no reemplaza al otro, cada uno cumple un rol distinto. */}
+        <p className="text-[14.5px] font-semibold text-ink mt-2">En breve te contactaremos.</p>
+        <p className="text-[13.5px] text-mute mt-1 max-w-[300px] leading-relaxed">
           Ya lo estamos viendo. En menos de 2 horas te contactamos por teléfono con el precio
           confirmado.
         </p>
@@ -1092,9 +1311,8 @@ function Confirmacion({
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">
                 ¿A qué hora vamos a venir?
               </p>
-              <p className="text-[13.5px] font-semibold text-ink mt-0.5">
-                {diaTexto} · {franjaCorta}
-              </p>
+              <p className="text-[14px] font-bold text-ink mt-1">{diaTexto}</p>
+              <p className="text-[12.5px] text-mute">{franjaCorta}</p>
             </div>
           </div>
           <div className="flex items-start gap-3 px-4 py-3.5">
