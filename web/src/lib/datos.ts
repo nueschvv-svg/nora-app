@@ -142,6 +142,14 @@ export type NuevaPropiedad = {
   icono: Propiedad["icono"];
 };
 
+/* Zona de cobertura actual — única fuente de verdad, usada tanto por el
+   selector del wizard (/pedir) como acá abajo para validar antes de
+   guardar. Si sólo viviera en el selector, un DevTools, un futuro
+   segundo formulario de domicilio, o un llamado directo a
+   crearPropiedad aceptarían en silencio una dirección fuera de la zona
+   que hoy atendemos. */
+export const PROVINCIAS_CUBIERTAS = ["CABA", "Buenos Aires"] as const;
+
 /* Best-effort: si Nominatim no responde o no encuentra nada, seguimos
    sin lat/lng — nunca por esto se frena el alta de un domicilio. Ver
    api/geocodificar/route.ts. */
@@ -176,6 +184,10 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Tenés que iniciar sesión.");
+
+  if (!PROVINCIAS_CUBIERTAS.includes(datos.provincia.trim() as (typeof PROVINCIAS_CUBIERTAS)[number])) {
+    throw new Error("Por ahora sólo cubrimos CABA y Buenos Aires.");
+  }
 
   const { lat, lng } = await geocodificar(datos);
 

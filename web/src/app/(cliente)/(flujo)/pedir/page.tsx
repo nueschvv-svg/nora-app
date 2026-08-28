@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { gsap } from "gsap";
 import {
   AlertTriangle,
@@ -22,18 +22,24 @@ import { IconoEquipo } from "@/componentes/IconoEquipo";
 import { Bloque } from "@/componentes/Esqueleto";
 import { TituloPaso } from "@/componentes/TituloPaso";
 import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
-import { crearServicio, listarCategorias, subirFotoServicio, type CategoriaBD } from "@/lib/datos";
+import {
+  crearServicio,
+  listarCategorias,
+  subirFotoServicio,
+  PROVINCIAS_CUBIERTAS,
+  type CategoriaBD,
+} from "@/lib/datos";
 import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarCliente";
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
-import { actualizarMisDatosPersonales, misDatosPersonales } from "@/lib/perfil";
+import { actualizarMisDatosPersonales, mailContactoValido, misDatosPersonales } from "@/lib/perfil";
 import { type Propiedad, type Servicio } from "@/lib/tipos";
 
-/* Acotado a la zona donde de verdad tenemos cobertura hoy — antes
-   listaba las 24 provincias argentinas, dando a entender que
-   podíamos llegar a cualquier lado del país. Volver a sumar
-   provincias cuando haya técnicos reales fuera de CABA/GBA. */
-const PROVINCIAS = ["CABA", "Buenos Aires"];
+/* Antes listaba las 24 provincias argentinas acá mismo, dando a
+   entender que podíamos llegar a cualquier lado del país. Ahora la
+   lista real de cobertura vive en un solo lugar (lib/datos.ts), donde
+   también se valida al guardar — este selector sólo la muestra. */
+const PROVINCIAS = PROVINCIAS_CUBIERTAS;
 
 /* FLUJO DE PEDIDO — versión MVP honesta.
 
@@ -134,8 +140,15 @@ export default function PaginaPedir() {
      pasó en la charla. Arranca directo en Análisis, que dispara solo
      el primer diagnóstico apenas monta (ver PasoAnalisis). Quien entra
      directo a /pedir (sin pasar por el chat) sigue el camino de
-     siempre. */
-  const [llegoDesdeChat] = useState(() => !!(searchParams.get("categoria") && searchParams.get("texto")));
+     siempre. Se calcula una sola vez acá (no en cada useState por
+     separado) porque también gatea si tiene sentido ir a buscar el
+     contexto del chat en sessionStorage más abajo: si esta visita NO
+     viene del chat, ni siquiera lo tocamos — así un contexto viejo,
+     abandonado a mitad de una charla anterior, nunca se filtra en una
+     entrada a /pedir por otro lado (menú, agenda, etc). */
+  const [llegoDesdeChat] = useState(
+    () => !!(searchParams.get("categoria") && searchParams.get("texto")),
+  );
   const [paso, setPaso] = useState(() => (llegoDesdeChat ? pasoAnalisis : 0));
   /* Si Nora ya identificó el rubro en el chat de Inicio, viaja acá en la
      URL y arranca preseleccionado — la persona igual puede cambiarlo en
@@ -149,16 +162,18 @@ export default function PaginaPedir() {
 
      El resumen de la URL es sólo una frase de Nora — el contexto real
      (lo que la persona realmente escribió en la charla) viaja aparte
-     por sessionStorage, ver ChatNora.tsx. Se lee una sola vez acá
-     también, y se borra apenas se lee, para no reusarlo si más
-     adelante se vuelve a entrar a /pedir de otra forma. */
+     por sessionStorage, ver ChatNora.tsx. Sólo se lee si esta visita
+     efectivamente viene del chat (`llegoDesdeChat`) — nunca en
+     cualquier otra entrada a /pedir. El inicializador de useState tiene
+     que ser puro (React lo invoca dos veces en desarrollo, con Strict
+     Mode) así que acá sólo LEE — borrar la clave usada es un efecto
+     aparte, ver más abajo. */
   const [descripcion, setDescripcion] = useState(() => {
     const textoUrl = searchParams.get("texto") ?? "";
-    if (typeof window === "undefined") return textoUrl;
+    if (!llegoDesdeChat || typeof window === "undefined") return textoUrl;
     try {
       const crudo = sessionStorage.getItem("nora:contextoChat");
       if (!crudo) return textoUrl;
-      sessionStorage.removeItem("nora:contextoChat");
       const datos = JSON.parse(crudo) as { mensajesCliente?: string[] };
       if (!datos.mensajesCliente?.length) return textoUrl;
       return [textoUrl, ...datos.mensajesCliente].join("\n\n").slice(0, 4000);
@@ -166,6 +181,14 @@ export default function PaginaPedir() {
       return textoUrl;
     }
   });
+
+  /* La limpieza en sí (efecto, no inicializador) para que sea segura
+     bajo Strict Mode: `removeItem` es idempotente, así que da igual si
+     este efecto corre dos veces en desarrollo. */
+  useEffect(() => {
+    if (llegoDesdeChat) sessionStorage.removeItem("nora:contextoChat");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [servicioEnviado, setServicioEnviado] = useState<Servicio | null>(null);
@@ -195,17 +218,30 @@ export default function PaginaPedir() {
      sólo se valida el FORMATO, y sólo si escribieron algo. Antes no
      había ninguna validación de mail en el código, pese a que el
      campo ya pedía type="email": un mail mal escrito se guardaba tal
-     cual, sin avisar a nadie. */
-  const MAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const mailValido = mailInicial.trim() === "" || MAIL_REGEX.test(mailInicial.trim());
+     cual, sin avisar a nadie. Misma regla que usa el perfil (ver
+     lib/perfil.ts) — un solo lugar donde se decide qué cuenta como
+     mail válido, para que las dos pantallas no se desincronicen. */
+  const mailValido = mailContactoValido(mailInicial);
+  const nombreValido = nombreInicial.trim().length >= 2;
+  const calleValida = calleInicial.trim() !== "";
+  const numeroValido = numeroInicial.trim() !== "";
+  const localidadValida = localidadInicial.trim() !== "";
 
   const datosInicialesValidos =
-    nombreInicial.trim().length >= 2 &&
-    telefonoValido &&
-    mailValido &&
-    calleInicial.trim() !== "" &&
-    numeroInicial.trim() !== "" &&
-    localidadInicial.trim() !== "";
+    nombreValido && telefonoValido && mailValido && calleValida && numeroValido && localidadValida;
+
+  /* Un solo lugar por campo para "¿qué mensaje mostrar?" — antes cuatro
+     de los seis campos repetían su condición de validez acá Y de nuevo
+     en el JSX del error, con riesgo de que una regla cambiara en un
+     lugar y no en el otro. */
+  const erroresContacto = {
+    nombre: !nombreValido ? "Ingresá tu nombre y apellido." : undefined,
+    telefono: !telefonoValido ? "Ingresá un teléfono válido (mínimo 8 dígitos)." : undefined,
+    mail: !mailValido ? "Revisá el formato del mail (ej: nombre@dominio.com)." : undefined,
+    calle: !calleValida ? "Ingresá la calle." : undefined,
+    numero: !numeroValido ? "Ingresá la altura." : undefined,
+    localidad: !localidadValida ? "Ingresá la localidad." : undefined,
+  };
 
   /* Antes, si los datos no eran válidos, "Continuar" quedaba
      deshabilitado sin ninguna explicación — la única pista era el
@@ -233,6 +269,15 @@ export default function PaginaPedir() {
   const [analizando, setAnalizando] = useState(false);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [diagnostico, setDiagnostico] = useState<ResultadoDiagnostico | null>(null);
+  /* Qué combinación de foto+texto+categoría ya se mandó a analizar —
+     vive acá (no dentro de PasoAnalisis) porque ese componente se
+     desmonta por completo cada vez que la persona sale del paso
+     Análisis y vuelve (es un `{paso === pasoAnalisis && <PasoAnalisis
+     .../>}` condicional): un ref adentro de PasoAnalisis se reiniciaría
+     en cada remount y no serviría para nada. Acá en el padre, que no
+     se desmonta al cambiar de paso, sí sobrevive — así volver atrás y
+     adelante sin cambiar nada no dispara un análisis pago de nuevo. */
+  const ultimaFirmaAnalizadaRef = useRef<string | null>(null);
 
   const elegirFoto = () => inputFotoRef.current?.click();
 
@@ -494,6 +539,21 @@ export default function PaginaPedir() {
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-xl mx-auto w-full">
+        {/* Input oculto compartido por ControlFoto en cualquier paso (El
+            problema y Análisis) — montado acá, fuera de cualquier
+            `paso === N`, porque si viviera dentro de un paso puntual se
+            desmontaría (y el ref quedaría null) apenas la persona
+            estuviera en otro paso. */}
+        <input
+          ref={inputFotoRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          onChange={alCambiarFoto}
+          className="hidden"
+          aria-label="Sacar o elegir una foto del problema"
+        />
+
         {/* ---------- PASO 0: categoría ---------- */}
         {paso === 0 && (
           <section className="entra-paso">
@@ -623,17 +683,6 @@ export default function PaginaPedir() {
                 : "Escribí unas palabras o mandá una foto para que Nora lo analice."}
             </p>
 
-            {/* Input oculto compartido: también lo usa ControlFoto en el
-                paso Análisis, no hace falta un segundo <input>. */}
-            <input
-              ref={inputFotoRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              onChange={alCambiarFoto}
-              className="hidden"
-              aria-label="Sacar o elegir una foto del problema"
-            />
             <ControlFoto foto={foto} onElegir={elegirFoto} onQuitar={quitarFoto} />
           </section>
         )}
@@ -654,6 +703,7 @@ export default function PaginaPedir() {
             setAnalizando={setAnalizando}
             setErrorFoto={setErrorFoto}
             setDiagnostico={setDiagnostico}
+            ultimaFirmaAnalizadaRef={ultimaFirmaAnalizadaRef}
           />
         )}
 
@@ -768,11 +818,7 @@ export default function PaginaPedir() {
               value={nombreInicial}
               onChange={(e) => setNombreInicial(e.target.value)}
               autoComplete="name"
-              error={
-                intentoContinuarContacto && nombreInicial.trim().length < 2
-                  ? "Ingresá tu nombre y apellido."
-                  : undefined
-              }
+              error={intentoContinuarContacto ? erroresContacto.nombre : undefined}
             />
             <CampoTexto
               id="telefono-inicial"
@@ -784,11 +830,7 @@ export default function PaginaPedir() {
               onChange={(e) => setTelefonoInicial(e.target.value)}
               autoComplete="tel"
               placeholder="11 1234 5678"
-              error={
-                intentoContinuarContacto && !telefonoValido
-                  ? "Ingresá un teléfono válido (mínimo 8 dígitos)."
-                  : undefined
-              }
+              error={intentoContinuarContacto ? erroresContacto.telefono : undefined}
             />
             <CampoTexto
               id="mail-inicial"
@@ -800,11 +842,7 @@ export default function PaginaPedir() {
               onChange={(e) => setMailInicial(e.target.value)}
               autoComplete="email"
               placeholder="tu@mail.com"
-              error={
-                intentoContinuarContacto && !mailValido
-                  ? "Revisá el formato del mail (ej: nombre@dominio.com)."
-                  : undefined
-              }
+              error={intentoContinuarContacto ? erroresContacto.mail : undefined}
             />
 
             <div className="grid grid-cols-[1fr_92px] gap-2.5">
@@ -814,9 +852,7 @@ export default function PaginaPedir() {
                 value={calleInicial}
                 onChange={(e) => setCalleInicial(e.target.value)}
                 autoComplete="address-line1"
-                error={
-                  intentoContinuarContacto && calleInicial.trim() === "" ? "Ingresá la calle." : undefined
-                }
+                error={intentoContinuarContacto ? erroresContacto.calle : undefined}
               />
               <CampoTexto
                 id="numero-inicial"
@@ -824,9 +860,7 @@ export default function PaginaPedir() {
                 inputMode="numeric"
                 value={numeroInicial}
                 onChange={(e) => setNumeroInicial(e.target.value)}
-                error={
-                  intentoContinuarContacto && numeroInicial.trim() === "" ? "Ingresá la altura." : undefined
-                }
+                error={intentoContinuarContacto ? erroresContacto.numero : undefined}
               />
             </div>
 
@@ -836,11 +870,7 @@ export default function PaginaPedir() {
               value={localidadInicial}
               onChange={(e) => setLocalidadInicial(e.target.value)}
               autoComplete="address-level2"
-              error={
-                intentoContinuarContacto && localidadInicial.trim() === ""
-                  ? "Ingresá la localidad."
-                  : undefined
-              }
+              error={intentoContinuarContacto ? erroresContacto.localidad : undefined}
             />
 
             <div className="mt-3">
@@ -1098,6 +1128,7 @@ function PasoAnalisis({
   setAnalizando,
   setErrorFoto,
   setDiagnostico,
+  ultimaFirmaAnalizadaRef,
 }: {
   catElegida: CategoriaBD | undefined;
   descripcion: string;
@@ -1112,24 +1143,61 @@ function PasoAnalisis({
   setAnalizando: (v: boolean) => void;
   setErrorFoto: (v: string | null) => void;
   setDiagnostico: (v: ResultadoDiagnostico | null) => void;
+  /** Vive en el padre (PaginaPedir), no acá — este componente se
+   *  desmonta entero cada vez que se sale del paso Análisis, así que un
+   *  ref propio no serviría para recordar nada entre visitas. */
+  ultimaFirmaAnalizadaRef: RefObject<string | null>;
 }) {
   const fotoAnteriorRef = useRef<File | null>(foto);
+  /* Fuerza que el primer análisis de este montaje sea instantáneo (0ms)
+     aunque no haya cambiado la foto — antes `fotoAnteriorRef` arrancaba
+     ya "igual" a `foto`, así que el primerísimo análisis (por ejemplo,
+     al llegar con contexto precargado del chat) esperaba igual los
+     900ms del debounce de texto en lugar de disparar al toque. */
+  const primeraVezRef = useRef(true);
 
   useEffect(() => {
     const texto = descripcion.trim();
-    if (!foto && texto.length < 10) return;
+    if (!foto && texto.length < 10) {
+      // Sin esto, si una request quedaba en vuelo y el texto se acorta
+      // acá abajo del mínimo antes de que resuelva, el spinner de
+      // "analizando" quedaba trabado para siempre (el cleanup de la
+      // corrida anterior sólo apaga `vigente`, nunca toca este estado).
+      setAnalizando(false);
+      return;
+    }
 
+    /* Sólo LEE los refs acá (nunca los muta todavía) — en desarrollo,
+       Strict Mode ejecuta este efecto en falso una vez (con su cleanup
+       inmediatamente después, que cancela el timer de abajo) antes de
+       la corrida real. Si mutáramos los refs acá arriba, esa corrida
+       fantasma le "robaría" el primer-vez/cambio-de-foto a la corrida
+       real que sigue — por eso la mutación de verdad se hace recién
+       dentro del setTimeout, cuando sabemos que este timer sobrevivió. */
     const cambioFoto = foto !== fotoAnteriorRef.current;
-    fotoAnteriorRef.current = foto;
+    const esPrimeraVez = primeraVezRef.current;
+
+    /* Si esta combinación exacta de foto+texto+categoría ya se analizó
+       (por ejemplo, volver atrás y adelante entre pasos sin cambiar
+       nada — PasoAnalisis se remonta entero en cada visita), no vale
+       la pena pagar un análisis nuevo por algo que Nora ya vio. */
+    const firma = `${texto}::${foto ? `${foto.name}:${foto.size}:${foto.lastModified}` : "sin-foto"}::${categoria ?? ""}`;
+    if (firma === ultimaFirmaAnalizadaRef.current) return;
 
     let vigente = true;
     const espera = setTimeout(
       () => {
+        fotoAnteriorRef.current = foto;
+        primeraVezRef.current = false;
+
         setAnalizando(true);
         setErrorFoto(null);
         diagnosticarFoto({ descripcion: texto, foto: foto ?? undefined, categoriaSlug: categoria })
           .then((resultado) => {
-            if (vigente) setDiagnostico(resultado);
+            if (vigente) {
+              setDiagnostico(resultado);
+              ultimaFirmaAnalizadaRef.current = firma;
+            }
           })
           .catch((err) => {
             if (vigente) setErrorFoto(err instanceof Error ? err.message : "No pudimos analizar el problema.");
@@ -1138,7 +1206,13 @@ function PasoAnalisis({
             if (vigente) setAnalizando(false);
           });
       },
-      cambioFoto ? 0 : 900,
+      /* Instantáneo si recién cambió la foto o es el primer análisis
+         de este montaje. Si ya hay una foto puesta y lo que cambió es
+         sólo texto (alguien sigue escribiendo en "Sumar más info"),
+         un debounce más largo (1800ms en vez de 900ms) evita
+         re-mandar y re-analizar la misma foto en cada pausa corta —
+         sigue disparando solo, sólo que no en cada tecla. */
+      cambioFoto || esPrimeraVez ? 0 : foto ? 1800 : 900,
     );
 
     return () => {

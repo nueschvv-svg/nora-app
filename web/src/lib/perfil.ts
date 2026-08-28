@@ -19,6 +19,16 @@ function fallar(contexto: string, error: { message: string }): never {
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
 }
 
+/* Única regla de "¿es un mail de contacto válido?" — la usan tanto acá
+   (antes de guardar) como el paso de contacto de /pedir (para el error
+   inline mientras se escribe). Antes cada lado tenía su propia versión
+   (acá sólo `.includes("@")`, allá una regex completa) y podían
+   divergir sin que nadie lo notara. */
+export function mailContactoValido(mail: string): boolean {
+  const valor = mail.trim();
+  return valor === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
+}
+
 export type MisDatosPersonales = {
   nombre: string;
   telefono: string;
@@ -66,7 +76,7 @@ export async function actualizarMisDatosPersonales(datos: {
   if (nombre.length < 2) throw new Error("Poné tu nombre completo.");
 
   const mailContacto = datos.mailContacto?.trim() ?? "";
-  if (mailContacto && !mailContacto.includes("@")) {
+  if (!mailContactoValido(mailContacto)) {
     throw new Error("Ese mail no parece válido.");
   }
 
