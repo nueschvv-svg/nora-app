@@ -348,14 +348,22 @@ export default function PaginaPedir() {
   /* Igual que el endpoint: alcanza con la foto, no hace falta escribir
      nada. Antes de esto el paso 1 exigía 10 caracteres pase lo que
      pase, lo que no tenía sentido si ya mandaste una foto. */
+  /* "Continuar" espera a que Nora termine de ver lo último que le
+     mandaste — si la persona lo toca mientras hay un análisis en
+     vuelo, ese análisis se descarta (PasoAnalisis se desmonta al
+     cambiar de paso, y su cleanup cancela la llamada), así que podía
+     terminar avanzando sin que Nora realmente haya mirado la foto o el
+     último texto agregado. Sólo se destraba con un resultado real
+     (`diagnostico`) o con un error concreto (`errorFoto`) — un error no
+     debe dejar a la persona sin salida. No exige esperar ANTES de que
+     arranque el primer análisis (paso 1: agregar fotos/texto sigue
+     libre, eso es aparte de este botón). */
+  const analisisPendiente = analizando || (!diagnostico && !errorFoto);
+
   const puedeAvanzar =
     (paso === 0 && !!categoria) ||
     (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
-    /* El paso Análisis nunca bloquea "Continuar" — Nora puede seguir
-       pensando, puede no haber identificado nada todavía, o puede
-       haber fallado: nada de eso debería trabar a la persona (puntos
-       2 y 9 del pedido). */
-    paso === pasoAnalisis ||
+    (paso === pasoAnalisis && !analisisPendiente) ||
     (paso === pasoCuando && !!dia && !!franjaEfectiva) ||
     /* Ya no se gatea en datosInicialesValidos: el click siempre tiene
        que llegar a avanzar() para poder revelar los errores puntuales
@@ -950,21 +958,32 @@ export default function PaginaPedir() {
             {error}
           </p>
         )}
+        {paso === pasoAnalisis && analisisPendiente && !error && (
+          <p className="text-[12.5px] text-mute text-center mb-2">
+            Esperá a que Nora termine de mirar esto — no tarda nada.
+          </p>
+        )}
         <button
           type="button"
           onClick={avanzar}
           disabled={!puedeAvanzar || enviando}
           className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white px-5 py-4 shadow-fab text-[15.5px] font-semibold disabled:opacity-40 disabled:pointer-events-none"
         >
-          {enviando && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
+          {(enviando || (paso === pasoAnalisis && analisisPendiente)) && (
+            <Loader2 className="w-[18px] h-[18px] animate-spin" />
+          )}
           {enviando
             ? paso === pasoConfirmar
               ? "Enviando…"
               : "Guardando…"
-            : paso === pasoConfirmar
-              ? "Enviar pedido"
-              : "Continuar"}
-          {!enviando && <ArrowRight className="w-[19px] h-[19px]" />}
+            : paso === pasoAnalisis && analisisPendiente
+              ? "Nora está analizando…"
+              : paso === pasoConfirmar
+                ? "Enviar pedido"
+                : "Continuar"}
+          {!enviando && !(paso === pasoAnalisis && analisisPendiente) && (
+            <ArrowRight className="w-[19px] h-[19px]" />
+          )}
         </button>
       </div>
     </div>
@@ -1184,14 +1203,21 @@ function PasoAnalisis({
     const firma = `${texto}::${foto ? `${foto.name}:${foto.size}:${foto.lastModified}` : "sin-foto"}::${categoria ?? ""}`;
     if (firma === ultimaFirmaAnalizadaRef.current) return;
 
+    /* "analizando" se marca ACÁ, no recién cuando el timer dispara —
+       si no, quedaba una ventana (el debounce de 0-1800ms) donde
+       "Continuar" se veía habilitado aunque en realidad había algo
+       nuevo sin mirar todavía: alcanzaba con tocarlo justo en ese
+       instante para avanzar sin que Nora hubiera llegado siquiera a
+       arrancar el análisis de lo último que se agregó. */
+    setAnalizando(true);
+    setErrorFoto(null);
+
     let vigente = true;
     const espera = setTimeout(
       () => {
         fotoAnteriorRef.current = foto;
         primeraVezRef.current = false;
 
-        setAnalizando(true);
-        setErrorFoto(null);
         diagnosticarFoto({ descripcion: texto, foto: foto ?? undefined, categoriaSlug: categoria })
           .then((resultado) => {
             if (vigente) {
