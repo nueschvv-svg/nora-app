@@ -96,29 +96,40 @@ export async function POST(request: NextRequest) {
 
   const descripcion = String(form.get("descripcion") ?? "").trim();
   const categoriaSlug = form.get("categoria") ? String(form.get("categoria")) : undefined;
-  const archivo = form.get("foto");
+  // El cliente manda cada foto bajo la misma clave ("foto") con
+  // FormData.append — getAll las junta a todas, en el orden en que se
+  // agregaron.
+  const archivos = form.getAll("foto").filter((f): f is File => f instanceof File);
 
-  if (descripcion.length < 5 && !(archivo instanceof File)) {
+  /* Mismo tope que el selector del cliente (MAX_FOTOS en pedir/page.tsx)
+     — acá es la puerta de verdad: nada obliga a que quien llame a este
+     endpoint respete el límite de la UI. */
+  const MAX_FOTOS = 3;
+  if (archivos.length > MAX_FOTOS) {
+    return NextResponse.json({ error: `Como mucho ${MAX_FOTOS} fotos por vez.` }, { status: 400 });
+  }
+
+  if (descripcion.length < 5 && archivos.length === 0) {
     return NextResponse.json(
       { error: "Contanos qué pasa o mandanos una foto." },
       { status: 400 },
     );
   }
 
-  let imagen: { base64: string; tipo: TipoImagen } | undefined;
+  const imagenes: { base64: string; tipo: TipoImagen }[] = [];
 
-  if (archivo instanceof File) {
+  for (const archivo of archivos) {
     /* El tamaño se mira primero: no tiene sentido cargar 40 MB en memoria
        para después descubrir que no eran una foto. */
     if (archivo.size > MAX_BYTES_IMAGEN) {
       return NextResponse.json(
-        { error: "La foto pesa demasiado. Probá con una de menos de 5 MB." },
+        { error: "Una de las fotos pesa demasiado. Probá con una de menos de 5 MB." },
         { status: 400 },
       );
     }
     if (!esTipoImagenValido(archivo.type)) {
       return NextResponse.json(
-        { error: "Esa foto tiene que ser JPG, PNG o WEBP." },
+        { error: "Las fotos tienen que ser JPG, PNG o WEBP." },
         { status: 400 },
       );
     }
@@ -131,12 +142,12 @@ export async function POST(request: NextRequest) {
     const tipoReal = detectarTipoImagen(bytes);
     if (!tipoReal) {
       return NextResponse.json(
-        { error: "Ese archivo no parece una imagen. Mandá una foto en JPG, PNG o WEBP." },
+        { error: "Una de las fotos no parece una imagen. Mandá fotos en JPG, PNG o WEBP." },
         { status: 400 },
       );
     }
 
-    imagen = { base64: bytes.toString("base64"), tipo: tipoReal };
+    imagenes.push({ base64: bytes.toString("base64"), tipo: tipoReal });
   }
 
   /* Catálogo y tarifas se leen con la sesión de quien pide: ambos son
@@ -188,7 +199,7 @@ export async function POST(request: NextRequest) {
 
   let resultado;
   try {
-    resultado = await diagnosticar({ descripcion, imagen, categoriaSlug }, catalogo);
+    resultado = await diagnosticar({ descripcion, imagenes, categoriaSlug }, catalogo);
   } catch (e) {
     console.error("[api/diagnosticar]", e);
     return NextResponse.json(

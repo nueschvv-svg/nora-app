@@ -35,15 +35,17 @@ export type ResultadoDiagnostico = {
 };
 
 export async function diagnosticarFoto(params: {
-  /** Opcional: el endpoint ya acepta sólo descripción, sin foto — así
-   *  se puede pedir el mismo análisis cuando la persona escribió pero
-   *  no mandó ninguna imagen. */
-  foto?: File;
+  /** Opcional y hasta 3: el endpoint ya acepta sólo descripción, sin
+   *  fotos — así se puede pedir el mismo análisis cuando la persona
+   *  escribió pero no mandó ninguna imagen. */
+  fotos?: File[];
   descripcion: string;
   categoriaSlug?: string | null;
 }): Promise<ResultadoDiagnostico> {
   const form = new FormData();
-  if (params.foto) form.set("foto", params.foto);
+  // `append` (no `set`) a propósito: permite varias fotos bajo la
+  // misma clave — el servidor las lee todas con `formData.getAll`.
+  for (const foto of params.fotos ?? []) form.append("foto", foto);
   if (params.descripcion.trim()) form.set("descripcion", params.descripcion.trim());
   if (params.categoriaSlug) form.set("categoria", params.categoriaSlug);
 

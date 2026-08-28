@@ -41,6 +41,11 @@ import { type Propiedad, type Servicio } from "@/lib/tipos";
    también se valida al guardar — este selector sólo la muestra. */
 const PROVINCIAS = PROVINCIAS_CUBIERTAS;
 
+/* Tope de fotos por pedido — compartido por ControlFoto, el manejo de
+   estado y el efecto de análisis, así los tres coinciden en el mismo
+   número. */
+const MAX_FOTOS = 3;
+
 /* FLUJO DE PEDIDO — versión MVP honesta.
 
    Diferencias a propósito con el prototipo:
@@ -265,7 +270,7 @@ export default function PaginaPedir() {
      pendiente, ver ESTADO.md. Lo que SÍ es real es el análisis: pega
      contra /api/diagnosticar, el mismo endpoint probado con Claude. */
   const inputFotoRef = useRef<HTMLInputElement>(null);
-  const [foto, setFoto] = useState<File | null>(null);
+  const [fotos, setFotos] = useState<File[]>([]);
   const [analizando, setAnalizando] = useState(false);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [diagnostico, setDiagnostico] = useState<ResultadoDiagnostico | null>(null);
@@ -284,22 +289,28 @@ export default function PaginaPedir() {
   /* Ya no dispara el análisis acá — sólo guarda el archivo y limpia el
      diagnóstico viejo. La única llamada a diagnosticarFoto() vive
      ahora en PasoAnalisis (ver más abajo), en un único efecto que
-     reacciona tanto a la foto como al texto. Antes había DOS caminos
+     reacciona tanto a las fotos como al texto. Antes había DOS caminos
      (éste, más un efecto de sólo-texto que se cortaba en seco apenas
      había una foto puesta — `if (foto) return`) — ese era el motivo
      real de que, después de sumar una foto, seguir editando el texto
-     no volviera a analizar nada. */
+     no volviera a analizar nada.
+
+     Hasta MAX_FOTOS: cada elección se AGREGA a la lista (no reemplaza
+     la anterior) — así se puede sumar de a una, en cualquier paso,
+     hasta llegar al tope. Si por algún motivo el input dispara con la
+     lista ya llena (no debería pasar: el botón se oculta antes), la
+     foto de más simplemente no entra. */
   const alCambiarFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
     e.target.value = ""; // permite volver a elegir el mismo archivo después
     if (!archivo) return;
-    setFoto(archivo);
+    setFotos((actuales) => (actuales.length >= MAX_FOTOS ? actuales : [...actuales, archivo]));
     setDiagnostico(null);
     setErrorFoto(null);
   };
 
-  const quitarFoto = () => {
-    setFoto(null);
+  const quitarFoto = (indice: number) => {
+    setFotos((actuales) => actuales.filter((_, i) => i !== indice));
     setDiagnostico(null);
     setErrorFoto(null);
   };
@@ -362,7 +373,7 @@ export default function PaginaPedir() {
 
   const puedeAvanzar =
     (paso === 0 && !!categoria) ||
-    (paso === 1 && (descripcion.trim().length >= 10 || !!foto)) ||
+    (paso === 1 && (descripcion.trim().length >= 10 || fotos.length > 0)) ||
     (paso === pasoAnalisis && !analisisPendiente) ||
     (paso === pasoCuando && !!dia && !!franjaEfectiva) ||
     /* Ya no se gatea en datosInicialesValidos: el click siempre tiene
@@ -451,21 +462,25 @@ export default function PaginaPedir() {
 
         /* Lo único que de verdad tiene que pasar antes de mostrarle
            "pedido enviado" a la persona es crearServicio() de arriba —
-           eso es lo que lo hace visible para operaciones. Subir la foto,
-           avisar por Telegram y mandar el comprobante por mail son un
-           plus, ninguno de los tres requisito (si fallan, el pedido ya
-           está adentro igual, ver comentarios de cada función) — así
-           que no hay motivo para tener a la persona mirando un spinner
-           mientras se suben y esperan la vuelta de un servidor externo.
-           Corren en background, en el mismo orden de antes (foto primero, para
-           que el aviso pueda incluir su URL). */
+           eso es lo que lo hace visible para operaciones. Subir las
+           fotos, avisar por Telegram y mandar el comprobante por mail
+           son un plus, ninguno de los tres requisito (si fallan, el
+           pedido ya está adentro igual, ver comentarios de cada
+           función) — así que no hay motivo para tener a la persona
+           mirando un spinner mientras se suben y esperan la vuelta de
+           un servidor externo. Corren en background, en el mismo
+           orden de antes (fotos primero, para que el aviso pueda
+           incluir su URL). Las fotos se suben todas en paralelo — una
+           que falle no debe frenar ni ocultar a las demás. */
         (async () => {
-          if (foto) {
-            try {
-              await subirFotoServicio(nuevoServicio.id, foto);
-            } catch (e) {
-              console.error("[pedir] no se pudo guardar la foto:", e);
-            }
+          if (fotos.length > 0) {
+            await Promise.all(
+              fotos.map((f) =>
+                subirFotoServicio(nuevoServicio.id, f).catch((e) => {
+                  console.error("[pedir] no se pudo guardar una foto:", e);
+                }),
+              ),
+            );
           }
           try {
             await enrutarPedido(nuevoServicio.id, diagnostico);
@@ -686,12 +701,12 @@ export default function PaginaPedir() {
                 contradijeran. Frases sin la palabra en común, mismo
                 significado, sin choque. */}
             <p className="text-[11.5px] text-faint mt-1.5 px-1">
-              {descripcion.trim().length >= 10 || foto
+              {descripcion.trim().length >= 10 || fotos.length > 0
                 ? "Perfecto, ya podemos analizarlo."
                 : "Escribí unas palabras o mandá una foto para que Nora lo analice."}
             </p>
 
-            <ControlFoto foto={foto} onElegir={elegirFoto} onQuitar={quitarFoto} />
+            <ControlFoto fotos={fotos} onElegir={elegirFoto} onQuitar={quitarFoto} />
           </section>
         )}
 
@@ -701,7 +716,7 @@ export default function PaginaPedir() {
             catElegida={catElegida}
             descripcion={descripcion}
             onDescripcionChange={setDescripcion}
-            foto={foto}
+            fotos={fotos}
             onElegirFoto={elegirFoto}
             onQuitarFoto={quitarFoto}
             categoria={categoria}
@@ -928,7 +943,18 @@ export default function PaginaPedir() {
                   return `${diaTxt} · ${franjaCorta}`;
                 })()}
               />
-              {foto && <Fila etiqueta="Foto" valor={diagnostico ? "Analizada por Nora" : foto.name} />}
+              {fotos.length > 0 && (
+                <Fila
+                  etiqueta={fotos.length === 1 ? "Foto" : "Fotos"}
+                  valor={
+                    diagnostico
+                      ? fotos.length === 1
+                        ? "Analizada por Nora"
+                        : "Analizadas por Nora"
+                      : `${fotos.length} foto${fotos.length === 1 ? "" : "s"}`
+                  }
+                />
+              )}
             </div>
 
             <div className="mt-3 rounded-xl2 bg-surface border border-line shadow-card p-4">
@@ -1085,42 +1111,49 @@ function CampoTexto({
    "Análisis" — antes este bloque estaba duplicado a mano en el
    archivo; ahora vive una sola vez. */
 function ControlFoto({
-  foto,
+  fotos,
   onElegir,
   onQuitar,
 }: {
-  foto: File | null;
+  fotos: File[];
   onElegir: () => void;
-  onQuitar: () => void;
+  onQuitar: (indice: number) => void;
 }) {
-  if (!foto) {
-    return (
-      <button
-        type="button"
-        onClick={onElegir}
-        className="press mt-3 w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
-      >
-        <Camera className="w-[17px] h-[17px]" />
-        Sumar una foto (opcional)
-      </button>
-    );
-  }
   return (
-    <div className="mt-3 rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5">
-      <div className="flex items-center gap-2.5">
-        <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
-          <Camera className="w-4 h-4" />
-        </span>
-        <p className="flex-1 min-w-0 text-[13px] font-medium text-ink truncate">{foto.name}</p>
+    <div className="mt-3 space-y-2">
+      {fotos.map((foto, i) => (
+        <div
+          key={`${foto.name}-${foto.size}-${foto.lastModified}`}
+          className="rounded-xl2 border border-brand-200 bg-surface shadow-card p-3.5"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-brand-50 text-brand-600">
+              <Camera className="w-4 h-4" />
+            </span>
+            <p className="flex-1 min-w-0 text-[13px] font-medium text-ink truncate">{foto.name}</p>
+            <button
+              type="button"
+              onClick={() => onQuitar(i)}
+              className="press shrink-0 w-7 h-7 grid place-items-center rounded-full bg-sand border border-line text-faint"
+              aria-label={`Quitar foto ${i + 1}`}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+      {/* Se oculta al llegar al tope — sacar una de las tres vuelve a
+          mostrarlo, no hace falta que la persona lo adivine. */}
+      {fotos.length < MAX_FOTOS && (
         <button
           type="button"
-          onClick={onQuitar}
-          className="press shrink-0 w-7 h-7 grid place-items-center rounded-full bg-sand border border-line text-faint"
-          aria-label="Quitar foto"
+          onClick={onElegir}
+          className="press w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
         >
-          <X className="w-3.5 h-3.5" />
+          <Camera className="w-[17px] h-[17px]" />
+          {fotos.length === 0 ? "Sumar una foto (opcional, hasta 3)" : `Sumar otra foto (${fotos.length}/${MAX_FOTOS})`}
         </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -1133,11 +1166,18 @@ function ControlFoto({
    estaba el bug real de "se congela después de la primera foto").
    Por eso mismo, cuando se llega acá con contexto ya cargado del chat
    de Inicio, el análisis arranca solo, sin ningún código extra. */
+/* Firma de sólo las fotos (nombre:tamaño:fecha de cada una, unidas) —
+   sirve para detectar "¿cambió el conjunto de fotos?" sin depender de
+   identidad de objeto, que no sobrevive bien a comparar arrays. */
+function firmarFotos(lista: File[]): string {
+  return lista.map((f) => `${f.name}:${f.size}:${f.lastModified}`).join("|");
+}
+
 function PasoAnalisis({
   catElegida,
   descripcion,
   onDescripcionChange,
-  foto,
+  fotos,
   onElegirFoto,
   onQuitarFoto,
   categoria,
@@ -1152,9 +1192,9 @@ function PasoAnalisis({
   catElegida: CategoriaBD | undefined;
   descripcion: string;
   onDescripcionChange: (v: string) => void;
-  foto: File | null;
+  fotos: File[];
   onElegirFoto: () => void;
-  onQuitarFoto: () => void;
+  onQuitarFoto: (indice: number) => void;
   categoria: string | null;
   analizando: boolean;
   errorFoto: string | null;
@@ -1167,9 +1207,9 @@ function PasoAnalisis({
    *  ref propio no serviría para recordar nada entre visitas. */
   ultimaFirmaAnalizadaRef: RefObject<string | null>;
 }) {
-  const fotoAnteriorRef = useRef<File | null>(foto);
+  const fotosAnterioresRef = useRef<string>(firmarFotos(fotos));
   /* Fuerza que el primer análisis de este montaje sea instantáneo (0ms)
-     aunque no haya cambiado la foto — antes `fotoAnteriorRef` arrancaba
+     aunque no hayan cambiado las fotos — antes `fotoAnteriorRef` arrancaba
      ya "igual" a `foto`, así que el primerísimo análisis (por ejemplo,
      al llegar con contexto precargado del chat) esperaba igual los
      900ms del debounce de texto en lugar de disparar al toque. */
@@ -1177,7 +1217,7 @@ function PasoAnalisis({
 
   useEffect(() => {
     const texto = descripcion.trim();
-    if (!foto && texto.length < 10) {
+    if (fotos.length === 0 && texto.length < 10) {
       // Sin esto, si una request quedaba en vuelo y el texto se acorta
       // acá abajo del mínimo antes de que resuelva, el spinner de
       // "analizando" quedaba trabado para siempre (el cleanup de la
@@ -1190,17 +1230,18 @@ function PasoAnalisis({
        Strict Mode ejecuta este efecto en falso una vez (con su cleanup
        inmediatamente después, que cancela el timer de abajo) antes de
        la corrida real. Si mutáramos los refs acá arriba, esa corrida
-       fantasma le "robaría" el primer-vez/cambio-de-foto a la corrida
+       fantasma le "robaría" el primer-vez/cambio-de-fotos a la corrida
        real que sigue — por eso la mutación de verdad se hace recién
        dentro del setTimeout, cuando sabemos que este timer sobrevivió. */
-    const cambioFoto = foto !== fotoAnteriorRef.current;
+    const firmaFotos = firmarFotos(fotos);
+    const cambiaronFotos = firmaFotos !== fotosAnterioresRef.current;
     const esPrimeraVez = primeraVezRef.current;
 
-    /* Si esta combinación exacta de foto+texto+categoría ya se analizó
+    /* Si esta combinación exacta de fotos+texto+categoría ya se analizó
        (por ejemplo, volver atrás y adelante entre pasos sin cambiar
        nada — PasoAnalisis se remonta entero en cada visita), no vale
        la pena pagar un análisis nuevo por algo que Nora ya vio. */
-    const firma = `${texto}::${foto ? `${foto.name}:${foto.size}:${foto.lastModified}` : "sin-foto"}::${categoria ?? ""}`;
+    const firma = `${texto}::${firmaFotos || "sin-foto"}::${categoria ?? ""}`;
     if (firma === ultimaFirmaAnalizadaRef.current) return;
 
     /* "analizando" se marca ACÁ, no recién cuando el timer dispara —
@@ -1215,10 +1256,10 @@ function PasoAnalisis({
     let vigente = true;
     const espera = setTimeout(
       () => {
-        fotoAnteriorRef.current = foto;
+        fotosAnterioresRef.current = firmaFotos;
         primeraVezRef.current = false;
 
-        diagnosticarFoto({ descripcion: texto, foto: foto ?? undefined, categoriaSlug: categoria })
+        diagnosticarFoto({ descripcion: texto, fotos, categoriaSlug: categoria })
           .then((resultado) => {
             if (vigente) {
               setDiagnostico(resultado);
@@ -1238,7 +1279,7 @@ function PasoAnalisis({
          un debounce más largo (1800ms en vez de 900ms) evita
          re-mandar y re-analizar la misma foto en cada pausa corta —
          sigue disparando solo, sólo que no en cada tecla. */
-      cambioFoto || esPrimeraVez ? 0 : foto ? 1800 : 900,
+      cambiaronFotos || esPrimeraVez ? 0 : fotos.length > 0 ? 1800 : 900,
     );
 
     return () => {
@@ -1246,7 +1287,7 @@ function PasoAnalisis({
       clearTimeout(espera);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [descripcion, foto, categoria]);
+  }, [descripcion, fotos, categoria]);
 
   return (
     <section className="entra-paso">
@@ -1287,7 +1328,7 @@ function PasoAnalisis({
             {analizando && (
               <p className="flex items-center gap-1.5 text-[11px] text-brand-600">
                 <span className="live-dot w-[6px] h-[6px] rounded-full bg-brand-600" aria-hidden="true" />
-                Mirando {foto ? "la foto" : "lo que contaste"}…
+                Mirando {fotos.length > 0 ? (fotos.length === 1 ? "la foto" : "las fotos") : "lo que contaste"}…
               </p>
             )}
           </div>
@@ -1322,7 +1363,7 @@ function PasoAnalisis({
         placeholder="¿Algo más para contarle a Nora?"
         className="mt-1.5 w-full rounded-2xl bg-surface border border-line shadow-card p-4 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
       />
-      <ControlFoto foto={foto} onElegir={onElegirFoto} onQuitar={onQuitarFoto} />
+      <ControlFoto fotos={fotos} onElegir={onElegirFoto} onQuitar={onQuitarFoto} />
     </section>
   );
 }
