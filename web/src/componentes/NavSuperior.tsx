@@ -12,13 +12,15 @@ import { LogotipoNora } from "./LogoNora";
 export function NavSuperior() {
   return (
     <header className="glass-nav sticky top-0 z-30">
-      <div className="grid grid-cols-3 items-center gap-3 px-5 h-16">
+      <div className="flex items-center justify-between gap-2 px-3 h-16">
         <Link
           href="/pedir"
-          className="press justify-self-start w-fit flex items-center gap-1 rounded-full bg-brand-600 text-white pl-3 pr-2.5 py-2 text-[12.5px] font-semibold shadow-fab"
+          className="press min-h-11 flex items-center rounded-full bg-brand-600 text-white px-3 text-[12.5px] font-semibold shadow-fab"
         >
           Pedir
         </Link>
+
+        <Link href="/pedidos" className="min-h-11 flex items-center px-2 text-[13px] font-semibold text-brand-600">Mis pedidos</Link>
 
         <Link href="/inicio" className="justify-self-center" aria-label="Ir a inicio">
           <LogotipoNora className="scale-90" />

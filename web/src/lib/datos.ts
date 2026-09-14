@@ -267,6 +267,8 @@ export async function listarServicios(): Promise<Servicio[]> {
 }
 
 export type NuevoServicio = {
+  /** UUID estable durante los reintentos; la PK de Postgres evita duplicados. */
+  idIntento?: string;
   propiedadId: string;
   categoriaSlug: string;
   descripcion: string;
@@ -297,6 +299,7 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
   const { data, error } = await supabase
     .from("servicios")
     .insert({
+      ...(datos.idIntento ? { id: datos.idIntento } : {}),
       cliente_id: user.id,
       propiedad_id: datos.propiedadId,
       categoria_slug: datos.categoriaSlug,
@@ -310,6 +313,14 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
     .select(COLUMNAS_SERVICIO)
     .single();
 
+  if (error && datos.idIntento) {
+    // El INSERT pudo confirmarse aunque se perdiera la respuesta. Nunca
+    // usar upsert: un reintento no debe modificar un pedido ya recibido.
+    const { data: existente, error: errorLectura } = await supabase
+      .from("servicios").select(COLUMNAS_SERVICIO)
+      .eq("id", datos.idIntento).eq("cliente_id", user.id).maybeSingle();
+    if (!errorLectura && existente) return aServicio(existente as FilaServicio);
+  }
   if (error) fallar("enviar el pedido", error);
   return aServicio(data as FilaServicio);
 }

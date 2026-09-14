@@ -16,31 +16,31 @@ const FRANJA_TEXTO: Record<string, string> = {
 function armarMensaje(pedido: PedidoParaEnrutar): string {
   const lineas: string[] = [];
 
-  lineas.push(`🔧 NUEVO PEDIDO — ${pedido.categoriaNombre}`);
+  lineas.push(`🔧 NUEVO PEDIDO — ${pedido.categoriaNombre.slice(0, 80)}`);
 
   if (pedido.diagnostico?.riesgoInmediato) {
     lineas.push("⚠️ RIESGO INMEDIATO — atención prioritaria");
   }
 
   lineas.push("");
-  lineas.push(`Problema:\n${pedido.descripcion}`);
+  lineas.push(`Problema:\n${pedido.descripcion.slice(0, 1200)}${pedido.descripcion.length > 1200 ? "… (ver detalle completo en operaciones)" : ""}`);
 
   if (pedido.estimado) {
     lineas.push("");
-    lineas.push(`Estimado: ${pedido.estimado.titulo}`);
-    lineas.push(pedido.estimado.aclaracion);
+    lineas.push(`Estimado: ${pedido.estimado.titulo.slice(0, 200)}`);
+    lineas.push(pedido.estimado.aclaracion.slice(0, 200));
   }
 
   lineas.push("");
-  lineas.push(`Cliente: ${pedido.cliente.nombre}`);
-  lineas.push(`Teléfono: ${pedido.cliente.telefono ?? "no cargado"}`);
+  lineas.push(`Cliente: ${pedido.cliente.nombre.slice(0, 120)}`);
+  lineas.push(`Teléfono: ${(pedido.cliente.telefono ?? "no cargado").slice(0, 30)}`);
 
   const direccion = [pedido.propiedad.direccion, pedido.propiedad.localidad, pedido.propiedad.provincia]
     .filter(Boolean)
     .join(", ");
-  lineas.push(`Dirección: ${direccion}`);
+  lineas.push(`Dirección: ${direccion.slice(0, 300)}`);
   if (pedido.propiedad.notasAcceso) {
-    lineas.push(`Notas de acceso: ${pedido.propiedad.notasAcceso}`);
+    lineas.push(`Notas de acceso: ${pedido.propiedad.notasAcceso.slice(0, 300)}`);
   }
 
   const franja = pedido.franjaPreferida ? (FRANJA_TEXTO[pedido.franjaPreferida] ?? pedido.franjaPreferida) : null;
@@ -51,6 +51,7 @@ function armarMensaje(pedido: PedidoParaEnrutar): string {
 
   lineas.push("");
   lineas.push(`ID interno: ${pedido.servicioId}`);
+  lineas.push(`Ver pedido: https://nora-app-kappa.vercel.app/operaciones/${pedido.servicioId}`);
 
   return lineas.join("\n");
 }
@@ -97,20 +98,45 @@ export const estrategiaTelegram: EstrategiaEnrutamiento = {
     const base = `https://api.telegram.org/bot${token}`;
 
     const resultado = await enviarConReintento(async () => {
-      if (pedido.fotoUrl) {
+      if (pedido.fotoUrl && mensaje.length <= 1024) {
         return fetch(`${base}/sendPhoto`, {
+          signal: AbortSignal.timeout(5000),
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chat_id: chatId, photo: pedido.fotoUrl, caption: mensaje }),
         });
       }
       return fetch(`${base}/sendMessage`, {
+        signal: AbortSignal.timeout(5000),
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId, text: mensaje }),
       });
     });
 
+    if (!resultado.ok && pedido.fotoUrl && mensaje.length <= 1024) {
+      // Una imagen inaccesible no debe impedir avisar a ENJINIA.
+      const sinFoto = await enviarConReintento(() => fetch(`${base}/sendMessage`, {
+        method: "POST", signal: AbortSignal.timeout(5000),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: mensaje }),
+      }));
+      return { ...sinFoto, detalle: `Aviso sin foto. ${sinFoto.detalle}`, intentos: resultado.intentos + sinFoto.intentos };
+    }
+    if (resultado.ok && pedido.fotoUrl && mensaje.length > 1024) {
+      // El texto ya llegó. Mandar la evidencia aparte con caption breve.
+      try {
+        const foto = await fetch(`${base}/sendPhoto`, {
+          method: "POST", signal: AbortSignal.timeout(5000),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, photo: pedido.fotoUrl, caption: `Foto del pedido ${pedido.servicioId}` }),
+        });
+        if (!foto.ok) return { ...resultado, detalle: `Aviso enviado; foto no entregada (HTTP ${foto.status}). Ver fotos en operaciones.`, intentos: resultado.intentos + 1 };
+      } catch {
+        return { ...resultado, detalle: "Aviso enviado; foto no confirmada. Ver fotos en operaciones.", intentos: resultado.intentos + 1 };
+      }
+      return { ...resultado, intentos: resultado.intentos + 1 };
+    }
     return { ok: resultado.ok, detalle: resultado.detalle, intentos: resultado.intentos };
   },
 };

@@ -13,6 +13,7 @@ export async function enrutarPedido(
   diagnostico?: ResultadoDiagnostico | null,
 ): Promise<void> {
   const r = await fetch(`/api/pedidos/${servicioId}/enrutar`, {
+    signal: AbortSignal.timeout(30000),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -33,8 +34,8 @@ export async function enrutarPedido(
     }),
   });
 
-  if (!r.ok) {
-    const datos = await r.json().catch(() => null);
+  const datos = await r.json().catch(() => null);
+  if (!r.ok || datos?.ok !== true) {
     throw new Error((datos && typeof datos.error === "string" && datos.error) || "No pudimos avisar del pedido.");
   }
 }

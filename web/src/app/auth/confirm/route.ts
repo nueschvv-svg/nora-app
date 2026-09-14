@@ -1,6 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { supabaseServidor } from "@/lib/supabase/servidor";
+import { destinoInterno } from "@/lib/destinoInterno";
 
 /* Acá aterrizan los links que Nora manda por mail.
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const tipo = searchParams.get("type") as EmailOtpType | null;
-  const destino = searchParams.get("next") ?? "/inicio";
+  const destino = destinoInterno(searchParams.get("next"));
 
   if (!tokenHash || !tipo) {
     return NextResponse.redirect(`${origin}/entrar?error=link_invalido`);

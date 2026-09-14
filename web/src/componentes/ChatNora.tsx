@@ -142,11 +142,12 @@ export function ChatNora({
           <p className="text-[13.5px] font-bold font-display text-ink leading-tight">Nora</p>
           <p className="flex items-center gap-1.5 text-[11px] text-mute">
             <span className="live-dot w-[6px] h-[6px] rounded-full bg-good" aria-hidden="true" />
-            En línea
+            Asistente virtual
           </p>
         </div>
       </div>
 
+      <p className="px-4 py-2 text-xs text-mute">No es un canal de emergencias. Ante riesgo inmediato, contactá a emergencias o a la administración.</p>
       <div ref={listaRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto no-scrollbar px-4 py-4">
         {mensajes.map((m, i) => (
           <div

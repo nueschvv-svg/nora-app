@@ -1,5 +1,7 @@
 # Nora — Dónde estamos
 
+> Este documento conserva el estado histórico de agosto. Para la auditoría del 14/09/2026, correcciones y bloqueos del piloto ENJINIA, ver [INFORME.md](docs/piloto/INFORME.md).
+
 Actualizado: 13 de agosto de 2026
 
 ---

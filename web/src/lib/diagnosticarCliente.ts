@@ -49,7 +49,7 @@ export async function diagnosticarFoto(params: {
   if (params.descripcion.trim()) form.set("descripcion", params.descripcion.trim());
   if (params.categoriaSlug) form.set("categoria", params.categoriaSlug);
 
-  const r = await fetch("/api/diagnosticar", { method: "POST", body: form });
+  const r = await fetch("/api/diagnosticar", { method: "POST", body: form, signal: AbortSignal.timeout(65000) });
   const datos = await r.json().catch(() => null);
 
   if (!r.ok) {
