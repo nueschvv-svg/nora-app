@@ -6,6 +6,7 @@ import { Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
 
 import { IsotipoNora } from "@/componentes/LogoNora";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
+import { destinoInterno } from "@/lib/destinoInterno";
 
 /* Registro e ingreso.
 
@@ -26,7 +27,7 @@ export default function PaginaEntrar() {
 function Formulario() {
   const router = useRouter();
   const params = useSearchParams();
-  const volverA = params.get("volver") || "/inicio";
+  const volverA = destinoInterno(params.get("volver"));
 
   const [modo, setModo] = useState<Modo>("entrar");
   const [nombre, setNombre] = useState("");

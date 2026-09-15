@@ -34,6 +34,9 @@ import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
 import { actualizarMisDatosPersonales, mailContactoValido, misDatosPersonales } from "@/lib/perfil";
 import { type Propiedad, type Servicio } from "@/lib/tipos";
+import { idIntentoPedido, completarIntentoPedido } from "@/lib/intentoPedido";
+import { errorFotoPedido, fechaArgentina, telefonoContactoValido } from "@/lib/validacionPedido";
+import { conTiempoLimite } from "@/lib/tiempoLimite";
 
 /* Antes listaba las 24 provincias argentinas acá mismo, dando a
    entender que podíamos llegar a cualquier lado del país. Ahora la
@@ -191,12 +194,13 @@ export default function PaginaPedir() {
      bajo Strict Mode: `removeItem` es idempotente, así que da igual si
      este efecto corre dos veces en desarrollo. */
   useEffect(() => {
-    if (llegoDesdeChat) sessionStorage.removeItem("nora:contextoChat");
+    try { if (llegoDesdeChat) sessionStorage.removeItem("nora:contextoChat"); } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
   const [servicioEnviado, setServicioEnviado] = useState<Servicio | null>(null);
+  const [avisoEntrega, setAvisoEntrega] = useState<string | null>(null);
 
   const [nombreInicial, setNombreInicial] = useState("");
   const [telefonoInicial, setTelefonoInicial] = useState("");
@@ -217,7 +221,7 @@ export default function PaginaPedir() {
      8 dígitos sin contar espacios/guiones alcanza para no aceptar "123"
      pero sin exigir un formato exacto — los números argentinos varían
      bastante en longitud según si llevan código de área. */
-  const telefonoValido = telefonoInicial.replace(/\D/g, "").length >= 8;
+  const telefonoValido = telefonoContactoValido(telefonoInicial);
 
   /* Mail sigue siendo opcional (sólo sirve para el comprobante) — acá
      sólo se valida el FORMATO, y sólo si escribieron algo. Antes no
@@ -227,7 +231,7 @@ export default function PaginaPedir() {
      lib/perfil.ts) — un solo lugar donde se decide qué cuenta como
      mail válido, para que las dos pantallas no se desincronicen. */
   const mailValido = mailContactoValido(mailInicial);
-  const nombreValido = nombreInicial.trim().length >= 2;
+  const nombreValido = nombreInicial.trim().length >= 2 && nombreInicial.trim().length <= 120;
   const calleValida = calleInicial.trim() !== "";
   const numeroValido = numeroInicial.trim() !== "";
   const localidadValida = localidadInicial.trim() !== "";
@@ -258,6 +262,7 @@ export default function PaginaPedir() {
   const [intentoContinuarContacto, setIntentoContinuarContacto] = useState(false);
 
   const [enviando, setEnviando] = useState(false);
+  const envioEnCurso = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
@@ -304,6 +309,8 @@ export default function PaginaPedir() {
     const archivo = e.target.files?.[0];
     e.target.value = ""; // permite volver a elegir el mismo archivo después
     if (!archivo) return;
+    const problemaFoto = errorFotoPedido(archivo);
+    if (problemaFoto) { setErrorFoto(problemaFoto); return; }
     setFotos((actuales) => (actuales.length >= MAX_FOTOS ? actuales : [...actuales, archivo]));
     setDiagnostico(null);
     setErrorFoto(null);
@@ -345,7 +352,7 @@ export default function PaginaPedir() {
      ofrecen — mostrarlas sería prometer un horario imposible. */
   const franjasDisponibles =
     dia === proximosDias[0]?.iso
-      ? FRANJAS.filter((f) => f.horaFin === null || new Date().getHours() < f.horaFin)
+      ? FRANJAS.filter((f) => f.horaFin === null || Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", hourCycle: "h23" }).format(new Date())) < f.horaFin)
       : FRANJAS;
 
   /* Si cambiás de día y la franja que tenías elegida ya no es válida
@@ -372,7 +379,7 @@ export default function PaginaPedir() {
   const analisisPendiente = analizando || (!diagnostico && !errorFoto);
 
   const puedeAvanzar =
-    (paso === 0 && !!categoria) ||
+    (paso === 0 && !!catElegida?.activa) ||
     (paso === 1 && (descripcion.trim().length >= 10 || fotos.length > 0)) ||
     (paso === pasoAnalisis && !analisisPendiente) ||
     (paso === pasoCuando && !!dia && !!franjaEfectiva) ||
@@ -402,7 +409,7 @@ export default function PaginaPedir() {
     : descripcion;
 
   const avanzar = async () => {
-    if (!puedeAvanzar || enviando) return;
+    if (!puedeAvanzar || enviando || envioEnCurso.current) return;
 
     if (paso === pasoContacto) {
       /* "Continuar con estos datos": ya están guardados de un pedido
@@ -417,67 +424,73 @@ export default function PaginaPedir() {
         return;
       }
 
+      envioEnCurso.current = true;
       setEnviando(true);
       setError(null);
       try {
-        const [, nuevaPropiedad] = await Promise.all([
-          actualizarMisDatosPersonales({
+        await actualizarMisDatosPersonales({
             nombre: nombreInicial,
             telefono: telefonoInicial,
             mailContacto: mailInicial,
-          }),
-          agregarPropiedad({
+          });
+        const nuevaPropiedad = await agregarPropiedad({
             nombre: "Mi casa",
             calle: calleInicial,
             numero: numeroInicial,
             localidad: localidadInicial,
             provincia: provinciaInicial,
             icono: "home",
-          }),
-        ]);
+          });
         setPropiedadGuardada(nuevaPropiedad);
+        setPerfilPrevio({ nombre: nombreInicial, telefono: telefonoInicial });
+        setEditandoContacto(false);
         setPaso(paso + 1);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No pudimos guardar tus datos.");
       } finally {
+        envioEnCurso.current = false;
         setEnviando(false);
       }
       return;
     }
 
     if (paso === pasoConfirmar) {
-      if (!propiedadActual || !categoria) return;
+      if (!dia || !proximosDias.some((d) => d.iso === dia) || !franjaEfectiva) {
+        setError("El horario que elegiste ya pasó. Elegí uno nuevo para continuar.");
+        setPaso(pasoCuando);
+        return;
+      }
+      if (!propiedadActual || !categoria || !catElegida?.activa) {
+        setError("Revisá la categoría y los datos de contacto antes de enviar.");
+        return;
+      }
+      envioEnCurso.current = true;
       setEnviando(true);
       setError(null);
       try {
-        const nuevoServicio = await crearServicio({
+        const datosPedido = {
           propiedadId: propiedadActual.id,
           categoriaSlug: categoria,
           descripcion: descripcionFinal,
           fechaPreferida: dia,
-          franjaPreferida: franja,
+          franjaPreferida: franjaEfectiva,
           estimadoDesdeArs: diagnostico?.estimado?.desdeArs ?? null,
           estimadoHastaArs: diagnostico?.estimado?.hastaArs ?? null,
-        });
+        };
+        const idIntento = await idIntentoPedido(datosPedido);
+        const nuevoServicio = await crearServicio({ ...datosPedido, idIntento });
 
-        /* Lo único que de verdad tiene que pasar antes de mostrarle
-           "pedido enviado" a la persona es crearServicio() de arriba —
-           eso es lo que lo hace visible para operaciones. Subir las
-           fotos, avisar por Telegram y mandar el comprobante por mail
-           son un plus, ninguno de los tres requisito (si fallan, el
-           pedido ya está adentro igual, ver comentarios de cada
-           función) — así que no hay motivo para tener a la persona
-           mirando un spinner mientras se suben y esperan la vuelta de
-           un servidor externo. Corren en background, en el mismo
-           orden de antes (fotos primero, para que el aviso pueda
-           incluir su URL). Las fotos se suben todas en paralelo — una
-           que falle no debe frenar ni ocultar a las demás. */
-        (async () => {
+        /* ENJINIA recibe por Telegram. Esperar el intento evita invitar
+           a cerrar la pestaña antes de avisar. Un fallo NO borra ni
+           vuelve a crear el pedido: se informa y queda en operaciones. */
+        const avisos: string[] = [];
+        await (async () => {
           if (fotos.length > 0) {
             await Promise.all(
               fotos.map((f) =>
-                subirFotoServicio(nuevoServicio.id, f).catch((e) => {
+                conTiempoLimite(subirFotoServicio(nuevoServicio.id, f), 15000).catch((e) => {
                   console.error("[pedir] no se pudo guardar una foto:", e);
+                  avisos.push("No pudimos confirmar que se adjuntó una foto. Revisá el detalle del pedido.");
                 }),
               ),
             );
@@ -486,18 +499,18 @@ export default function PaginaPedir() {
             await enrutarPedido(nuevoServicio.id, diagnostico);
           } catch (e) {
             console.error("[pedir] no se pudo avisar del pedido:", e);
-          }
-          try {
-            await mandarComprobantePorMail(nuevoServicio.id);
-          } catch (e) {
-            console.error("[pedir] no se pudo mandar el comprobante:", e);
+            avisos.push("El pedido quedó guardado, pero no pudimos confirmar el aviso al equipo. Conservá el número y consultá Mis pedidos; no hace falta enviarlo otra vez.");
           }
         })();
+        void mandarComprobantePorMail(nuevoServicio.id).catch((e) => console.error("[pedir] comprobante:", e));
 
+        setAvisoEntrega(avisos.length ? [...new Set(avisos)].join(" ") : null);
         setServicioEnviado(nuevoServicio);
+        completarIntentoPedido();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No pudimos enviar el pedido.");
       } finally {
+        envioEnCurso.current = false;
         setEnviando(false);
       }
       return;
@@ -509,6 +522,7 @@ export default function PaginaPedir() {
   if (servicioEnviado) {
     return (
       <Confirmacion
+        avisoEntrega={avisoEntrega}
         servicio={servicioEnviado}
         domicilio={propiedadActual ? `${propiedadActual.nombre} · ${propiedadActual.direccion}` : "—"}
         diaTexto={proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—"}
@@ -562,6 +576,7 @@ export default function PaginaPedir() {
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-xl mx-auto w-full">
+        <p className="text-sm text-ink bg-surface rounded-xl p-3 mb-4">Nora no atiende emergencias. Si hay riesgo inmediato, contactá al servicio de emergencias o a la administración. No esperes una respuesta por acá.</p>
         {/* Input oculto compartido por ControlFoto en cualquier paso (El
             problema y Análisis) — montado acá, fuera de cualquier
             `paso === N`, porque si viviera dentro de un paso puntual se
@@ -968,9 +983,7 @@ export default function PaginaPedir() {
             <div className="mt-3 flex items-start gap-2.5 rounded-xl2 bg-brand-50 border border-brand-100 px-3.5 py-3">
               <Clock className="w-[18px] h-[18px] text-brand-600 shrink-0 mt-0.5" />
               <p className="text-[12.5px] text-ink leading-snug">
-                En menos de <span className="font-semibold">2 horas</span> te contactamos con el precio
-                confirmado — <span className="font-semibold">antes</span> de que arranque el trabajo: no
-                se cobra nada hasta entonces.
+                ENJINIA gestiona tu pedido y te confirma la atención y el precio antes de que arranque el trabajo.
               </p>
             </div>
           </section>
@@ -1385,11 +1398,13 @@ function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
    llama o escribe por WhatsApp al teléfono que la persona dejó, para
    cerrar el servicio — ver enrutarPedidoCliente.ts. */
 function Confirmacion({
+  avisoEntrega,
   servicio,
   domicilio,
   diaTexto,
   franjaTexto,
 }: {
+  avisoEntrega: string | null;
   servicio: Servicio;
   domicilio: string;
   diaTexto: string;
@@ -1416,13 +1431,11 @@ function Confirmacion({
         <TituloPaso className="text-[23px] font-bold font-display text-ink mt-5">
           ¡Pedido enviado!
         </TituloPaso>
-        {/* Titular corto y tranquilizador primero, el compromiso
-            concreto (2 horas, por teléfono) como detalle debajo — uno
-            no reemplaza al otro, cada uno cumple un rol distinto. */}
-        <p className="text-[14.5px] font-semibold text-ink mt-2">En breve te contactaremos.</p>
+        {/* Confirmar recepción no equivale a prometer atención inmediata. */}
+        <p className="text-[14.5px] font-semibold text-ink mt-2">Guardamos tu pedido.</p>
+        {avisoEntrega && <p role="alert" className="mt-3 rounded-xl bg-warn/15 p-3 text-sm text-ink max-w-sm">{avisoEntrega}</p>}
         <p className="text-[13.5px] text-mute mt-1 max-w-[300px] leading-relaxed">
-          Ya lo estamos viendo. En menos de 2 horas te contactamos por teléfono con el precio
-          confirmado.
+          El equipo todavía tiene que confirmar la atención y el precio. Podés consultar las novedades en Mis pedidos.
         </p>
 
         <div
@@ -1450,7 +1463,7 @@ function Confirmacion({
             </span>
             <div className="min-w-0">
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">
-                ¿A qué hora vamos a venir?
+                Horario que solicitaste · a confirmar
               </p>
               <p className="text-[14px] font-bold text-ink mt-1">{diaTexto}</p>
               <p className="text-[12.5px] text-mute">{franjaCorta}</p>
@@ -1470,10 +1483,10 @@ function Confirmacion({
 
       <div className="px-6 pb-8">
         <Link
-          href="/inicio"
+          href="/pedidos"
           className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab"
         >
-          Volver al inicio
+          Ver mis pedidos
         </Link>
       </div>
     </div>
@@ -1487,17 +1500,17 @@ function Confirmacion({
 function obtenerProximosDias() {
   const DIAS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
   const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const hoy = new Date();
+  const hoy = new Date(`${fechaArgentina(new Date())}T12:00:00Z`);
 
   return Array.from({ length: 30 }, (_, i) => {
     const d = new Date(hoy);
-    d.setDate(hoy.getDate() + i);
+    d.setUTCDate(hoy.getUTCDate() + i);
     return {
-      iso: d.toISOString().slice(0, 10),
-      diaSemana: i === 0 ? "HOY" : i === 1 ? "MAÑ" : DIAS[d.getDay()],
-      numero: d.getDate(),
-      mes: MESES[d.getMonth()],
-      etiquetaLarga: i === 0 ? "Hoy" : `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`,
+      iso: fechaArgentina(d),
+      diaSemana: i === 0 ? "HOY" : i === 1 ? "MAÑ" : DIAS[d.getUTCDay()],
+      numero: d.getUTCDate(),
+      mes: MESES[d.getUTCMonth()],
+      etiquetaLarga: i === 0 ? "Hoy" : `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]}`,
     };
   });
 }

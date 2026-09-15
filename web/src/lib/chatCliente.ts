@@ -12,6 +12,7 @@ export type RespuestaChatNora = {
 
 export async function chatearConNora(historial: TurnoChat[]): Promise<RespuestaChatNora> {
   const r = await fetch("/api/chat", {
+    signal: AbortSignal.timeout(35000),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ historial }),

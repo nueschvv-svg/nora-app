@@ -13,6 +13,7 @@
    ============================================================ */
 
 import { supabaseNavegador } from "./supabase/cliente";
+import { telefonoContactoValido } from "./validacionPedido";
 
 function fallar(contexto: string, error: { message: string }): never {
   console.error(`[perfil] ${contexto}:`, error.message);
@@ -74,6 +75,8 @@ export async function actualizarMisDatosPersonales(datos: {
 
   const nombre = datos.nombre.trim();
   if (nombre.length < 2) throw new Error("Poné tu nombre completo.");
+  if (nombre.length > 120) throw new Error("El nombre es demasiado largo.");
+  if (!telefonoContactoValido(datos.telefono)) throw new Error("Revisá el teléfono: ingresá entre 8 y 15 dígitos.");
 
   const mailContacto = datos.mailContacto?.trim() ?? "";
   if (!mailContactoValido(mailContacto)) {

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { supabaseServidor } from "@/lib/supabase/servidor";
+import { destinoInterno } from "@/lib/destinoInterno";
 
 /* Vuelta desde un proveedor externo (Google, cuando lo agreguemos).
 
@@ -10,7 +11,7 @@ import { supabaseServidor } from "@/lib/supabase/servidor";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const destino = searchParams.get("next") ?? "/inicio";
+  const destino = destinoInterno(searchParams.get("next"));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/entrar?error=sin_codigo`);
