@@ -31,30 +31,30 @@ Total: 103 declaraciones de controles. Los controles dinámicos (categorías, fe
 
 | Línea | Elemento | Acción / identificación | Evidencia |
 |---|---|---|---|
-| 545 | button | type="button"; onClick={() => (paso === 0 ? router.push("/inicio") : setPaso(paso - 1))}; aria-label={paso === 0 ? "Salir" : "Paso anterior"} | Declaración revisable; ejecución ver informe |
-| 568 | Link | href="/inicio"; aria-label="Cerrar" | Declaración revisable; ejecución ver informe |
-| 584 | input | type="file"; onChange={alCambiarFoto}; aria-label="Sacar o elegir una foto del problema" | Declaración revisable; ejecución ver informe |
-| 619 | button | type="button"; onClick={reintentarCategorias} | Declaración revisable; ejecución ver informe |
-| 633 | button | type="button"; disabled={!c.activa}; onClick={() => setCategoria(c.slug)}; aria-label={c.activa ? c.nombre : `${c.nombre} — todavía no disponible`} | Declaración revisable; ejecución ver informe |
-| 702 | textarea | id="descripcion"; value={descripcion}; onChange={(e) => setDescripcion(e.target.value)}; placeholder="Ej: pierde agua la conexión de abajo de la bacha de la cocina, gotea desde ayer." | Declaración revisable; ejecución ver informe |
-| 723 | ControlFoto |  | Declaración revisable; ejecución ver informe |
-| 761 | button | type="button"; onClick={() => setDia(d.iso)} | Declaración revisable; ejecución ver informe |
-| 783 | button | type="button"; onClick={() => setFranja(f.id)} | Declaración revisable; ejecución ver informe |
-| 830 | button | type="button"; onClick={usarOtrosDatos} | Declaración revisable; ejecución ver informe |
-| 851 | CampoTexto | id="nombre-inicial"; etiqueta="Nombre completo"; placeholder="Nombre y apellido"; value={nombreInicial}; onChange={(e) => setNombreInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
-| 860 | CampoTexto | id="telefono-inicial"; etiqueta="Teléfono"; type="tel"; value={telefonoInicial}; onChange={(e) => setTelefonoInicial(e.target.value)}; placeholder="11 1234 5678" | Declaración revisable; ejecución ver informe |
-| 872 | CampoTexto | id="mail-inicial"; etiqueta="Mail (opcional)"; type="email"; value={mailInicial}; onChange={(e) => setMailInicial(e.target.value)}; placeholder="tu@mail.com" | Declaración revisable; ejecución ver informe |
-| 886 | CampoTexto | id="calle-inicial"; etiqueta="Calle"; value={calleInicial}; onChange={(e) => setCalleInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
-| 894 | CampoTexto | id="numero-inicial"; etiqueta="Altura"; value={numeroInicial}; onChange={(e) => setNumeroInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
-| 904 | CampoTexto | id="localidad-inicial"; etiqueta="Localidad"; value={localidadInicial}; onChange={(e) => setLocalidadInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
-| 920 | select | id="provincia-inicial"; value={provinciaInicial}; onChange={(e) => setProvinciaInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
-| 1004 | button | type="button"; onClick={avanzar}; disabled={!puedeAvanzar \|\| enviando} | Declaración revisable; ejecución ver informe |
-| 1099 | input | id={id}; type="text" | Declaración revisable; ejecución ver informe |
-| 1146 | button | type="button"; onClick={() => onQuitar(i)}; aria-label={`Quitar foto ${i + 1}`} | Declaración revisable; ejecución ver informe |
-| 1160 | button | type="button"; onClick={onElegir} | Declaración revisable; ejecución ver informe |
-| 1371 | textarea | value={descripcion}; onChange={(e) => onDescripcionChange(e.target.value)}; placeholder="¿Algo más para contarle a Nora?" | Declaración revisable; ejecución ver informe |
-| 1378 | ControlFoto |  | Declaración revisable; ejecución ver informe |
-| 1484 | Link | href="/pedidos" | Declaración revisable; ejecución ver informe |
+| 546 | button | type="button"; onClick={() => (paso === 0 ? router.push("/inicio") : setPaso(paso - 1))}; aria-label={paso === 0 ? "Salir" : "Paso anterior"} | Declaración revisable; ejecución ver informe |
+| 569 | Link | href="/inicio"; aria-label="Cerrar" | Declaración revisable; ejecución ver informe |
+| 585 | input | type="file"; onChange={alCambiarFoto}; aria-label="Sacar o elegir una foto del problema" | Declaración revisable; ejecución ver informe |
+| 620 | button | type="button"; onClick={reintentarCategorias} | Declaración revisable; ejecución ver informe |
+| 634 | button | type="button"; disabled={!c.activa}; onClick={() => setCategoria(c.slug)}; aria-label={c.activa ? c.nombre : `${c.nombre} — todavía no disponible`} | Declaración revisable; ejecución ver informe |
+| 703 | textarea | id="descripcion"; value={descripcion}; onChange={(e) => setDescripcion(e.target.value)}; placeholder="Ej: pierde agua la conexión de abajo de la bacha de la cocina, gotea desde ayer." | Declaración revisable; ejecución ver informe |
+| 724 | ControlFoto |  | Declaración revisable; ejecución ver informe |
+| 762 | button | type="button"; onClick={() => setDia(d.iso)} | Declaración revisable; ejecución ver informe |
+| 784 | button | type="button"; onClick={() => setFranja(f.id)} | Declaración revisable; ejecución ver informe |
+| 831 | button | type="button"; onClick={usarOtrosDatos} | Declaración revisable; ejecución ver informe |
+| 852 | CampoTexto | id="nombre-inicial"; etiqueta="Nombre completo"; placeholder="Nombre y apellido"; value={nombreInicial}; onChange={(e) => setNombreInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
+| 861 | CampoTexto | id="telefono-inicial"; etiqueta="Teléfono"; type="tel"; value={telefonoInicial}; onChange={(e) => setTelefonoInicial(e.target.value)}; placeholder="11 1234 5678" | Declaración revisable; ejecución ver informe |
+| 873 | CampoTexto | id="mail-inicial"; etiqueta="Mail (opcional)"; type="email"; value={mailInicial}; onChange={(e) => setMailInicial(e.target.value)}; placeholder="tu@mail.com" | Declaración revisable; ejecución ver informe |
+| 887 | CampoTexto | id="calle-inicial"; etiqueta="Calle"; value={calleInicial}; onChange={(e) => setCalleInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
+| 895 | CampoTexto | id="numero-inicial"; etiqueta="Altura"; value={numeroInicial}; onChange={(e) => setNumeroInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
+| 905 | CampoTexto | id="localidad-inicial"; etiqueta="Localidad"; value={localidadInicial}; onChange={(e) => setLocalidadInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
+| 921 | select | id="provincia-inicial"; value={provinciaInicial}; onChange={(e) => setProvinciaInicial(e.target.value)} | Declaración revisable; ejecución ver informe |
+| 1005 | button | type="button"; onClick={avanzar}; disabled={!puedeAvanzar \|\| enviando} | Declaración revisable; ejecución ver informe |
+| 1100 | input | id={id}; type="text" | Declaración revisable; ejecución ver informe |
+| 1147 | button | type="button"; onClick={() => onQuitar(i)}; aria-label={`Quitar foto ${i + 1}`} | Declaración revisable; ejecución ver informe |
+| 1161 | button | type="button"; onClick={onElegir} | Declaración revisable; ejecución ver informe |
+| 1372 | textarea | value={descripcion}; onChange={(e) => onDescripcionChange(e.target.value)}; placeholder="¿Algo más para contarle a Nora?" | Declaración revisable; ejecución ver informe |
+| 1379 | ControlFoto |  | Declaración revisable; ejecución ver informe |
+| 1485 | Link | href="/pedidos" | Declaración revisable; ejecución ver informe |
 
 ## web/src/app/cambiar-clave/page.tsx
 
