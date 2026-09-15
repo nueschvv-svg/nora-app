@@ -154,6 +154,8 @@ Se ejecutan con `cd web && npm ci && npm test`. El fixture de UI se inicia con `
 
 [GitHub Actions del primer corte](https://github.com/nueschvv-svg/nora-app/actions/runs/34865496855) terminó correctamente. Los valores de Supabase usados por CI son ficticios y sirven para compilar, no para una aceptación E2E.
 
+Verificación posterior: [QA del commit e1c19e8](https://github.com/nueschvv-svg/nora-app/actions/runs/34918837872) también pasó todos los pasos. La vista previa de Vercel pasó, pero [Netlify nora-app-849](https://app.netlify.com/projects/nora-app-849/deploys/6aa8a45d8abe53000898b23f) terminó en error. Los tres checks auxiliares de Netlify sólo remiten al mismo despliegue fallido; no demuestran tres bugs distintos. La API pública confirma el estado, sin exponer la causa. Falta consultar el log de compilación con acceso a ese proyecto antes de proponer una corrección. Por lo tanto, QA verde no significa que todas las integraciones de despliegue estén aprobadas.
+
 ## 14. E2E y simulación de piloto
 
 Se completó el recorrido del residente con backend simulado. **No se completó residente → Supabase real → Telegram real → operador → cambio de estado → residente**. No se probaron 50 personas ni se generó carga productiva. El test de dos envíos concurrentes usa una frontera de DB simulada; no prueba concurrencia real en Postgres.
