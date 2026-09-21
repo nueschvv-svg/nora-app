@@ -7,6 +7,8 @@ const user = { id: resident, aud: 'authenticated', role: 'authenticated', is_ano
 const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
 const access_token = [encode({ alg: 'HS256', typ: 'JWT' }), encode({ sub: resident, aud: 'authenticated', role: 'authenticated', exp: Math.floor(Date.now()/1000)+3600, is_anonymous: true }), 'local-ui-fixture'].join('.');
 const rows = {
+  edificios: [{ id: '30000000-0000-4000-8000-000000000001', slug: 'edificio-qa', nombre: 'Edificio ficticio QA', calle: 'Calle ficticia', numero: '123', localidad: 'CABA', provincia: 'CABA', activo: true }],
+  servicio_avisos: [],
   perfiles: [{ id: resident, nombre: 'Residente QA', telefono: '1155551234', mail_contacto: '', rol: 'cliente' }],
   categorias: ['Plomería', 'Electricidad', 'Cerrajería'].map((nombre, i) => ({ slug: ['plomeria', 'electricidad', 'cerrajeria'][i], nombre, icono: 'wrench', activa: true, orden: i, requiere_matricula: false })),
   propiedades: [], equipos: [], servicios: [], servicio_fotos: [], calificaciones: [], servicio_enrutamientos: [],
@@ -29,6 +31,8 @@ http.createServer(async (req, res) => {
       const record = { id: randomUUID(), numero_orden: data.length + 1, creado_el: new Date().toISOString(), ...payload };
       if (data.some((r) => r.id === record.id)) return send(409, { code: '23505', message: 'duplicate' });
       data.push(record); rows[table] = data; data = [record];
+      // UI simulation only; the SQL trigger is tested separately in PGlite.
+      if (table === 'servicios') rows.servicio_avisos.push({ servicio_id: record.id, estado: 'pendiente', intentos: 0, proximo_intento_el: new Date().toISOString() });
     } else { data = data.filter(matches); data.forEach((row) => Object.assign(row, payload)); }
   } else data = data.filter(matches);
   if (req.headers.accept?.includes('vnd.pgrst.object')) return send(200, data[0] ?? null);

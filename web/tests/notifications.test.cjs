@@ -6,7 +6,7 @@ test('notification failure returned as HTTP 200 is not silently accepted', async
   global.fetch = async () => Response.json({ ok: false });
   try {
     const { enrutarPedido } = load('src/lib/enrutarPedidoCliente.ts');
-    await assert.rejects(enrutarPedido('test'), /avisar/);
+    await assert.rejects(enrutarPedido('test'), /aviso/);
   } finally { global.fetch = original; }
 });
 test('long order with image stays within Telegram limits and retains contact', async () => {
@@ -26,4 +26,16 @@ test('long order with image stays within Telegram limits and retains contact', a
     if (oldToken === undefined) delete process.env.TELEGRAM_BOT_TOKEN; else process.env.TELEGRAM_BOT_TOKEN = oldToken;
     if (oldChat === undefined) delete process.env.TELEGRAM_CHAT_ID; else process.env.TELEGRAM_CHAT_ID = oldChat;
   }
+});
+test('Telegram HTTP 200 with ok false is a failure and raw transport secrets are never returned', async()=>{
+ const oldFetch=global.fetch, token=process.env.TELEGRAM_BOT_TOKEN, chat=process.env.TELEGRAM_CHAT_ID;
+ process.env.TELEGRAM_BOT_TOKEN='secret-token';process.env.TELEGRAM_CHAT_ID='fake-chat';
+ const pedido={servicioId:'test',categoriaNombre:'Plomería',descripcion:'Pérdida',cliente:{nombre:'QA',telefono:'1155551234'},propiedad:{direccion:'QA',localidad:'QA',provincia:'QA'},fotoUrl:null};
+ try{
+  const {estrategiaTelegram}=load('src/lib/enrutamiento/telegram.ts',{'server-only':{}});
+  global.fetch=async()=>Response.json({ok:false,description:'secret-token'});
+  const failed=await estrategiaTelegram.enrutar(pedido);assert.equal(failed.ok,false);assert.ok(!failed.detalle.includes('secret-token'));
+  global.fetch=async()=>{throw Error('https://api.telegram.org/botsecret-token/sendMessage');};
+  const network=await estrategiaTelegram.enrutar(pedido);assert.equal(network.ok,false);assert.ok(!network.detalle.includes('secret-token'));
+ }finally{global.fetch=oldFetch;if(token===undefined)delete process.env.TELEGRAM_BOT_TOKEN;else process.env.TELEGRAM_BOT_TOKEN=token;if(chat===undefined)delete process.env.TELEGRAM_CHAT_ID;else process.env.TELEGRAM_CHAT_ID=chat;}
 });

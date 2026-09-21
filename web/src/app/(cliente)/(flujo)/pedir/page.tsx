@@ -24,6 +24,7 @@ import { TituloPaso } from "@/componentes/TituloPaso";
 import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
 import {
   crearServicio,
+  obtenerEdificio,
   listarCategorias,
   subirFotoServicio,
   PROVINCIAS_CUBIERTAS,
@@ -33,9 +34,11 @@ import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarC
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
 import { actualizarMisDatosPersonales, mailContactoValido, misDatosPersonales } from "@/lib/perfil";
-import { type Propiedad, type Servicio } from "@/lib/tipos";
+import { type Edificio, type Propiedad, type Servicio } from "@/lib/tipos";
 import { idIntentoPedido, completarIntentoPedido } from "@/lib/intentoPedido";
 import { errorFotoPedido, fechaArgentina, telefonoContactoValido } from "@/lib/validacionPedido";
+import { descripcionDelPedido } from "@/lib/descripcionPedido";
+import { propiedadDelContexto } from "@/lib/edificio";
 import { conTiempoLimite } from "@/lib/tiempoLimite";
 
 /* Antes listaba las 24 provincias argentinas acá mismo, dando a
@@ -73,9 +76,34 @@ const FRANJAS = [
 ];
 
 export default function PaginaPedir() {
+  const searchParams = useSearchParams();
+  return <FormularioPedido key={JSON.stringify(searchParams.get("edificio"))} />;
+}
+
+function FormularioPedido() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { propiedad, agregarPropiedad } = useApp();
+  const edificioSlug = searchParams.get("edificio");
+  const esPiloto = edificioSlug !== null;
+  const [edificio, setEdificio] = useState<Edificio | null>(null);
+  const [cargandoEdificio, setCargandoEdificio] = useState(esPiloto);
+  const [errorEdificio, setErrorEdificio] = useState<string | null>(null);
+  const [pisoInicial, setPisoInicial] = useState("");
+  const [unidadInicial, setUnidadInicial] = useState("");
+  useEffect(() => {
+    if (edificioSlug === null) return;
+    let vigente = true;
+    obtenerEdificio(edificioSlug).then((dato) => {
+      if (vigente) {
+        setEdificio(dato);
+        if (!dato) setErrorEdificio("Este enlace de edificio no está habilitado. Pedile el enlace actualizado a ENJINIA.");
+      }
+    }).catch(() => {
+      if (vigente) setErrorEdificio("No pudimos cargar el edificio. Volvé a abrir este enlace en un momento.");
+    }).finally(() => { if (vigente) setCargandoEdificio(false); });
+    return () => { vigente = false; };
+  }, [edificioSlug]);
 
   /* Sin cuentas: nadie carga domicilio/teléfono en un registro aparte de
      antemano — se piden como parte del pedido. El paso "Contacto"
@@ -88,7 +116,7 @@ export default function PaginaPedir() {
      datos" sigue de largo sin re-preguntar nada, "Usar otros datos"
      abre el formulario de siempre. */
   const [propiedadGuardada, setPropiedadGuardada] = useState<Propiedad | null>(null);
-  const propiedadActual = propiedad ?? propiedadGuardada;
+  const propiedadActual = propiedadDelContexto(edificioSlug, edificio, propiedadGuardada ?? propiedad);
 
   /* true = mostrando el formulario editable (como era antes, siempre);
      false = mostrando el resumen de "¿seguimos con esto?". Arranca en
@@ -96,7 +124,7 @@ export default function PaginaPedir() {
      ahí tiene sentido preguntar "¿seguimos con estos datos?". Se
      decide una vez, no en cada render, por el mismo motivo de antes:
      que no cambie de golpe a mitad de flujo. */
-  const [editandoContacto, setEditandoContacto] = useState(() => !propiedad);
+  const [editandoContacto, setEditandoContacto] = useState(() => esPiloto || !propiedad);
   const [perfilPrevio, setPerfilPrevio] = useState<{ nombre: string; telefono: string } | null>(null);
   const [cargandoPerfilPrevio, setCargandoPerfilPrevio] = useState(() => !!propiedad);
 
@@ -236,8 +264,10 @@ export default function PaginaPedir() {
   const numeroValido = numeroInicial.trim() !== "";
   const localidadValida = localidadInicial.trim() !== "";
 
-  const datosInicialesValidos =
-    nombreValido && telefonoValido && mailValido && calleValida && numeroValido && localidadValida;
+  const pisoValido = pisoInicial.trim().length > 0 && pisoInicial.trim().length <= 30;
+  const unidadValida = unidadInicial.trim().length > 0 && unidadInicial.trim().length <= 30;
+  const datosInicialesValidos = nombreValido && telefonoValido && mailValido &&
+    (esPiloto ? !!edificio && pisoValido && unidadValida : calleValida && numeroValido && localidadValida);
 
   /* Un solo lugar por campo para "¿qué mensaje mostrar?" — antes cuatro
      de los seis campos repetían su condición de validez acá Y de nuevo
@@ -402,14 +432,10 @@ export default function PaginaPedir() {
     ? `[Estimado de Nora] ${diagnostico.trabajo ? `${diagnostico.trabajo.nombre}: ` : ""}${diagnostico.estimado.titulo} — ${diagnostico.estimado.aclaracion}`
     : null;
 
-  const descripcionFinal = diagnostico?.observaciones
-    ? [descripcion.trim(), `[Foto analizada por Nora] ${diagnostico.observaciones}`, lineaEstimado]
-        .filter(Boolean)
-        .join("\n\n")
-    : descripcion;
+  const descripcionFinal = descripcionDelPedido(descripcion, !!diagnostico?.riesgoInmediato, diagnostico?.observaciones, lineaEstimado);
 
   const avanzar = async () => {
-    if (!puedeAvanzar || enviando || envioEnCurso.current) return;
+    if (!puedeAvanzar || enviando || envioEnCurso.current || (esPiloto && !edificio)) return;
 
     if (paso === pasoContacto) {
       /* "Continuar con estos datos": ya están guardados de un pedido
@@ -434,12 +460,15 @@ export default function PaginaPedir() {
             mailContacto: mailInicial,
           });
         const nuevaPropiedad = await agregarPropiedad({
-            nombre: "Mi casa",
-            calle: calleInicial,
-            numero: numeroInicial,
-            localidad: localidadInicial,
-            provincia: provinciaInicial,
-            icono: "home",
+            nombre: edificio?.nombre ?? "Mi casa",
+            calle: edificio?.calle ?? calleInicial,
+            numero: edificio?.numero ?? numeroInicial,
+            localidad: edificio?.localidad ?? localidadInicial,
+            provincia: edificio?.provincia ?? provinciaInicial,
+            icono: edificio ? "building-2" : "home",
+            edificioId: edificio?.id,
+            piso: esPiloto ? pisoInicial : undefined,
+            unidad: esPiloto ? unidadInicial : undefined,
           });
         setPropiedadGuardada(nuevaPropiedad);
         setPerfilPrevio({ nombre: nombreInicial, telefono: telefonoInicial });
@@ -480,9 +509,9 @@ export default function PaginaPedir() {
         const idIntento = await idIntentoPedido(datosPedido);
         const nuevoServicio = await crearServicio({ ...datosPedido, idIntento });
 
-        /* ENJINIA recibe por Telegram. Esperar el intento evita invitar
-           a cerrar la pestaña antes de avisar. Un fallo NO borra ni
-           vuelve a crear el pedido: se informa y queda en operaciones. */
+        /* La base encola el aviso a ENJINIA junto con el pedido.
+           Consultar el estado no dispara otro envío: el consumidor del
+           servidor se ocupa de entregarlo y reintentar. */
         const avisos: string[] = [];
         await (async () => {
           if (fotos.length > 0) {
@@ -496,10 +525,10 @@ export default function PaginaPedir() {
             );
           }
           try {
-            await enrutarPedido(nuevoServicio.id, diagnostico);
+            await enrutarPedido(nuevoServicio.id);
           } catch (e) {
             console.error("[pedir] no se pudo avisar del pedido:", e);
-            avisos.push("El pedido quedó guardado, pero no pudimos confirmar el aviso al equipo. Conservá el número y consultá Mis pedidos; no hace falta enviarlo otra vez.");
+            avisos.push("El pedido quedó guardado, pero no pudimos confirmar el estado del aviso al equipo. Conservá el número y consultá Mis pedidos; no hace falta enviarlo otra vez.");
           }
         })();
         void mandarComprobantePorMail(nuevoServicio.id).catch((e) => console.error("[pedir] comprobante:", e));
@@ -518,6 +547,14 @@ export default function PaginaPedir() {
 
     setPaso(paso + 1);
   };
+
+  if (esPiloto && (cargandoEdificio || !edificio)) {
+    return <div className="p-6 pt-16 max-w-xl mx-auto">
+      <TituloPaso>{cargandoEdificio ? "Cargando tu edificio…" : "Revisá el enlace"}</TituloPaso>
+      <p role={errorEdificio ? "alert" : "status"} className="mt-4 text-mute">{errorEdificio ?? "Estamos buscando la dirección del edificio."}</p>
+      {errorEdificio && <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-xl bg-brand-600 text-white px-5 py-3">Volver a intentar</button>}
+    </div>;
+  }
 
   if (servicioEnviado) {
     return (
@@ -883,6 +920,17 @@ export default function PaginaPedir() {
               error={intentoContinuarContacto ? erroresContacto.mail : undefined}
             />
 
+            {edificio ? <>
+              <div className="mt-4 rounded-xl2 border border-line bg-surface p-4">
+                <p className="font-semibold">{edificio.nombre}</p>
+                <p className="text-sm text-mute">{edificio.calle} {edificio.numero} · {edificio.localidad}</p>
+                <p className="mt-1 text-xs text-mute">ENJINIA gestiona tu pedido en este edificio.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <CampoTexto id="piso-inicial" etiqueta="Piso" placeholder="Ej: PB o 3" maxLength={30} value={pisoInicial} onChange={(e) => setPisoInicial(e.target.value)} error={intentoContinuarContacto && !pisoValido ? "Ingresá el piso." : undefined} />
+                <CampoTexto id="unidad-inicial" etiqueta="Unidad / departamento" placeholder="Ej: A o 12" maxLength={30} value={unidadInicial} onChange={(e) => setUnidadInicial(e.target.value)} error={intentoContinuarContacto && !unidadValida ? "Ingresá la unidad." : undefined} />
+              </div>
+            </> : <>
             <div className="grid grid-cols-[1fr_92px] gap-2.5">
               <CampoTexto
                 id="calle-inicial"
@@ -931,6 +979,7 @@ export default function PaginaPedir() {
                 ))}
               </select>
             </div>
+            </>}
           </section>
         )}
 

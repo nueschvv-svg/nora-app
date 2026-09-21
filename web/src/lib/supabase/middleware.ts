@@ -19,6 +19,9 @@ const REQUIERE_CUENTA_REAL = ["/operaciones", "/cambiar-clave"];
 export async function actualizarSesion(request: NextRequest) {
   let respuesta = NextResponse.next({ request });
 
+  // El consumidor usa su propio Bearer secreto; no crea sesiones anónimas.
+  if (request.nextUrl.pathname === "/api/cron/avisos") return respuesta;
+
   // Sin Supabase configurado, la app sigue andando con los datos del
   // navegador. Útil para ver el diseño sin tener que crear una cuenta.
   if (!HAY_SUPABASE) return respuesta;

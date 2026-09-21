@@ -93,7 +93,20 @@ export type Equipo = {
   ultimaRevision?: string;
 };
 
+export type Edificio = {
+  id: string;
+  slug: string;
+  nombre: string;
+  calle: string;
+  numero: string;
+  localidad: string;
+  provincia: string;
+};
+
 export type Propiedad = {
+  edificioId?: string;
+  piso?: string;
+  unidad?: string;
   id: string;
   nombre: string;
   direccion: string;

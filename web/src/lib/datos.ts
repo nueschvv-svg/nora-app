@@ -13,13 +13,18 @@
    ============================================================ */
 
 import { supabaseNavegador } from "./supabase/cliente";
-import { Equipo, Propiedad, Servicio, TipoEquipo } from "./tipos";
+import { Edificio, Equipo, Propiedad, Servicio, TipoEquipo } from "./tipos";
+
+import { direccionConUnidad } from "./edificio";
 
 /* ---------- Traducción entre la base y la app ----------
    La base usa nombres_con_guion_bajo, el código usa nombresEnCamello.
    La conversión vive acá y en ningún otro lado. */
 
 type FilaPropiedad = {
+  edificio_id?: string | null;
+  piso?: string | null;
+  unidad?: string | null;
   id: string;
   nombre: string;
   calle: string;
@@ -33,7 +38,10 @@ function aPropiedad(f: FilaPropiedad): Propiedad {
   return {
     id: f.id,
     nombre: f.nombre,
-    direccion: [f.calle, f.numero].filter(Boolean).join(" "),
+    direccion: direccionConUnidad(f.calle, f.numero, f.piso, f.unidad),
+    edificioId: f.edificio_id ?? undefined,
+    piso: f.piso ?? undefined,
+    unidad: f.unidad ?? undefined,
     localidad: f.localidad,
     provincia: f.provincia,
     icono: (f.icono as Propiedad["icono"]) ?? "home",
@@ -125,7 +133,7 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
 
   const { data, error } = await supabase
     .from("propiedades")
-    .select("id, nombre, calle, numero, localidad, provincia, icono")
+    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad")
     .eq("dueno_id", user.id)
     .order("creado_el");
 
@@ -134,6 +142,9 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
 }
 
 export type NuevaPropiedad = {
+  edificioId?: string;
+  piso?: string;
+  unidad?: string;
   nombre: string;
   calle: string;
   numero: string;
@@ -189,12 +200,18 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
     throw new Error("Por ahora sólo cubrimos CABA y Buenos Aires.");
   }
 
-  const { lat, lng } = await geocodificar(datos);
+  if (datos.edificioId && (!datos.piso?.trim() || !datos.unidad?.trim() || datos.piso.trim().length > 30 || datos.unidad.trim().length > 30)) {
+    throw new Error("Ingresá piso y unidad (hasta 30 caracteres cada uno).");
+  }
+  const { lat, lng } = datos.edificioId ? { lat: null, lng: null } : await geocodificar(datos);
 
   const { data, error } = await supabase
     .from("propiedades")
     .insert({
       dueno_id: user.id,
+      edificio_id: datos.edificioId ?? null,
+      piso: datos.piso?.trim() || null,
+      unidad: datos.unidad?.trim() || null,
       nombre: datos.nombre.trim(),
       calle: datos.calle.trim(),
       numero: datos.numero.trim() || null,
@@ -204,7 +221,7 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
       latitud: lat,
       longitud: lng,
     })
-    .select("id, nombre, calle, numero, localidad, provincia, icono")
+    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad")
     .single();
 
   if (error) fallar("guardar el domicilio", error);
@@ -519,4 +536,14 @@ export async function listarCategorias(): Promise<CategoriaBD[]> {
     requiereMatricula: c.requiere_matricula,
     activa: c.activa,
   }));
+}
+
+/** Sólo registros habilitados; las políticas también filtran en base. */
+export async function obtenerEdificio(slug: string): Promise<Edificio | null> {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) return null;
+  const { data, error } = await supabaseNavegador().from("edificios")
+    .select("id, slug, nombre, calle, numero, localidad, provincia")
+    .eq("slug", slug).eq("activo", true).maybeSingle();
+  if (error) fallar("cargar el edificio", error);
+  return data as Edificio | null;
 }

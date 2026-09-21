@@ -1,5 +1,7 @@
 # Diagnóstico y preparación del piloto ENJINIA
 
+> Actualización del 20/09: se implementaron cola durable, edificio/unidad y refuerzo de permisos. Ver [avance y evidencia](ACTUALIZACION-2026-09-20.md) y [activación pendiente](ACTIVACION.md). Este informe conserva el diagnóstico y la evidencia del primer corte; no implica que las migraciones estén instaladas.
+
 Fecha: 14/09/2026. Base original: `ee4fad2`. Primer corte de correcciones: `877746c`, rama `codex/auditoria-piloto`.
 
 **Conclusión: NOT READY FOR PILOT.** Se corrigieron fallas importantes y los controles automatizados pasan. Todavía falta probar la base real, aislamiento entre residentes, gestión de operaciones y recepción controlada en Telegram. No corresponde confundir un build correcto o una simulación con un piloto validado.

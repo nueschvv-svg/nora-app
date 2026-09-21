@@ -51,27 +51,26 @@ function armarMensaje(pedido: PedidoParaEnrutar): string {
 
   lineas.push("");
   lineas.push(`ID interno: ${pedido.servicioId}`);
-  lineas.push(`Ver pedido: https://nora-app-kappa.vercel.app/operaciones/${pedido.servicioId}`);
+  const appUrl = new URL(process.env.NORA_APP_URL || "https://nora-app-kappa.vercel.app");
+  if (appUrl.protocol !== "https:" || appUrl.username || appUrl.password) throw new Error("URL de Nora inválida.");
+  lineas.push(`Ver pedido: ${appUrl.origin}/operaciones/${pedido.servicioId}`);
 
   return lineas.join("\n");
 }
 
-/* Un solo reintento inmediato. Si Telegram está caído más que eso, no
-   tiene sentido seguir insistiendo desde acá — para eso está la fila
-   en servicio_enrutamientos que deja armar el reintento manual. */
+/* Un reintento breve; la cola durable se ocupa de los fallos persistentes. */
 async function enviarConReintento(
   hacerPedido: () => Promise<Response>,
 ): Promise<{ ok: boolean; detalle: string; intentos: number }> {
   for (let intento = 1; intento <= 2; intento++) {
     try {
       const r = await hacerPedido();
-      if (r.ok) return { ok: true, detalle: `Telegram respondió ${r.status}`, intentos: intento };
-      const cuerpo = await r.text().catch(() => "");
-      if (intento === 2) return { ok: false, detalle: `Telegram respondió ${r.status}: ${cuerpo}`, intentos: intento };
-    } catch (e) {
+      const cuerpo = await r.json().catch(() => null);
+      if (r.ok && cuerpo?.ok === true) return { ok: true, detalle: `Telegram confirmó el aviso (HTTP ${r.status}).`, intentos: intento };
+      if (intento === 2) return { ok: false, detalle: `Telegram no confirmó el aviso (HTTP ${r.status}).`, intentos: intento };
+    } catch {
       if (intento === 2) {
-        const mensaje = e instanceof Error ? e.message : "error de red desconocido";
-        return { ok: false, detalle: mensaje, intentos: intento };
+        return { ok: false, detalle: "No se pudo conectar con Telegram o venció el tiempo de espera.", intentos: intento };
       }
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -131,7 +130,8 @@ export const estrategiaTelegram: EstrategiaEnrutamiento = {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chat_id: chatId, photo: pedido.fotoUrl, caption: `Foto del pedido ${pedido.servicioId}` }),
         });
-        if (!foto.ok) return { ...resultado, detalle: `Aviso enviado; foto no entregada (HTTP ${foto.status}). Ver fotos en operaciones.`, intentos: resultado.intentos + 1 };
+        const confirmacion = await foto.json().catch(() => null);
+        if (!foto.ok || confirmacion?.ok !== true) return { ...resultado, detalle: `Aviso enviado; foto no entregada (HTTP ${foto.status}). Ver fotos en operaciones.`, intentos: resultado.intentos + 1 };
       } catch {
         return { ...resultado, detalle: "Aviso enviado; foto no confirmada. Ver fotos en operaciones.", intentos: resultado.intentos + 1 };
       }
