@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { LogotipoNora } from "@/componentes/LogoNora";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
@@ -46,14 +48,16 @@ export default function PaginaCambiarClave() {
   }
 
   return (
-    <div className="relative w-full max-w-[440px] mx-auto min-h-dvh bg-sand overflow-y-auto no-scrollbar">
-      <div className="px-6 pt-16 pb-10">
+    <main className="nora-auth">
+      <div className="w-full max-w-[460px]">
+        <Link href="/inicio" aria-label="Nora · Ir al inicio" className="mb-8 flex min-h-11 justify-center"><LogotipoNora /></Link>
+        <div className="nora-auth-card">
         <div className="entra-suave flex flex-col items-center text-center">
           <span className="grid place-items-center w-16 h-16 rounded-2xl bg-brand-50 text-brand-600">
             <KeyRound className="w-7 h-7" />
           </span>
-          <h1 className="text-[24px] font-bold font-display text-ink mt-4">Elegí una nueva</h1>
-          <p className="text-[13.5px] text-mute mt-1.5 max-w-[280px]">
+          <h1 className="nora-heading mt-4">Tu nueva contraseña</h1>
+          <p className="text-sm leading-relaxed text-mute mt-3 max-w-sm">
             Poné la contraseña que vas a usar de ahora en adelante.
           </p>
         </div>
@@ -73,12 +77,12 @@ export default function PaginaCambiarClave() {
                 value={clave}
                 onChange={(e) => setClave(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-2xl bg-surface border border-line shadow-card pl-4 pr-12 py-3.5 text-[14px] text-ink outline-none focus:border-brand-300"
+                className="w-full rounded-2xl bg-surface border border-line shadow-card pl-4 pr-12 py-3.5 text-base text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
               <button
                 type="button"
                 onClick={() => setVer(!ver)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center text-faint"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-11 h-11 grid place-items-center text-faint"
                 aria-label={ver ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
                 {ver ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
@@ -103,7 +107,7 @@ export default function PaginaCambiarClave() {
               onChange={(e) => setRepetida(e.target.value)}
               autoComplete="new-password"
               aria-invalid={noCoinciden}
-              className={`w-full rounded-2xl bg-surface border shadow-card px-4 py-3.5 text-[14px] text-ink outline-none ${
+              className={`w-full rounded-2xl bg-surface border shadow-card px-4 py-3.5 text-base text-ink outline-none ${
                 noCoinciden ? "border-urgent" : "border-line focus:border-brand-300"
               }`}
             />
@@ -123,13 +127,14 @@ export default function PaginaCambiarClave() {
           <button
             type="submit"
             disabled={!valido || cargando}
-            className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab disabled:opacity-40 disabled:pointer-events-none"
+            className="nora-button w-full gap-2 disabled:opacity-40 disabled:pointer-events-none"
           >
             {cargando && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
             Guardar y entrar
           </button>
         </form>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -123,7 +123,7 @@ export function ChatNora({
      entera. */
   return (
     <section
-      className={`h-full flex flex-col overflow-hidden ${
+      className={`nora-chat h-full flex flex-col overflow-hidden ${
         siempreTarjeta
           ? "rounded-xl3 border border-line/60 shadow-card"
           : "sm:rounded-xl3 sm:border sm:border-line/60 sm:shadow-card"
@@ -141,7 +141,7 @@ export function ChatNora({
         <div className="min-w-0">
           <p className="text-[13.5px] font-bold font-display text-ink leading-tight">Nora</p>
           <p className="flex items-center gap-1.5 text-[11px] text-mute">
-            <span className="live-dot w-[6px] h-[6px] rounded-full bg-good" aria-hidden="true" />
+            <span className="w-[6px] h-[6px] rounded-full bg-good" aria-hidden="true" />
             Asistente virtual
           </p>
         </div>
@@ -160,7 +160,7 @@ export function ChatNora({
               </span>
             )}
             <p
-              className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-snug whitespace-pre-line shadow-card ${
+              className={`max-w-[80%] px-3.5 py-2.5 text-[15px] leading-relaxed whitespace-pre-line shadow-card ${
                 m.rol === "nora"
                   ? "bg-sand border border-line rounded-2xl rounded-tl-md text-ink"
                   : "bg-brand-600 text-white rounded-2xl rounded-tr-md"

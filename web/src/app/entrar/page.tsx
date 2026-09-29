@@ -4,7 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
 
-import { IsotipoNora } from "@/componentes/LogoNora";
+import Link from "next/link";
+
+import { LogotipoNora } from "@/componentes/LogoNora";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { destinoInterno } from "@/lib/destinoInterno";
 
@@ -18,7 +20,7 @@ type Modo = "entrar" | "registrarse" | "recuperar";
 
 export default function PaginaEntrar() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<main className="nora-auth"><p role="status" className="nora-auth-card text-mute">Preparando tu acceso…</p></main>}>
       <Formulario />
     </Suspense>
   );
@@ -186,16 +188,16 @@ function Formulario() {
   return (
     <Marco>
       <div className="entra-suave flex flex-col items-center text-center">
-        <IsotipoNora className="h-14 w-auto" />
-        <h1 className="text-[24px] font-bold font-display text-ink mt-3">
+        <p className="nora-eyebrow mb-3">Tu cuenta Nora</p>
+        <h1 className="nora-heading mt-3">
           {recuperando ? "Recuperar acceso" : registrando ? "Creá tu cuenta" : "Hola de nuevo"}
         </h1>
-        <p className="text-[13.5px] text-mute mt-1.5 max-w-[280px]">
+        <p className="text-sm leading-relaxed text-mute mt-3 max-w-sm">
           {recuperando
             ? "Poné tu email y te mandamos un link para elegir una contraseña nueva."
             : registrando
               ? "Tu casa, sus equipos y sus mantenimientos, en un solo lugar."
-              : "Entrá para ver el estado de tus propiedades."}
+              : "Entrá para seguir el cuidado de tu casa."}
         </p>
       </div>
 
@@ -237,7 +239,7 @@ function Formulario() {
               onChange={(e) => setClave(e.target.value)}
               autoComplete={registrando ? "new-password" : "current-password"}
               aria-describedby="clave-ayuda"
-              className="w-full rounded-2xl bg-surface border border-line shadow-card pl-4 pr-12 py-3.5 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+              className="w-full rounded-2xl bg-surface border border-line shadow-card pl-4 pr-12 py-3.5 text-base text-ink placeholder:text-faint outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
             <button
               type="button"
@@ -265,7 +267,7 @@ function Formulario() {
         <button
           type="submit"
           disabled={!valido || cargando}
-          className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab disabled:opacity-40 disabled:pointer-events-none"
+          className="nora-button w-full gap-2 disabled:opacity-40 disabled:pointer-events-none"
         >
           {cargando && <Loader2 className="w-[18px] h-[18px] animate-spin" />}
           {recuperando ? "Mandame el link" : registrando ? "Crear mi cuenta" : "Entrar"}
@@ -299,7 +301,7 @@ function Formulario() {
             setModo("recuperar");
             setError(null);
           }}
-          className="w-full text-center text-[13px] text-mute mt-4 underline underline-offset-2"
+          className="mt-3 min-h-11 w-full text-center text-sm text-mute underline underline-offset-4"
         >
           Me olvidé la contraseña
         </button>
@@ -313,7 +315,7 @@ function Formulario() {
               setModo("entrar");
               setError(null);
             }}
-            className="font-semibold text-brand-600 underline underline-offset-2"
+            className="inline-flex min-h-11 items-center font-semibold text-brand-600 underline underline-offset-4"
           >
             Volver
           </button>
@@ -326,7 +328,7 @@ function Formulario() {
                 setModo(registrando ? "entrar" : "registrarse");
                 setError(null);
               }}
-              className="font-semibold text-brand-600 underline underline-offset-2"
+              className="inline-flex min-h-11 items-center font-semibold text-brand-600 underline underline-offset-4"
             >
               {registrando ? "Entrá" : "Creá tu cuenta"}
             </button>
@@ -345,9 +347,13 @@ function Formulario() {
 
 function Marco({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative w-full max-w-[440px] mx-auto min-h-dvh bg-sand overflow-y-auto no-scrollbar">
-      <div className="px-6 pt-16 pb-10">{children}</div>
-    </div>
+    <main className="nora-auth">
+      <div className="w-full max-w-[460px]">
+        <Link href="/inicio" aria-label="Nora · Ir al inicio" className="mb-8 flex min-h-11 justify-center"><LogotipoNora /></Link>
+        <div className="nora-auth-card">{children}</div>
+        <p className="mt-6 text-center text-xs text-mute">El cuidado de tu casa, en un solo lugar.</p>
+      </div>
+    </main>
   );
 }
 
@@ -390,7 +396,7 @@ function Campo({
       <input
         id={id}
         type="text"
-        className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-[14px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+        className="w-full rounded-2xl bg-surface border border-line shadow-card px-4 py-3.5 text-base text-ink placeholder:text-faint outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         {...props}
       />
     </div>

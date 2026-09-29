@@ -9,12 +9,14 @@ import { ClipboardList } from "lucide-react";
 export default function PaginaOperaciones() {
   return (
     <main className="h-dvh overflow-hidden md:flex">
-      <div className="h-full overflow-y-auto no-scrollbar md:w-[420px] md:shrink-0 md:border-r md:border-line">
+      <div className="h-full overflow-y-auto md:w-[360px] lg:w-[420px] md:shrink-0 md:border-r md:border-line">
         <ListaPedidos />
       </div>
-      <div className="hidden md:flex flex-1 flex-col items-center justify-center gap-2 text-mute">
-        <ClipboardList className="w-8 h-8 text-faint" />
-        <p className="text-[13px]">Elegí un pedido de la lista para ver el detalle.</p>
+      <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 text-center text-mute">
+        <span className="mb-6 grid h-20 w-20 place-items-center rounded-3xl border border-line bg-surface shadow-sm"><ClipboardList aria-hidden="true" className="w-8 h-8 text-brand-700" /></span>
+        <p className="nora-eyebrow">Todo en su lugar</p>
+        <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink">Un pedido a la vez.</h2>
+        <p className="mt-3 max-w-sm text-sm leading-relaxed">Elegí un pedido para consultar sus datos, coordinar el trabajo y acompañar cada paso.</p>
       </div>
     </main>
   );

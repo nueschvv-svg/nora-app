@@ -550,7 +550,7 @@ function FormularioPedido() {
   }
 
   return (
-    <div className="absolute inset-0 z-40 bg-sand flex flex-col">
+    <div className="nora-wizard absolute inset-0 z-40 flex flex-col">
       {/* --- Encabezado con progreso ---
           max-w-xl mx-auto en las tres franjas (encabezado, contenido
           scrolleable, pie) — antes cada una ocupaba el ancho entero de
@@ -560,16 +560,17 @@ function FormularioPedido() {
           vacío a los costados, más parecido a un layout roto que a un
           sitio prolijo. El fondo (bg-sand) sigue ocupando todo el
           ancho — sólo el contenido en sí se centra y se limita. */}
-      <div className="px-5 pt-12 pb-3 flex items-center gap-3 max-w-xl mx-auto w-full">
+      <div className="px-5 pt-6 pb-5 flex items-center gap-4 max-w-2xl mx-auto w-full">
         <button
           type="button"
           onClick={() => (paso === 0 ? router.push("/inicio") : setPaso(paso - 1))}
-          className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+          className="press w-11 h-11 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
           aria-label={paso === 0 ? "Salir" : "Paso anterior"}
         >
           <ArrowLeft className="w-[18px] h-[18px]" />
         </button>
         <div className="flex-1">
+          <p className="nora-eyebrow mb-2">NORA · {PASOS[paso]} <span className="float-right">{paso + 1} / {PASOS.length}</span></p>
           <div
             className="h-1.5 w-full rounded-full bg-line overflow-hidden"
             role="progressbar"
@@ -586,15 +587,15 @@ function FormularioPedido() {
         </div>
         <Link
           href="/inicio"
-          className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+          className="press w-11 h-11 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
           aria-label="Cerrar"
         >
           <X className="w-[18px] h-[18px]" />
         </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-xl mx-auto w-full">
-        <p className="text-sm text-ink bg-surface rounded-xl p-3 mb-4">Nora no atiende emergencias. Si hay riesgo inmediato, contactá al servicio de emergencias o a la administración. No esperes una respuesta por acá.</p>
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-2xl mx-auto w-full">
+        <p className="text-xs leading-relaxed text-mute border-l-2 border-brand-200 pl-3 py-2 mb-6">Nora no atiende emergencias. Si hay riesgo inmediato, contactá al servicio de emergencias o a la administración. No esperes una respuesta por acá.</p>
         {/* Input oculto compartido por ControlFoto en cualquier paso (El
             problema y Análisis) — montado acá, fuera de cualquier
             `paso === N`, porque si viviera dentro de un paso puntual se
@@ -985,7 +986,7 @@ function FormularioPedido() {
       </div>
 
       {/* --- Pie con el botón de avance --- */}
-      <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent max-w-xl mx-auto w-full">
+      <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent max-w-2xl mx-auto w-full">
         {error && (
           <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mb-2.5">
             {error}
@@ -1417,7 +1418,7 @@ function Confirmacion({
   }, []);
 
   return (
-    <div className="absolute inset-0 z-40 bg-sand flex flex-col overflow-y-auto no-scrollbar">
+    <div className="nora-wizard absolute inset-0 z-40 flex flex-col overflow-y-auto no-scrollbar">
       <div className="flex-1 flex flex-col items-center px-6 pt-16 pb-6 text-center">
         <div ref={checkRef} className="w-20 h-20 grid place-items-center rounded-full bg-good/15 text-good">
           <Check className="w-10 h-10" />

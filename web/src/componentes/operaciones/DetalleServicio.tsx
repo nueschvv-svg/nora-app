@@ -69,7 +69,7 @@ export function DetalleServicio({ id }: { id: string }) {
     let vivo = true;
     obtenerServicioOperaciones(id)
       .then((s) => {
-        if (vivo) setServicio(s);
+        if (vivo) { setServicio(s); setError(null); }
       })
       .catch((e) => {
         if (vivo) setError(e instanceof Error ? e.message : "No pudimos cargar el pedido.");
@@ -112,11 +112,11 @@ export function DetalleServicio({ id }: { id: string }) {
 
   if (cargando || !servicio) {
     return (
-      <main className="px-5 pt-12 space-y-3">
+      <div role="status" aria-label="Cargando pedido" className="mx-auto max-w-4xl p-6 space-y-3">
         <Bloque className="h-8 w-40" />
         <Bloque className="h-[120px] w-full rounded-xl2" />
         <Bloque className="h-[200px] w-full rounded-xl2" />
-      </main>
+      </div>
     );
   }
 
@@ -127,23 +127,24 @@ export function DetalleServicio({ id }: { id: string }) {
     (servicio.estado === "aceptado" || servicio.estado === "en_camino");
 
   return (
-    <main className="px-5 pt-12 pb-8">
+    <div className="mx-auto max-w-4xl px-5 py-6 lg:px-10 lg:py-10">
       <Link
         href="/operaciones"
-        className="press md:hidden inline-flex items-center gap-1.5 text-[13px] font-semibold text-mute"
+        className="press md:hidden min-h-11 inline-flex items-center gap-2 rounded-xl text-sm font-semibold text-brand-700"
       >
         <ArrowLeft className="w-4 h-4" /> Todos los pedidos
       </Link>
 
-      <div className="mt-4 md:mt-0 flex items-start gap-3">
-        <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
+      <div className="mt-4 md:mt-0 flex items-start gap-4 border-b border-line pb-7">
+        <span className="shrink-0 w-14 h-14 grid place-items-center rounded-2xl bg-brand-700 text-white text-sm font-semibold">
           {servicio.categoriaNombre.slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="text-[19px] font-bold font-display text-ink leading-tight truncate">
+          <p className="nora-eyebrow mb-2">Detalle del pedido</p>
+          <h1 className="font-display text-2xl lg:text-3xl font-semibold text-ink leading-tight break-words">
             {servicio.categoriaNombre}
           </h1>
-          <p className="text-[12.5px] text-mute mt-0.5">{fecha(servicio.creadoEl.slice(0, 10))}</p>
+          <p className="text-sm text-mute mt-2">{fecha(servicio.creadoEl.slice(0, 10))}</p>
           <BadgeEstado estado={servicio.estado} className="mt-1.5" />
         </div>
       </div>
@@ -176,7 +177,7 @@ export function DetalleServicio({ id }: { id: string }) {
 
       {/* ---------- El problema ---------- */}
       <Seccion titulo="El problema" icono={ClipboardList}>
-        <p className="text-[13.5px] text-ink leading-relaxed whitespace-pre-line">{servicio.descripcion}</p>
+        <p className="text-sm text-ink leading-relaxed whitespace-pre-line break-words">{servicio.descripcion}</p>
       </Seccion>
 
       {servicio.fotos.length > 0 && (
@@ -297,7 +298,7 @@ export function DetalleServicio({ id }: { id: string }) {
           </div>
         )}
       </Seccion>
-    </main>
+    </div>
   );
 }
 
@@ -325,18 +326,19 @@ function ResponderSolicitud({
       <p className="text-[13px] text-mute leading-relaxed">
         Confirmá un precio (queda aceptado directo) u ofertá uno para que el cliente decida.
       </p>
-      <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mt-3 mb-1.5">
+      <label htmlFor="precio-respuesta" className="block text-xs font-semibold tracking-wide text-mute mt-3 mb-1.5">
         Precio (ARS)
       </label>
       <input
         type="number"
         inputMode="numeric"
+        id="precio-respuesta"
         value={monto}
         onChange={(e) => setMonto(e.target.value)}
         placeholder="Ej: 25000"
-        className="w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink outline-none focus:border-brand-300"
+        className="w-full rounded-xl bg-sand border border-line px-4 py-2.5 text-base text-ink outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
       />
-      <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+      <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
         <BotonAccion
           texto="Aceptar con este precio"
           icono={Check}
@@ -359,21 +361,22 @@ function ResponderSolicitud({
           <button
             type="button"
             onClick={() => setRechazando(true)}
-            className="press flex items-center gap-1.5 text-[13px] font-semibold text-urgent"
+            className="press min-h-11 flex items-center gap-1.5 text-sm font-semibold text-urgent"
           >
             <X className="w-3.5 h-3.5" /> Rechazar este pedido
           </button>
         ) : (
           <>
-            <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">
+            <label htmlFor="motivo-rechazo" className="block text-xs font-semibold tracking-wide text-mute mb-1.5">
               ¿Por qué se rechaza?
             </label>
             <textarea
+              id="motivo-rechazo"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               placeholder="Ej: fuera de la zona que cubrimos"
               rows={2}
-              className="w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+              className="w-full rounded-xl bg-sand border border-line px-4 py-2.5 text-base text-ink placeholder:text-faint outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
             />
             <div className="flex items-center gap-2 mt-2">
               <BotonAccion
@@ -386,7 +389,7 @@ function ResponderSolicitud({
               <button
                 type="button"
                 onClick={() => setRechazando(false)}
-                className="press text-[13px] font-semibold text-mute px-2"
+                className="press min-h-11 text-sm font-semibold text-mute px-3"
               >
                 Cancelar
               </button>
@@ -413,20 +416,20 @@ function Seccion({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-4">
-      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase text-faint px-0.5 mb-1.5">
-        <Icono className="w-3.5 h-3.5" /> {titulo}
-      </p>
-      <div className="bg-surface rounded-xl2 border border-line shadow-card p-4">{children}</div>
-    </div>
+    <section className="nora-panel mt-5 overflow-hidden">
+      <h2 className="flex items-center gap-2 border-b border-line px-5 py-4 text-sm font-semibold text-ink">
+        <Icono aria-hidden="true" className="w-4 h-4 text-brand-600" /> {titulo}
+      </h2>
+      <div className="p-5">{children}</div>
+    </section>
   );
 }
 
 function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-1">
-      <span className="text-[13px] text-mute shrink-0">{etiqueta}</span>
-      <span className="text-[13px] font-semibold text-ink text-right">{valor}</span>
+    <div className="grid grid-cols-[100px_minmax(0,1fr)] gap-4 py-2 border-b border-line/60 last:border-0">
+      <span className="text-sm text-mute">{etiqueta}</span>
+      <span className="text-sm font-medium text-ink break-words">{valor}</span>
     </div>
   );
 }
@@ -449,8 +452,8 @@ function BotonAccion({
       type="button"
       onClick={onClick}
       disabled={cargando}
-      className={`press flex items-center justify-center gap-2 rounded-xl2 px-4 py-2.5 text-[13px] font-semibold disabled:opacity-50 ${
-        variante === "peligro" ? "bg-urgent/10 text-urgent" : "bg-brand-600 text-white"
+      className={`press min-h-11 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50 ${
+        variante === "peligro" ? "bg-urgent/10 text-urgent" : "bg-brand-700 text-white hover:bg-brand-800"
       }`}
     >
       {cargando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : Icono && <Icono className="w-3.5 h-3.5" />}
@@ -471,15 +474,16 @@ function FormularioPrecio({
   const [valor, setValor] = useState(valorInicial != null ? String(valorInicial) : "");
   return (
     <div className="mt-4 pt-4 border-t border-line">
-      <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">Precio (ARS)</label>
-      <div className="flex gap-2">
+      <label htmlFor="precio-pedido" className="block text-xs font-semibold tracking-wide text-mute mb-1.5">Precio (ARS)</label>
+      <div className="flex flex-wrap gap-2">
         <input
           type="number"
           inputMode="numeric"
+          id="precio-pedido"
           value={valor}
           onChange={(e) => setValor(e.target.value)}
           placeholder="Sin definir"
-          className="flex-1 rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink outline-none focus:border-brand-300"
+          className="min-w-0 flex-1 rounded-xl bg-sand border border-line px-4 py-2.5 text-base text-ink outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
         />
         <BotonAccion
           texto="Guardar"
@@ -512,14 +516,16 @@ function FormularioReprogramar({
 
   return (
     <div className="mt-4 pt-4 border-t border-line">
-      <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">Reprogramar</label>
+      <label className="block text-xs font-semibold tracking-wide text-mute mb-1.5">Reprogramar</label>
       <SelectorAgenda fecha={dia} franja={franja} onChange={(d,f)=>{setDia(d);setFranja(f ?? "");}} onValidez={setAgendaValida} />
+      <label htmlFor="motivo-reprogramacion" className="mt-4 block text-xs font-semibold text-mute">Motivo de la reprogramación</label>
       <textarea
+        id="motivo-reprogramacion"
         value={nota}
         onChange={(e) => setNota(e.target.value)}
         placeholder="¿Por qué se reprograma? (obligatorio)"
         rows={2}
-        className="mt-2 w-full rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+        className="mt-2 w-full rounded-xl bg-sand border border-line px-4 py-2.5 text-base text-ink placeholder:text-faint outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
       />
       <div className="mt-2">
         <BotonAccion
@@ -546,16 +552,17 @@ function FormularioNota({
   const [texto, setTexto] = useState("");
   return (
     <div className="mt-4 pt-4 border-t border-line">
-      <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">
+      <label htmlFor="nota-pedido" className="block text-xs font-semibold tracking-wide text-mute mb-1.5">
         Dejar una nota
       </label>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <input
           type="text"
+          id="nota-pedido"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Ej: llamé al cliente, confirma horario"
-          className="flex-1 rounded-2xl bg-sand border border-line px-4 py-2.5 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300"
+          className="min-w-0 flex-1 rounded-xl bg-sand border border-line px-4 py-2.5 text-base text-ink placeholder:text-faint outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
         />
         <BotonAccion
           texto="Agregar"

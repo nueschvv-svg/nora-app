@@ -19,7 +19,7 @@ import { gsap } from "gsap";
    — no hay reconciliación parcial de texto que confundir. */
 export function TituloPaso({
   children,
-  className = "text-[22px] font-bold font-display text-ink leading-tight",
+  className = "text-[30px] sm:text-[38px] font-semibold tracking-tight font-display text-ink leading-tight",
 }: {
   children: React.ReactNode;
   className?: string;

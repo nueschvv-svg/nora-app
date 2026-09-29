@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ClipboardList, LogOut, PackageOpen, Radio } from "lucide-react";
+import { ChevronRight, ClipboardList, CalendarDays, Bell, LogOut, PackageOpen } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase/cliente";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import { BadgeEstado } from "@/componentes/BadgeEstado";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { listarTodosLosServicios, suscribirseATodosLosServicios, type ServicioLista } from "@/lib/operaciones";
+import { LogotipoNora } from "@/componentes/LogoNora";
 import { AgendaDia } from "./AgendaDia";
 import { AvisosPendientes } from "./AvisosPendientes";
 import { type EstadoServicio } from "@/lib/tipos";
@@ -32,6 +33,7 @@ type Pestana = "en_curso" | "resueltos" | "todos";
    duplicar la carga y la suscripción en tiempo real en dos lugares. */
 export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
   const router = useRouter();
+  const [vista, setVista] = useState<"pedidos" | "agenda" | "avisos">("pedidos");
   const [servicios, setServicios] = useState<ServicioLista[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
     let vivo = true;
     listarTodosLosServicios()
       .then((s) => {
-        if (vivo) setServicios(s);
+        if (vivo) { setServicios(s); setError(null); }
       })
       .catch((e) => {
         if (vivo) setError(e instanceof Error ? e.message : "No pudimos cargar los pedidos.");
@@ -71,71 +73,41 @@ export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
 
   return (
     <div className="pb-8">
-      <div className="px-5 pt-12 pb-2 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[24px] font-bold font-display text-ink leading-tight">Panel de operaciones</h1>
-          <p className="text-[13px] text-mute mt-0.5">Todos los pedidos, de todos los clientes.</p>
-        </div>
-        <button
-          type="button"
-          onClick={async () => {
+      <header className="sticky top-0 z-10 border-b border-line bg-sand/95 supports-[backdrop-filter]:bg-sand/85 supports-[backdrop-filter]:backdrop-blur-xl px-5 pt-6 pb-4">
+        <div className="flex items-center justify-between gap-3">
+          <LogotipoNora className="h-8 w-auto text-brand-700" />
+          <button type="button" onClick={async () => {
             await supabaseNavegador().auth.signOut();
-            router.replace("/entrar");
-            router.refresh();
-          }}
-          className="press flex items-center gap-1.5 text-[12.5px] font-semibold text-urgent shrink-0 mt-1.5"
-        >
-          <LogOut className="w-3.5 h-3.5" /> Salir
-        </button>
-      </div>
-
-      <AvisosPendientes />
-      <AgendaDia revision={intento} />
-
-      {!cargando && (
-        <div className="px-5 mt-2">
-          <section
-            className="relative overflow-hidden rounded-xl3 bg-brand-700 text-white shadow-hero p-5"
-            style={{
-              backgroundImage: "radial-gradient(120% 80% at 100% 0%, #14857A 0%, #0E5C54 38%, #0B3B38 100%)",
-            }}
-          >
-            <div className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-brand-400/20 blur-2xl" />
-            <div className="relative flex items-center justify-between">
-              <div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-2.5 py-1 text-[11.5px] font-medium text-brand-50">
-                  <ClipboardList className="w-[13px] h-[13px]" /> Pedidos activos
-                </span>
-                <p className="mt-2.5 text-[30px] font-extrabold font-display leading-none num">{enCurso.length}</p>
-                <p className="text-[13px] text-brand-100 mt-1.5">
-                  {enCurso.length === 1 ? "pedido en curso" : "pedidos en curso"}
-                </p>
-              </div>
-              <span className="shrink-0 w-14 h-14 grid place-items-center rounded-2xl bg-white/10">
-                <ClipboardList className="w-6 h-6" />
-              </span>
-            </div>
-
-            <div className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/[.08] border border-white/10 px-3.5 py-3">
-              <span className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-good/20 text-emerald-200">
-                <Radio className="w-[18px] h-[18px]" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-white leading-snug">
-                  {resueltos.length} {resueltos.length === 1 ? "resuelto" : "resueltos"}
-                </p>
-                <p className="text-[11px] text-brand-100 mt-0.5">Del total histórico</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="num text-[14px] font-bold text-white leading-tight">{pesos(montoEnCurso)}</p>
-                <p className="text-[10px] text-brand-100 mt-0.5">en pedidos activos</p>
-              </div>
-            </div>
-          </section>
+            router.replace("/entrar"); router.refresh();
+          }} className="min-h-11 inline-flex items-center gap-2 rounded-xl px-3 text-xs font-semibold text-mute hover:bg-surface">
+            <LogOut aria-hidden="true" className="h-4 w-4" /> Salir
+          </button>
         </div>
+        <p className="nora-eyebrow mt-6">Espacio de trabajo</p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink mt-1">Operaciones</h1>
+        <p className="text-sm text-mute mt-1">Cada pedido, de principio a fin.</p>
+        <nav aria-label="Vistas de operaciones" className="mt-5 grid grid-cols-3 gap-1 rounded-2xl border border-line bg-surface/70 p-1">
+          {([{ id: "pedidos", nombre: "Pedidos", icono: ClipboardList }, { id: "agenda", nombre: "Agenda", icono: CalendarDays }, { id: "avisos", nombre: "Avisos", icono: Bell }] as const).map(({ id, nombre, icono: Icono }) => (
+            <button key={id} type="button" aria-pressed={vista === id} onClick={() => setVista(id)} className={`min-h-11 flex items-center justify-center gap-2 rounded-xl text-xs font-semibold transition-colors ${vista === id ? "bg-brand-700 text-white shadow-sm" : "text-mute hover:bg-sand"}`}>
+              <Icono aria-hidden="true" className="h-4 w-4" />{nombre}
+            </button>
+          ))}
+        </nav>
+      </header>
+      {vista === "avisos" && <AvisosPendientes />}
+      {vista === "agenda" && <AgendaDia revision={intento} />}
+      {vista === "pedidos" && <>
+      {!cargando && (
+        <section aria-label="Resumen de pedidos" className="mx-5 mt-5 rounded-2xl bg-brand-700 p-5 text-white">
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-xs text-white/75">En curso</p><p className="mt-1 font-display text-3xl font-semibold num">{enCurso.length}</p></div>
+            <div className="border-l border-white/20 pl-4"><p className="text-xs text-white/75">Resueltos</p><p className="mt-1 font-display text-3xl font-semibold num">{resueltos.length}</p></div>
+          </div>
+          <div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-white/20 pt-3 text-xs"><span className="text-white/75">Monto en pedidos activos</span><span className="font-semibold num">{pesos(montoEnCurso)}</span></div>
+        </section>
       )}
 
-      <div className="px-5 flex gap-2 mt-5">
+      <div className="px-5 flex flex-wrap gap-2 mt-5">
         {(
           [
             ["en_curso", "En curso", enCurso.length],
@@ -148,7 +120,7 @@ export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
             type="button"
             onClick={() => setPestana(valor)}
             aria-pressed={pestana === valor}
-            className={`press flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold border ${
+            className={`press min-h-11 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold border ${
               pestana === valor
                 ? "bg-brand-600 text-white border-brand-600"
                 : "bg-surface text-mute border-line"
@@ -182,24 +154,25 @@ export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
             <Link
               key={s.id}
               href={`/operaciones/${s.id}`}
-              className={`press flex items-center gap-3.5 p-3.5 rounded-xl2 bg-surface border shadow-card ${
-                s.id === idSeleccionado ? "border-brand-400 ring-1 ring-brand-300" : "border-line"
+              aria-current={s.id === idSeleccionado ? "page" : undefined}
+              className={`press group flex items-start gap-3 p-4 rounded-2xl bg-surface border transition-colors hover:border-brand-300 ${
+                s.id === idSeleccionado ? "border-brand-600 ring-1 ring-brand-600" : "border-line"
               }`}
             >
               <span className="shrink-0 w-11 h-11 grid place-items-center rounded-xl bg-brand-50 text-brand-600 text-[12px] font-bold">
                 {s.categoriaNombre.slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-ink leading-tight truncate">
+                <p className="text-sm font-semibold text-ink leading-snug break-words">
                   {s.clienteNombre} · {s.categoriaNombre}
                 </p>
-                <p className="text-[12px] text-faint mt-0.5 truncate">
+                <p className="text-xs text-mute mt-1 break-words">
                   {s.propiedadNombre} · {s.propiedadLocalidad}
                 </p>
                 <BadgeEstado estado={s.estado} className="mt-1.5" />
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <p className="text-[12px] font-semibold text-ink num">
+              <div className="flex flex-col items-end gap-2 shrink-0 max-w-[95px]">
+                <p className="text-xs font-semibold text-ink num text-right break-words">
                   {s.montoArs != null ? pesos(s.montoArs) : fechaCorta(s.creadoEl.slice(0, 10))}
                 </p>
                 <ChevronRight className="w-4 h-4 text-faint" />
@@ -208,6 +181,7 @@ export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
           ))}
         </div>
       )}
+      </>}
     </div>
   );
 }

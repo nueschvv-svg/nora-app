@@ -83,9 +83,9 @@ export default function PaginaInicio() {
       <main ref={mainRef} className="h-full overflow-y-auto no-scrollbar pb-8">
         <EscenaCinema modo={modoBienvenida} />
 
-        <AuroraBackground className={`transition-[padding-top] duration-500 ease-out ${expandido ? "pt-0" : "pt-[18vh]"}`}>
+        <AuroraBackground className={`min-h-[calc(100dvh-5rem)] transition-[padding-top] duration-500 ease-out ${expandido ? "pt-0" : "pt-8 pb-8"}`}>
           <header
-            className={`max-w-xl mx-auto w-full px-5 overflow-hidden transition-[max-height,opacity,padding] duration-500 ease-out ${
+            className={`max-w-3xl mx-auto w-full px-5 overflow-hidden transition-[max-height,opacity,padding] duration-500 ease-out ${
               expandido ? "max-h-0 opacity-0 pb-0" : "max-h-24 opacity-100 pb-2"
             }`}
           >
@@ -103,8 +103,8 @@ export default function PaginaInicio() {
             ref={chatWrapRef}
             className={`transition-[height,padding] duration-500 ease-out ${
               expandido
-                ? "h-[calc(100dvh-4rem)] px-0 sm:max-w-xl sm:mx-auto sm:px-5"
-                : "h-[480px] max-w-xl mx-auto px-5"
+                ? "h-[calc(100dvh-5rem)] px-0 sm:max-w-3xl sm:mx-auto sm:px-5"
+                : "h-[480px] max-w-3xl mx-auto px-5"
             }`}
           >
             <ChatNora alEnviarPrimerMensaje={() => setExpandido(true)} siempreTarjeta={!expandido} />
@@ -122,7 +122,7 @@ export default function PaginaInicio() {
         </div>
       )}
       <AuroraBackground className="flex-1 min-h-0 flex flex-col">
-      <div className="flex-1 min-h-0 sm:max-w-xl sm:mx-auto sm:w-full sm:py-4 sm:px-5">
+      <div className="flex-1 min-h-0 sm:max-w-3xl sm:mx-auto sm:w-full sm:py-4 sm:px-5">
         <ChatNora />
       </div>
       </AuroraBackground>

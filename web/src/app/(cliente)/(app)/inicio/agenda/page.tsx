@@ -22,29 +22,40 @@ export default function PaginaAgenda() {
   const equipos = useMemo(() => ordenarPorUrgencia(score.equipos), [score.equipos]);
   const listaRef = useEntradaEscalonada<HTMLDivElement>(equipos.length > 0);
 
-  if (cargando || !propiedad) return <EsqueletoInicio />;
+  if (cargando) return <EsqueletoInicio />;
+  if (!propiedad) return (
+    <main className="nora-page h-full overflow-y-auto py-10 sm:py-14">
+      <p className="nora-eyebrow mb-3">El cuidado de tu casa</p>
+      <h1 className="nora-heading">Tus equipos</h1>
+      <section className="nora-panel mt-8 p-7 sm:p-10">
+        <h2 className="font-display text-xl font-semibold">Todavía no hay una propiedad asociada</h2>
+        <p className="mt-3 max-w-lg text-sm leading-relaxed text-mute">Cuando tengas una propiedad asociada, vas a encontrar acá sus equipos y mantenimientos. Mientras tanto, podés pedir el servicio que necesitás.</p>
+        <Link href="/pedir" className="nora-button mt-6">Pedir un servicio</Link>
+      </section>
+    </main>
+  );
 
   return (
-    <main className="h-full overflow-y-auto no-scrollbar pb-8">
-      <header className="px-5 pt-6 pb-3 flex items-center gap-3">
+    <main className="nora-page h-full overflow-y-auto pb-12">
+      <header className="flex items-center gap-4 pb-8 pt-8 sm:pt-12">
         <Link
           href="/inicio"
-          className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+          className="press w-11 h-11 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
           aria-label="Volver"
         >
           <ArrowLeft className="w-[18px] h-[18px]" />
         </Link>
         <div>
-          <h1 className="text-[20px] font-bold font-display text-ink leading-tight">Tus equipos</h1>
-          <p className="text-[12.5px] text-mute">
+          <h1 className="nora-heading">Tus equipos</h1>
+          <p className="mt-2 text-sm text-mute">
             {propiedad.nombre} · {propiedad.localidad}
           </p>
         </div>
       </header>
 
-      <div className="entra-suave px-5 space-y-3.5">
+      <div className="entra-suave space-y-6">
         {equipos.length === 0 && (
-          <div className="rounded-xl2 bg-surface border border-line shadow-card p-6 text-center">
+          <div className="nora-panel p-6 text-center">
             <span className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-brand-50 text-brand-600">
               <PackageOpen className="w-6 h-6" />
             </span>
@@ -60,14 +71,14 @@ export default function PaginaAgenda() {
 
         <div
           ref={listaRef}
-          className={`rounded-xl2 bg-surface border border-line shadow-card divide-y divide-line overflow-hidden ${
+          className={`nora-panel divide-y divide-line overflow-hidden ${
             equipos.length === 0 ? "hidden" : ""
           }`}
         >
           {equipos.map((e) => {
             const urgente = e.estado === "vencido";
             return (
-              <div key={e.equipo.id} className="flex items-center gap-3.5 p-3.5">
+              <div key={e.equipo.id} className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
                 <span
                   className={`shrink-0 w-11 h-11 grid place-items-center rounded-2xl ${
                     urgente ? "bg-urgent/10 text-urgent" : "bg-brand-50 text-brand-600"
@@ -82,11 +93,11 @@ export default function PaginaAgenda() {
                     {e.equipo.anioInstalacion ? `· desde ${e.equipo.anioInstalacion}` : ""}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="ml-auto text-right">
                   <p className={`num text-[13px] font-semibold ${urgente ? "text-urgent" : "text-ink"}`}>
                     {e.proximaRevision ? mesAnio(e.proximaRevision) : "—"}
                   </p>
-                  <p className={`text-[11.5px] ${urgente ? "text-urgent/80 font-medium" : "text-faint"}`}>
+                  <p className={`text-[11.5px] ${urgente ? "text-urgent font-medium" : "text-faint"}`}>
                     {textoVencimiento(e.diasVencido)}
                   </p>
                 </div>
@@ -98,7 +109,7 @@ export default function PaginaAgenda() {
         <button
           type="button"
           onClick={() => setFormAbierto(true)}
-          className="press w-full flex items-center justify-center gap-2 rounded-xl2 border border-dashed border-brand-200 text-brand-600 py-3.5 text-[14px] font-semibold"
+          className="nora-button-secondary w-full gap-2 sm:w-auto"
         >
           <Plus className="w-[17px] h-[17px]" /> Agregar un equipo
         </button>
@@ -106,7 +117,7 @@ export default function PaginaAgenda() {
         {equipos.length > 0 && (
           <Link
             href="/pedir"
-            className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-3.5 text-[14.5px] font-semibold shadow-fab"
+            className="nora-button w-full sm:w-auto"
           >
             Agendar una revisión
           </Link>
