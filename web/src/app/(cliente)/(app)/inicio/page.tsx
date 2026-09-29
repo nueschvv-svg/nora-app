@@ -57,8 +57,9 @@ export default function PaginaInicio() {
     return () => clearTimeout(id);
   }, [expandido]);
 
-  if (cargando) return <EsqueletoInicio />;
-  if (error) return <ErrorCarga mensaje={error} alReintentar={recargar} />;
+  const estadoDatos = cargando
+    ? <EsqueletoInicio />
+    : error ? <ErrorCarga mensaje={error} alReintentar={recargar} /> : null;
 
   /* "cinema" (primera visita real, sin reducir movimiento) es el único
      modo que todavía necesita que `main` scrollee de verdad — es el
@@ -83,7 +84,7 @@ export default function PaginaInicio() {
       <main ref={mainRef} className="h-full overflow-y-auto no-scrollbar pb-8">
         <EscenaCinema modo={modoBienvenida} />
 
-        <AuroraBackground className={`min-h-[calc(100dvh-5rem)] transition-[padding-top] duration-500 ease-out ${expandido ? "pt-0" : "pt-8 pb-8"}`}>
+        {estadoDatos ? <section className="min-h-[100dvh] pt-24">{estadoDatos}</section> : <AuroraBackground className={`min-h-[calc(100dvh-5rem)] transition-[padding-top] duration-500 ease-out ${expandido ? "pt-0" : "pt-8 pb-8"}`}>
           <header
             className={`max-w-3xl mx-auto w-full px-5 overflow-hidden transition-[max-height,opacity,padding] duration-500 ease-out ${
               expandido ? "max-h-0 opacity-0 pb-0" : "max-h-24 opacity-100 pb-2"
@@ -109,10 +110,12 @@ export default function PaginaInicio() {
           >
             <ChatNora alEnviarPrimerMensaje={() => setExpandido(true)} siempreTarjeta={!expandido} />
           </div>
-        </AuroraBackground>
+        </AuroraBackground>}
       </main>
     );
   }
+
+  if (estadoDatos) return estadoDatos;
 
   return (
     <main ref={mainRef} className="h-full overflow-hidden flex flex-col">
