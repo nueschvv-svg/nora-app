@@ -46,7 +46,7 @@ function armarMensaje(pedido: PedidoParaEnrutar): string {
   const franja = pedido.franjaPreferida ? (FRANJA_TEXTO[pedido.franjaPreferida] ?? pedido.franjaPreferida) : null;
   if (pedido.fechaPreferida || franja) {
     lineas.push("");
-    lineas.push(`Prefiere: ${[pedido.fechaPreferida, franja].filter(Boolean).join(" · ")}`);
+    lineas.push(`Fecha / horario: ${[pedido.fechaPreferida, franja].filter(Boolean).join(" · ")}`);
   }
 
   lineas.push("");

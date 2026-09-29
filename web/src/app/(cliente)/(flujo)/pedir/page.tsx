@@ -36,9 +36,11 @@ import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
 import { actualizarMisDatosPersonales, mailContactoValido, misDatosPersonales } from "@/lib/perfil";
 import { type Edificio, type Propiedad, type Servicio } from "@/lib/tipos";
 import { idIntentoPedido, completarIntentoPedido } from "@/lib/intentoPedido";
-import { errorFotoPedido, fechaArgentina, telefonoContactoValido } from "@/lib/validacionPedido";
+import { errorFotoPedido, telefonoContactoValido } from "@/lib/validacionPedido";
 import { descripcionDelPedido } from "@/lib/descripcionPedido";
 import { propiedadDelContexto } from "@/lib/edificio";
+import { SelectorAgenda } from "@/componentes/SelectorAgenda";
+import { etiquetaFechaAgenda } from "@/lib/agenda";
 import { conTiempoLimite } from "@/lib/tiempoLimite";
 
 /* Antes listaba las 24 provincias argentinas acá mismo, dando a
@@ -63,17 +65,6 @@ const MAX_FOTOS = 3;
    · No hay pago acá. Se cobra al terminar, con link de Mercado Pago.
 
    Todo eso vuelve en fase 3, cuando haya datos que lo sostengan. */
-
-/* `horaFin`: hasta qué hora del día tiene sentido ofrecer la franja —
-   pasada esa hora, mostrarla para "hoy" sería prometer un horario que
-   ya no existe. "Lo antes posible" no tiene franja fija, así que
-   siempre está disponible (null = sin límite). */
-const FRANJAS = [
-  { id: "manana", texto: "Mañana · 8 a 12 h", horaFin: 12 },
-  { id: "tarde-1", texto: "Tarde · 13 a 17 h", horaFin: 17 },
-  { id: "tarde-2", texto: "Tarde · 17 a 20 h", horaFin: 20 },
-  { id: "urgente", texto: "Lo antes posible", horaFin: null as number | null },
-];
 
 export default function PaginaPedir() {
   const searchParams = useSearchParams();
@@ -227,6 +218,8 @@ function FormularioPedido() {
   }, []);
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
+  const [agendaValida, setAgendaValida] = useState(false);
+  const [revisionAgenda, setRevisionAgenda] = useState(0);
   const [servicioEnviado, setServicioEnviado] = useState<Servicio | null>(null);
   const [avisoEntrega, setAvisoEntrega] = useState<string | null>(null);
 
@@ -375,23 +368,8 @@ function FormularioPedido() {
     cargarCategorias();
   };
 
-  const proximosDias = obtenerProximosDias();
   const catElegida = categorias.find((c) => c.slug === categoria);
-
-  /* Si el día elegido es hoy, las franjas cuyo horario ya pasó no se
-     ofrecen — mostrarlas sería prometer un horario imposible. */
-  const franjasDisponibles =
-    dia === proximosDias[0]?.iso
-      ? FRANJAS.filter((f) => f.horaFin === null || Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", hourCycle: "h23" }).format(new Date())) < f.horaFin)
-      : FRANJAS;
-
-  /* Si cambiás de día y la franja que tenías elegida ya no es válida
-     para el nuevo día (ej: elegiste "hoy" tarde y quedó sólo "lo antes
-     posible"), se trata como no elegida — derivado en el render, no
-     hace falta un efecto ni un setState extra para "corregir" el
-     estado: ningún botón de franjasDisponibles queda marcado, y
-     puedeAvanzar se calcula sobre este valor, no sobre `franja` crudo. */
-  const franjaEfectiva = franjasDisponibles.some((f) => f.id === franja) ? franja : null;
+  const franjaEfectiva = agendaValida ? franja : null;
 
   /* Igual que el endpoint: alcanza con la foto, no hace falta escribir
      nada. Antes de esto el paso 1 exigía 10 caracteres pase lo que
@@ -484,8 +462,8 @@ function FormularioPedido() {
     }
 
     if (paso === pasoConfirmar) {
-      if (!dia || !proximosDias.some((d) => d.iso === dia) || !franjaEfectiva) {
-        setError("El horario que elegiste ya pasó. Elegí uno nuevo para continuar.");
+      if (!dia || !franjaEfectiva) {
+        setError("Revisá la disponibilidad y elegí un turno para continuar.");
         setPaso(pasoCuando);
         return;
       }
@@ -537,6 +515,9 @@ function FormularioPedido() {
         setServicioEnviado(nuevoServicio);
         completarIntentoPedido();
       } catch (e) {
+        setRevisionAgenda(v => v + 1);
+        setAgendaValida(false);
+        setPaso(pasoCuando);
         setError(e instanceof Error ? e.message : "No pudimos enviar el pedido.");
       } finally {
         envioEnCurso.current = false;
@@ -562,8 +543,8 @@ function FormularioPedido() {
         avisoEntrega={avisoEntrega}
         servicio={servicioEnviado}
         domicilio={propiedadActual ? `${propiedadActual.nombre} · ${propiedadActual.direccion}` : "—"}
-        diaTexto={proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—"}
-        franjaTexto={FRANJAS.find((f) => f.id === franja)?.texto ?? "—"}
+        diaTexto={servicioEnviado.fechaPreferida ? etiquetaFechaAgenda(servicioEnviado.fechaPreferida) : "—"}
+        franjaTexto={servicioEnviado.franjaPreferida ?? "—"}
       />
     );
   }
@@ -791,46 +772,10 @@ function FormularioPedido() {
               viene bien?
             </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
-              Elegí día y franja. Te confirmamos el horario exacto.
+              Elegí fecha y horario para reservar tu lugar.
             </p>
-
-            <div className="mt-5 flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5">
-              {proximosDias.map((d) => (
-                <button
-                  key={d.iso}
-                  type="button"
-                  onClick={() => setDia(d.iso)}
-                  aria-pressed={dia === d.iso}
-                  className={`press shrink-0 w-[64px] rounded-2xl shadow-card py-3 flex flex-col items-center gap-0.5 transition-colors ${
-                    dia === d.iso ? "bg-brand-600" : "border border-line bg-surface"
-                  }`}
-                >
-                  <span className={`text-[11px] uppercase ${dia === d.iso ? "text-brand-100" : "text-faint"}`}>
-                    {d.diaSemana}
-                  </span>
-                  <span className={`num text-[18px] font-bold ${dia === d.iso ? "text-white" : "text-ink"}`}>
-                    {d.numero}
-                  </span>
-                  <span className={`text-[11px] ${dia === d.iso ? "text-brand-100" : "text-faint"}`}>{d.mes}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {franjasDisponibles.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFranja(f.id)}
-                  aria-pressed={franja === f.id}
-                  className={`press rounded-2xl shadow-card py-3.5 px-2 text-[13.5px] font-semibold transition-colors ${
-                    franja === f.id ? "bg-brand-600 text-white" : "border border-line bg-surface text-ink"
-                  }`}
-                >
-                  {f.texto}
-                </button>
-              ))}
-            </div>
+            <SelectorAgenda fecha={dia} franja={franja} onChange={(d,f)=>{setDia(d);setFranja(f);}}
+              onValidez={setAgendaValida} revision={revisionAgenda} />
           </section>
         )}
 
@@ -1001,8 +946,8 @@ function FormularioPedido() {
               <Fila
                 etiqueta="Cuándo"
                 valor={(() => {
-                  const diaTxt = proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—";
-                  const franjaTxt = FRANJAS.find((f) => f.id === franja)?.texto ?? "";
+                  const diaTxt = dia ? etiquetaFechaAgenda(dia) : "—";
+                  const franjaTxt = franja ?? "";
                   const franjaCorta = franjaTxt.includes(" · ") ? franjaTxt.split(" · ")[1] : franjaTxt;
                   return `${diaTxt} · ${franjaCorta}`;
                 })()}
@@ -1478,13 +1423,14 @@ function Confirmacion({
           <Check className="w-10 h-10" />
         </div>
         <TituloPaso className="text-[23px] font-bold font-display text-ink mt-5">
-          ¡Pedido enviado!
+          ¡Turno reservado!
         </TituloPaso>
+        <p className="text-sm text-ink mt-3 max-w-sm break-words">{servicio.descripcion.split("\n").filter(Boolean).find(linea => !linea.startsWith("["))?.slice(0,180)}</p>
         {/* Confirmar recepción no equivale a prometer atención inmediata. */}
-        <p className="text-[14.5px] font-semibold text-ink mt-2">Guardamos tu pedido.</p>
+        <p className="text-[14.5px] font-semibold text-ink mt-2">Tu lugar quedó reservado.</p>
         {avisoEntrega && <p role="alert" className="mt-3 rounded-xl bg-warn/15 p-3 text-sm text-ink max-w-sm">{avisoEntrega}</p>}
         <p className="text-[13.5px] text-mute mt-1 max-w-[300px] leading-relaxed">
-          El equipo todavía tiene que confirmar la atención y el precio. Podés consultar las novedades en Mis pedidos.
+          El equipo revisará el trabajo y confirmará el precio. Podés consultar las novedades en Mis pedidos.
         </p>
 
         <div
@@ -1512,7 +1458,7 @@ function Confirmacion({
             </span>
             <div className="min-w-0">
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">
-                Horario que solicitaste · a confirmar
+                Turno confirmado · cupo reservado
               </p>
               <p className="text-[14px] font-bold text-ink mt-1">{diaTexto}</p>
               <p className="text-[12.5px] text-mute">{franjaCorta}</p>
@@ -1524,7 +1470,7 @@ function Confirmacion({
             </span>
             <div className="min-w-0">
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">A dónde vamos</p>
-              <p className="text-[13.5px] font-semibold text-ink mt-0.5 truncate">{domicilio}</p>
+              <p className="text-[13.5px] font-semibold text-ink mt-0.5 break-words">{domicilio}</p>
             </div>
           </div>
         </div>
@@ -1546,20 +1492,3 @@ function Confirmacion({
  *  quien quiere agendar con anticipación — antes eran sólo 7, y quien
  *  quería agendar para dentro de dos semanas no tenía cómo. Ya scrollea
  *  horizontal, así que no hace falta rediseñar nada para que quepan. */
-function obtenerProximosDias() {
-  const DIAS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
-  const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const hoy = new Date(`${fechaArgentina(new Date())}T12:00:00Z`);
-
-  return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(hoy);
-    d.setUTCDate(hoy.getUTCDate() + i);
-    return {
-      iso: fechaArgentina(d),
-      diaSemana: i === 0 ? "HOY" : i === 1 ? "MAÑ" : DIAS[d.getUTCDay()],
-      numero: d.getUTCDate(),
-      mes: MESES[d.getUTCMonth()],
-      etiquetaLarga: i === 0 ? "Hoy" : `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]}`,
-    };
-  });
-}

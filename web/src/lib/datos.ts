@@ -1,3 +1,4 @@
+import { mensajeErrorAgenda } from "./agenda";
 /* ============================================================
    ACCESO A DATOS
 
@@ -117,7 +118,9 @@ function aServicio(f: FilaServicio): Servicio {
 /* Un error de base no le sirve a nadie en pantalla ("duplicate key value
    violates unique constraint..."). Lo registramos para poder depurarlo y
    devolvemos algo legible. */
-function fallar(contexto: string, error: { message: string }): never {
+function fallar(contexto: string, error: { message: string; code?: string }): never {
+  const agenda = mensajeErrorAgenda(error);
+  if (agenda) throw new Error(agenda);
   console.error(`[datos] ${contexto}:`, error.message);
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
 }

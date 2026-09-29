@@ -9,6 +9,7 @@ import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import { BadgeEstado } from "@/componentes/BadgeEstado";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { listarTodosLosServicios, suscribirseATodosLosServicios, type ServicioLista } from "@/lib/operaciones";
+import { AgendaDia } from "./AgendaDia";
 import { AvisosPendientes } from "./AvisosPendientes";
 import { type EstadoServicio } from "@/lib/tipos";
 import { fechaCorta, pesos } from "@/lib/formato";
@@ -89,6 +90,7 @@ export function ListaPedidos({ idSeleccionado }: { idSeleccionado?: string }) {
       </div>
 
       <AvisosPendientes />
+      <AgendaDia revision={intento} />
 
       {!cargando && (
         <div className="px-5 mt-2">

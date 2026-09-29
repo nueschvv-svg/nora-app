@@ -111,3 +111,26 @@ test('restrictive ownership survives an accidentally broad permissive policy and
  await as(db,null,'service_role'); assert.equal((await update(db,"estado='en_curso'")).rows[0].estado,'en_curso');
  }finally {await db.close();}
 });
+test('agenda integrates ownership, cancellation, operator rescheduling and durable notification atomically',async()=>{
+ const db=await database();try{
+ await db.exec(`reset role;
+ create type estado_enrutamiento as enum ('enviado','fallido');
+ create table servicio_enrutamientos(id uuid default gen_random_uuid(),servicio_id uuid references servicios,estrategia text,estado estado_enrutamiento,detalle text,intentos int);
+ create table notificaciones(usuario_id uuid,titulo text,cuerpo text,servicio_id uuid);`);
+ await db.exec(read('44_cola_telegram.sql'));await db.exec(read('47_agenda_fija.sql'));
+ const d=(await db.query("select d::date::text d from generate_series(current_date+3,current_date+10,interval '1 day') d where extract(isodow from d)=1 limit 1")).rows[0].d;
+ await as(db,A);
+ const insert=(owner,property)=>db.query("insert into servicios(cliente_id,propiedad_id,fecha_preferida,franja_preferida) values($1,$2,$3,'09:30–11:30') returning id",[owner,property,d]);
+ const first=(await insert(A,PA)).rows[0].id;
+ assert.equal((await db.query('select estado from servicio_avisos where servicio_id=$1',[first])).rows[0].estado,'pendiente');
+ await assert.rejects(db.query("update servicios set estado='cancelado',agenda_cupo=2 where id=$1",[first]),/sin cambiar otros datos/);
+ await as(db,B);assert.equal((await db.query('select * from servicios where id=$1',[first])).rows.length,0);
+ await insert(B,PB);await assert.rejects(insert(B,PB),/AGENDA_COMPLETO/);
+ await as(db,A);await db.query("update servicios set estado='cancelado' where id=$1",[first]);
+ await as(db,B);const second=(await insert(B,PB)).rows[0].id;
+ await as(db,OPS);await db.query("update servicios set franja_preferida='14:30–16:00' where id=$1",[second]);
+ await db.exec('reset role');
+ assert.equal((await db.query('select count(*)::int n from servicio_avisos')).rows[0].n,3);
+ assert.equal((await db.query('select count(*)::int n from notificaciones')).rows[0].n,1);
+ }finally{await db.close();}
+});

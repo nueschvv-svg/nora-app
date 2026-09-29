@@ -541,3 +541,36 @@ input,
 textarea {
   caret-color: var(--color-brand-500);
 }
+
+/* Aurora uses Tailwind 4 color tokens; no private Tailwind plugin required. */
+.nora-aurora {
+  --aurora-white: repeating-linear-gradient(100deg, white 0%, white 7%, transparent 10%, transparent 12%, white 16%);
+  --aurora-colors: repeating-linear-gradient(100deg, var(--color-blue-500) 10%, var(--color-indigo-300) 15%, var(--color-blue-300) 20%, var(--color-violet-200) 25%, var(--color-blue-400) 30%);
+  position: absolute;
+  inset: -10px;
+  opacity: .35;
+  background-image: var(--aurora-white), var(--aurora-colors);
+  background-size: 300%, 200%;
+  background-position: 50% 50%, 50% 50%;
+  filter: blur(10px) invert(1);
+  pointer-events: none;
+}
+.nora-aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--aurora-white), var(--aurora-colors);
+  background-size: 200%, 100%;
+  mix-blend-mode: difference;
+  animation: nora-aurora 60s linear infinite;
+}
+.nora-aurora-radial {
+  mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%);
+}
+@keyframes nora-aurora {
+  from { background-position: 50% 50%, 50% 50%; }
+  to { background-position: 350% 50%, 350% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nora-aurora::after { animation: none; }
+}

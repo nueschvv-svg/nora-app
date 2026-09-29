@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectorAgenda } from "@/componentes/SelectorAgenda";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -45,12 +46,7 @@ import { fecha } from "@/lib/formato";
    sigue la secuencia. */
 const SECUENCIA: EstadoServicio[] = ["aceptado", "en_camino", "en_curso", "finalizado", "pagado", "calificado"];
 
-const FRANJAS = [
-  { id: "manana", texto: "Mañana · 8 a 12 h" },
-  { id: "tarde-1", texto: "Tarde · 13 a 17 h" },
-  { id: "tarde-2", texto: "Tarde · 17 a 20 h" },
-  { id: "urgente", texto: "Lo antes posible" },
-];
+
 
 /* El detalle de un pedido, compartido entre /operaciones/[id] (sola,
    a pantalla completa en el celular) y la vista de escritorio de
@@ -510,32 +506,14 @@ function FormularioReprogramar({
   const [dia, setDia] = useState(fechaInicial ?? "");
   const [franja, setFranja] = useState(franjaInicial ?? "");
   const [nota, setNota] = useState("");
+  const [agendaValida, setAgendaValida] = useState(false);
 
-  const puedeGuardar = !!dia && !!franja && nota.trim().length >= 5;
+  const puedeGuardar = agendaValida && !!dia && !!franja && nota.trim().length >= 5;
 
   return (
     <div className="mt-4 pt-4 border-t border-line">
       <label className="block text-[11px] font-bold tracking-wide uppercase text-faint mb-1.5">Reprogramar</label>
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          type="date"
-          value={dia}
-          onChange={(e) => setDia(e.target.value)}
-          className="rounded-2xl bg-sand border border-line px-3 py-2.5 text-[13.5px] text-ink outline-none focus:border-brand-300"
-        />
-        <select
-          value={franja}
-          onChange={(e) => setFranja(e.target.value)}
-          className="rounded-2xl bg-sand border border-line px-3 py-2.5 text-[13.5px] text-ink outline-none focus:border-brand-300"
-        >
-          <option value="">Franja</option>
-          {FRANJAS.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.texto}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SelectorAgenda fecha={dia} franja={franja} onChange={(d,f)=>{setDia(d);setFranja(f ?? "");}} onValidez={setAgendaValida} />
       <textarea
         value={nota}
         onChange={(e) => setNota(e.target.value)}

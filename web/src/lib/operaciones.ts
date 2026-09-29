@@ -1,3 +1,4 @@
+import { mensajeErrorAgenda } from "./agenda";
 /* ============================================================
    PANEL DE OPERACIONES — acceso a datos
 
@@ -30,7 +31,9 @@ import { direccionConUnidad } from "./edificio";
 import { supabaseNavegador } from "./supabase/cliente";
 import type { EstadoServicio } from "./tipos";
 
-function fallar(contexto: string, error: { message: string }): never {
+function fallar(contexto: string, error: { message: string; code?: string }): never {
+  const agenda = mensajeErrorAgenda(error);
+  if (agenda) throw new Error(agenda);
   console.error(`[operaciones] ${contexto}:`, error.message);
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 import { ChatNora } from "@/componentes/ChatNora";
 import { EscenaCinema } from "@/componentes/cinema/EscenaCinema";
 import { useModoBienvenida } from "@/componentes/cinema/useModoBienvenida";
@@ -51,7 +52,7 @@ export default function PaginaInicio() {
     const id = setTimeout(() => {
       const main = mainRef.current;
       const wrap = chatWrapRef.current;
-      if (main && wrap) main.scrollTo({ top: wrap.offsetTop, behavior: "smooth" });
+      if (main && wrap) main.scrollTo({ top: wrap.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop, behavior: "smooth" });
     }, 520);
     return () => clearTimeout(id);
   }, [expandido]);
@@ -82,7 +83,7 @@ export default function PaginaInicio() {
       <main ref={mainRef} className="h-full overflow-y-auto no-scrollbar pb-8">
         <EscenaCinema modo={modoBienvenida} />
 
-        <div className={`transition-[padding-top] duration-500 ease-out ${expandido ? "pt-0" : "pt-[18vh]"}`}>
+        <AuroraBackground className={`transition-[padding-top] duration-500 ease-out ${expandido ? "pt-0" : "pt-[18vh]"}`}>
           <header
             className={`max-w-xl mx-auto w-full px-5 overflow-hidden transition-[max-height,opacity,padding] duration-500 ease-out ${
               expandido ? "max-h-0 opacity-0 pb-0" : "max-h-24 opacity-100 pb-2"
@@ -108,7 +109,7 @@ export default function PaginaInicio() {
           >
             <ChatNora alEnviarPrimerMensaje={() => setExpandido(true)} siempreTarjeta={!expandido} />
           </div>
-        </div>
+        </AuroraBackground>
       </main>
     );
   }
@@ -120,9 +121,11 @@ export default function PaginaInicio() {
           <EscenaCinema modo={modoBienvenida} />
         </div>
       )}
+      <AuroraBackground className="flex-1 min-h-0 flex flex-col">
       <div className="flex-1 min-h-0 sm:max-w-xl sm:mx-auto sm:w-full sm:py-4 sm:px-5">
         <ChatNora />
       </div>
+      </AuroraBackground>
     </main>
   );
 }
