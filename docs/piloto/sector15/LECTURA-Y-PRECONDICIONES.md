@@ -96,3 +96,9 @@ Vercel CLI autenticó al usuario maxibue-4045; listado de equipos sólo permite 
 Autenticación CLI confirmada como nueschvv-svg y acceso al proyecto nora-app, prj_l7artZhQSPBgQq34saskFfRvMXjp, root directory web. Configuradas exclusivamente para preview de rama codex/auditoria-piloto: URL y clave pública de Nora EBA, clave servidor, CRON_SECRET y NORA_APP_URL. Variables de producción sin cambios. Las claves permanecen en Vercel/local, nunca en Git.
 
 Regresión: npm test, 53 aprobados y prueba opcional de concurrencia omitida por defecto; esa prueba se ejecuta aparte con PostgreSQL 17. La publicación de este bloque se considera entorno de prueba de infraestructura; aún no piloto funcional Sector 15. No hay tarifas activadas en staging ni cron habilitado. Pendiente mapear UF/familias/rangos/estados y retirar recorrido nacional.
+
+### Primer preview publicado y verificación HTTP
+
+Commit 5f80846 publicado a GitHub en codex/auditoria-piloto. Vercel generó dpl_BWYkSJ5GPCbU2JHPdAeM7TgWwrH1, alias https://nora-app-git-codex-auditoria-piloto-nueschvv-svgs-projects.vercel.app. /inicio HTTP 200. POST /api/cron/avisos sin CRON_SECRET HTTP 401. Invocación autorizada del consumidor desplegado: ok=true, fallos=0, tres resultados vacio. Se utilizó acceso autenticado CLI a la protección del preview; no se deshabilitó protección. Cron periódico aún no instalado, y la URL pública de producción no se cambió.
+
+GitHub detectó nuevas alertas de dependencias: Next 16.3.5, brace-expansion y fast-uri. npm audit fix sin --force actualizó sólo el lockfile dentro de los rangos existentes (Next 16.3.8, brace-expansion 1.1.21/5.0.12 según árbol, fast-uri 3.1.8). Auditoría posterior: cero vulnerabilidades. Se repiten lint, los 54 tests incluyendo PostgreSQL y build antes de publicar la corrección. Los checks secundarios Netlify nora-app-849 ya fallaban; el hosting elegido es Vercel.
