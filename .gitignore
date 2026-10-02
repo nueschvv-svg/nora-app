@@ -40,3 +40,7 @@ web/.env.local
 
 # Local Netlify folder
 .netlify
+
+# Helpers Python locales
+__pycache__/
+*.pyc
