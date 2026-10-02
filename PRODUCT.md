@@ -1,5 +1,7 @@
 # Product
 
+> Estado actualizado del piloto (14/09/2026): ENJINIA recibe y gestiona todos los pedidos por Telegram; el piloto es un solo edificio. El texto histórico de abajo describe también funciones de técnicos que fueron eliminadas. Ver [diagnóstico actual](docs/piloto/INFORME.md) y [controles del código](docs/piloto/INVENTARIO.md).
+
 <!-- impeccable:product-schema 1 -->
 
 ## Platform

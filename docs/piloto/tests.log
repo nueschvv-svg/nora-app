@@ -1,0 +1,33 @@
+
+> web@0.1.0 test
+> node --test tests/*.test.cjs
+
+✔ retry identifier survives reload without storing personal data (118.633541ms)
+✔ notification failure returned as HTTP 200 is not silently accepted (143.953791ms)
+✔ long order with image stays within Telegram limits and retains contact (30.67575ms)
+✔ retry after lost response and concurrent submissions return the same order (152.323542ms)
+✔ anonymous visitor can reach operations login (73.549083ms)
+✔ anonymous visitor to operations is directed to login (8.65275ms)
+✔ authenticated account keeps existing login redirect (4.9745ms)
+✔ geocoding handles invalid body null without throwing (8.551584ms)
+✔ geocoding handles invalid body [] without throwing (4.158584ms)
+✔ geocoding handles invalid body {"calle":123,"localidad":"CABA"} without throwing (3.828708ms)
+✔ geocoding handles invalid body {"calle":"a","localidad":{}} without throwing (3.582125ms)
+✔ chat rejects null JSON before calling paid model (6.81975ms)
+✔ auth callback keeps destination on site: javascript:alert(1) (74.299958ms)
+✔ auth callback keeps destination on site: //evil.test (5.420875ms)
+✔ auth callback keeps destination on site: /\evil.test (7.294166ms)
+✔ auth callback keeps destination on site: https://evil.test (3.665084ms)
+✔ navigation exposes existing order tracking to the resident (64.135125ms)
+✔ stalled attachment releases the confirmation flow (109.0625ms)
+✔ schedule uses Argentina calendar date across UTC midnight (124.033292ms)
+✔ telephone accepts formatting but rejects letters and oversized values (10.899791ms)
+✔ invalid and oversized attachments are rejected before analysis or upload (5.004458ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 656.773

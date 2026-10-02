@@ -14,10 +14,10 @@ export default function PaginaDetalleOperaciones({ params }: { params: Promise<{
 
   return (
     <main className="h-dvh overflow-hidden md:flex">
-      <div className="hidden h-full overflow-y-auto no-scrollbar md:block md:w-[420px] md:shrink-0 md:border-r md:border-line">
+      <div className="hidden h-full overflow-y-auto md:block md:w-[360px] lg:w-[420px] md:shrink-0 md:border-r md:border-line">
         <ListaPedidos idSeleccionado={id} />
       </div>
-      <div className="h-full overflow-y-auto no-scrollbar flex-1">
+      <div className="h-full min-w-0 overflow-y-auto flex-1">
         {/* key={id}: al cambiar de pedido en escritorio (click en la
             lista sin salir de esta ruta), esto fuerza a React a montar
             una instancia nueva en vez de reusar la vieja con props

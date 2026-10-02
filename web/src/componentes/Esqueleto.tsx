@@ -6,7 +6,7 @@
 
 export function EsqueletoInicio() {
   return (
-    <main className="h-dvh overflow-y-auto no-scrollbar px-5 pt-12 pb-28" aria-busy="true">
+    <main className="nora-page h-full overflow-y-auto px-5 pt-12 pb-28" aria-busy="true">
       <span className="sr-only">Cargando tus datos…</span>
       <Bloque className="h-9 w-32" />
       <Bloque className="h-7 w-48 mt-5" />
@@ -24,7 +24,7 @@ export function Bloque({ className = "" }: { className?: string }) {
 
 export function ErrorCarga({ mensaje, alReintentar }: { mensaje: string; alReintentar: () => void }) {
   return (
-    <main className="h-dvh grid place-content-center px-8 text-center">
+    <main className="h-full grid place-content-center px-8 text-center">
       <p className="text-[15px] font-semibold text-ink">No pudimos cargar tus datos</p>
       <p className="text-[13.5px] text-mute mt-2 max-w-[280px]">{mensaje}</p>
       <button

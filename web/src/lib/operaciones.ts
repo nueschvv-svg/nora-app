@@ -1,3 +1,4 @@
+import { mensajeErrorAgenda } from "./agenda";
 /* ============================================================
    PANEL DE OPERACIONES — acceso a datos
 
@@ -26,10 +27,13 @@
    Mismo patrón que ya se usaba para que un técnico reclamara un
    pedido de la bolsa (tomarTrabajo(), ahora eliminado). */
 
+import { direccionConUnidad } from "./edificio";
 import { supabaseNavegador } from "./supabase/cliente";
 import type { EstadoServicio } from "./tipos";
 
-function fallar(contexto: string, error: { message: string }): never {
+function fallar(contexto: string, error: { message: string; code?: string }): never {
+  const agenda = mensajeErrorAgenda(error);
+  if (agenda) throw new Error(agenda);
   console.error(`[operaciones] ${contexto}:`, error.message);
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
 }
@@ -173,7 +177,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
       supabase.from("categorias").select("nombre").eq("slug", servicio.categoria_slug).maybeSingle(),
       supabase
         .from("propiedades")
-        .select("nombre, calle, numero, localidad, provincia, notas_acceso")
+        .select("nombre, calle, numero, localidad, provincia, notas_acceso, piso, unidad")
         .eq("id", servicio.propiedad_id)
         .maybeSingle(),
       supabase.from("perfiles").select("nombre, telefono").eq("id", servicio.cliente_id).maybeSingle(),
@@ -215,7 +219,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
     cliente: { nombre: perfil?.nombre ?? "—", telefono: perfil?.telefono ?? null },
     propiedad: {
       nombre: propiedad?.nombre ?? "—",
-      direccion: [propiedad?.calle, propiedad?.numero].filter(Boolean).join(" "),
+      direccion: direccionConUnidad(propiedad?.calle ?? "", propiedad?.numero, propiedad?.piso, propiedad?.unidad),
       localidad: propiedad?.localidad ?? "",
       provincia: propiedad?.provincia ?? "",
       notasAcceso: propiedad?.notas_acceso ?? null,

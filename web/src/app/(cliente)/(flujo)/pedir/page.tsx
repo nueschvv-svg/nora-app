@@ -24,6 +24,7 @@ import { TituloPaso } from "@/componentes/TituloPaso";
 import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
 import {
   crearServicio,
+  obtenerEdificio,
   listarCategorias,
   subirFotoServicio,
   PROVINCIAS_CUBIERTAS,
@@ -33,7 +34,14 @@ import { diagnosticarFoto, type ResultadoDiagnostico } from "@/lib/diagnosticarC
 import { enrutarPedido } from "@/lib/enrutarPedidoCliente";
 import { mandarComprobantePorMail } from "@/lib/mailComprobanteCliente";
 import { actualizarMisDatosPersonales, mailContactoValido, misDatosPersonales } from "@/lib/perfil";
-import { type Propiedad, type Servicio } from "@/lib/tipos";
+import { type Edificio, type Propiedad, type Servicio } from "@/lib/tipos";
+import { idIntentoPedido, completarIntentoPedido } from "@/lib/intentoPedido";
+import { errorFotoPedido, telefonoContactoValido } from "@/lib/validacionPedido";
+import { descripcionDelPedido } from "@/lib/descripcionPedido";
+import { propiedadDelContexto } from "@/lib/edificio";
+import { SelectorAgenda } from "@/componentes/SelectorAgenda";
+import { etiquetaFechaAgenda } from "@/lib/agenda";
+import { conTiempoLimite } from "@/lib/tiempoLimite";
 
 /* Antes listaba las 24 provincias argentinas acá mismo, dando a
    entender que podíamos llegar a cualquier lado del país. Ahora la
@@ -58,21 +66,35 @@ const MAX_FOTOS = 3;
 
    Todo eso vuelve en fase 3, cuando haya datos que lo sostengan. */
 
-/* `horaFin`: hasta qué hora del día tiene sentido ofrecer la franja —
-   pasada esa hora, mostrarla para "hoy" sería prometer un horario que
-   ya no existe. "Lo antes posible" no tiene franja fija, así que
-   siempre está disponible (null = sin límite). */
-const FRANJAS = [
-  { id: "manana", texto: "Mañana · 8 a 12 h", horaFin: 12 },
-  { id: "tarde-1", texto: "Tarde · 13 a 17 h", horaFin: 17 },
-  { id: "tarde-2", texto: "Tarde · 17 a 20 h", horaFin: 20 },
-  { id: "urgente", texto: "Lo antes posible", horaFin: null as number | null },
-];
-
 export default function PaginaPedir() {
+  const searchParams = useSearchParams();
+  return <FormularioPedido key={JSON.stringify(searchParams.get("edificio"))} />;
+}
+
+function FormularioPedido() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { propiedad, agregarPropiedad } = useApp();
+  const edificioSlug = searchParams.get("edificio");
+  const esPiloto = edificioSlug !== null;
+  const [edificio, setEdificio] = useState<Edificio | null>(null);
+  const [cargandoEdificio, setCargandoEdificio] = useState(esPiloto);
+  const [errorEdificio, setErrorEdificio] = useState<string | null>(null);
+  const [pisoInicial, setPisoInicial] = useState("");
+  const [unidadInicial, setUnidadInicial] = useState("");
+  useEffect(() => {
+    if (edificioSlug === null) return;
+    let vigente = true;
+    obtenerEdificio(edificioSlug).then((dato) => {
+      if (vigente) {
+        setEdificio(dato);
+        if (!dato) setErrorEdificio("Este enlace de edificio no está habilitado. Pedile el enlace actualizado a ENJINIA.");
+      }
+    }).catch(() => {
+      if (vigente) setErrorEdificio("No pudimos cargar el edificio. Volvé a abrir este enlace en un momento.");
+    }).finally(() => { if (vigente) setCargandoEdificio(false); });
+    return () => { vigente = false; };
+  }, [edificioSlug]);
 
   /* Sin cuentas: nadie carga domicilio/teléfono en un registro aparte de
      antemano — se piden como parte del pedido. El paso "Contacto"
@@ -85,7 +107,7 @@ export default function PaginaPedir() {
      datos" sigue de largo sin re-preguntar nada, "Usar otros datos"
      abre el formulario de siempre. */
   const [propiedadGuardada, setPropiedadGuardada] = useState<Propiedad | null>(null);
-  const propiedadActual = propiedad ?? propiedadGuardada;
+  const propiedadActual = propiedadDelContexto(edificioSlug, edificio, propiedadGuardada ?? propiedad);
 
   /* true = mostrando el formulario editable (como era antes, siempre);
      false = mostrando el resumen de "¿seguimos con esto?". Arranca en
@@ -93,7 +115,7 @@ export default function PaginaPedir() {
      ahí tiene sentido preguntar "¿seguimos con estos datos?". Se
      decide una vez, no en cada render, por el mismo motivo de antes:
      que no cambie de golpe a mitad de flujo. */
-  const [editandoContacto, setEditandoContacto] = useState(() => !propiedad);
+  const [editandoContacto, setEditandoContacto] = useState(() => esPiloto || !propiedad);
   const [perfilPrevio, setPerfilPrevio] = useState<{ nombre: string; telefono: string } | null>(null);
   const [cargandoPerfilPrevio, setCargandoPerfilPrevio] = useState(() => !!propiedad);
 
@@ -191,12 +213,15 @@ export default function PaginaPedir() {
      bajo Strict Mode: `removeItem` es idempotente, así que da igual si
      este efecto corre dos veces en desarrollo. */
   useEffect(() => {
-    if (llegoDesdeChat) sessionStorage.removeItem("nora:contextoChat");
+    try { if (llegoDesdeChat) sessionStorage.removeItem("nora:contextoChat"); } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [dia, setDia] = useState<string | null>(null);
   const [franja, setFranja] = useState<string | null>(null);
+  const [agendaValida, setAgendaValida] = useState(false);
+  const [revisionAgenda, setRevisionAgenda] = useState(0);
   const [servicioEnviado, setServicioEnviado] = useState<Servicio | null>(null);
+  const [avisoEntrega, setAvisoEntrega] = useState<string | null>(null);
 
   const [nombreInicial, setNombreInicial] = useState("");
   const [telefonoInicial, setTelefonoInicial] = useState("");
@@ -217,7 +242,7 @@ export default function PaginaPedir() {
      8 dígitos sin contar espacios/guiones alcanza para no aceptar "123"
      pero sin exigir un formato exacto — los números argentinos varían
      bastante en longitud según si llevan código de área. */
-  const telefonoValido = telefonoInicial.replace(/\D/g, "").length >= 8;
+  const telefonoValido = telefonoContactoValido(telefonoInicial);
 
   /* Mail sigue siendo opcional (sólo sirve para el comprobante) — acá
      sólo se valida el FORMATO, y sólo si escribieron algo. Antes no
@@ -227,13 +252,15 @@ export default function PaginaPedir() {
      lib/perfil.ts) — un solo lugar donde se decide qué cuenta como
      mail válido, para que las dos pantallas no se desincronicen. */
   const mailValido = mailContactoValido(mailInicial);
-  const nombreValido = nombreInicial.trim().length >= 2;
+  const nombreValido = nombreInicial.trim().length >= 2 && nombreInicial.trim().length <= 120;
   const calleValida = calleInicial.trim() !== "";
   const numeroValido = numeroInicial.trim() !== "";
   const localidadValida = localidadInicial.trim() !== "";
 
-  const datosInicialesValidos =
-    nombreValido && telefonoValido && mailValido && calleValida && numeroValido && localidadValida;
+  const pisoValido = pisoInicial.trim().length > 0 && pisoInicial.trim().length <= 30;
+  const unidadValida = unidadInicial.trim().length > 0 && unidadInicial.trim().length <= 30;
+  const datosInicialesValidos = nombreValido && telefonoValido && mailValido &&
+    (esPiloto ? !!edificio && pisoValido && unidadValida : calleValida && numeroValido && localidadValida);
 
   /* Un solo lugar por campo para "¿qué mensaje mostrar?" — antes cuatro
      de los seis campos repetían su condición de validez acá Y de nuevo
@@ -258,6 +285,7 @@ export default function PaginaPedir() {
   const [intentoContinuarContacto, setIntentoContinuarContacto] = useState(false);
 
   const [enviando, setEnviando] = useState(false);
+  const envioEnCurso = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const [categorias, setCategorias] = useState<CategoriaBD[]>([]);
@@ -304,6 +332,8 @@ export default function PaginaPedir() {
     const archivo = e.target.files?.[0];
     e.target.value = ""; // permite volver a elegir el mismo archivo después
     if (!archivo) return;
+    const problemaFoto = errorFotoPedido(archivo);
+    if (problemaFoto) { setErrorFoto(problemaFoto); return; }
     setFotos((actuales) => (actuales.length >= MAX_FOTOS ? actuales : [...actuales, archivo]));
     setDiagnostico(null);
     setErrorFoto(null);
@@ -338,23 +368,8 @@ export default function PaginaPedir() {
     cargarCategorias();
   };
 
-  const proximosDias = obtenerProximosDias();
   const catElegida = categorias.find((c) => c.slug === categoria);
-
-  /* Si el día elegido es hoy, las franjas cuyo horario ya pasó no se
-     ofrecen — mostrarlas sería prometer un horario imposible. */
-  const franjasDisponibles =
-    dia === proximosDias[0]?.iso
-      ? FRANJAS.filter((f) => f.horaFin === null || new Date().getHours() < f.horaFin)
-      : FRANJAS;
-
-  /* Si cambiás de día y la franja que tenías elegida ya no es válida
-     para el nuevo día (ej: elegiste "hoy" tarde y quedó sólo "lo antes
-     posible"), se trata como no elegida — derivado en el render, no
-     hace falta un efecto ni un setState extra para "corregir" el
-     estado: ningún botón de franjasDisponibles queda marcado, y
-     puedeAvanzar se calcula sobre este valor, no sobre `franja` crudo. */
-  const franjaEfectiva = franjasDisponibles.some((f) => f.id === franja) ? franja : null;
+  const franjaEfectiva = agendaValida ? franja : null;
 
   /* Igual que el endpoint: alcanza con la foto, no hace falta escribir
      nada. Antes de esto el paso 1 exigía 10 caracteres pase lo que
@@ -372,7 +387,7 @@ export default function PaginaPedir() {
   const analisisPendiente = analizando || (!diagnostico && !errorFoto);
 
   const puedeAvanzar =
-    (paso === 0 && !!categoria) ||
+    (paso === 0 && !!catElegida?.activa) ||
     (paso === 1 && (descripcion.trim().length >= 10 || fotos.length > 0)) ||
     (paso === pasoAnalisis && !analisisPendiente) ||
     (paso === pasoCuando && !!dia && !!franjaEfectiva) ||
@@ -395,14 +410,10 @@ export default function PaginaPedir() {
     ? `[Estimado de Nora] ${diagnostico.trabajo ? `${diagnostico.trabajo.nombre}: ` : ""}${diagnostico.estimado.titulo} — ${diagnostico.estimado.aclaracion}`
     : null;
 
-  const descripcionFinal = diagnostico?.observaciones
-    ? [descripcion.trim(), `[Foto analizada por Nora] ${diagnostico.observaciones}`, lineaEstimado]
-        .filter(Boolean)
-        .join("\n\n")
-    : descripcion;
+  const descripcionFinal = descripcionDelPedido(descripcion, !!diagnostico?.riesgoInmediato, diagnostico?.observaciones, lineaEstimado);
 
   const avanzar = async () => {
-    if (!puedeAvanzar || enviando) return;
+    if (!puedeAvanzar || enviando || envioEnCurso.current || (esPiloto && !edificio)) return;
 
     if (paso === pasoContacto) {
       /* "Continuar con estos datos": ya están guardados de un pedido
@@ -417,87 +428,99 @@ export default function PaginaPedir() {
         return;
       }
 
+      envioEnCurso.current = true;
       setEnviando(true);
       setError(null);
       try {
-        const [, nuevaPropiedad] = await Promise.all([
-          actualizarMisDatosPersonales({
+        await actualizarMisDatosPersonales({
             nombre: nombreInicial,
             telefono: telefonoInicial,
             mailContacto: mailInicial,
-          }),
-          agregarPropiedad({
-            nombre: "Mi casa",
-            calle: calleInicial,
-            numero: numeroInicial,
-            localidad: localidadInicial,
-            provincia: provinciaInicial,
-            icono: "home",
-          }),
-        ]);
+          });
+        const nuevaPropiedad = await agregarPropiedad({
+            nombre: edificio?.nombre ?? "Mi casa",
+            calle: edificio?.calle ?? calleInicial,
+            numero: edificio?.numero ?? numeroInicial,
+            localidad: edificio?.localidad ?? localidadInicial,
+            provincia: edificio?.provincia ?? provinciaInicial,
+            icono: edificio ? "building-2" : "home",
+            edificioId: edificio?.id,
+            piso: esPiloto ? pisoInicial : undefined,
+            unidad: esPiloto ? unidadInicial : undefined,
+          });
         setPropiedadGuardada(nuevaPropiedad);
+        setPerfilPrevio({ nombre: nombreInicial, telefono: telefonoInicial });
+        setEditandoContacto(false);
         setPaso(paso + 1);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No pudimos guardar tus datos.");
       } finally {
+        envioEnCurso.current = false;
         setEnviando(false);
       }
       return;
     }
 
     if (paso === pasoConfirmar) {
-      if (!propiedadActual || !categoria) return;
+      if (!dia || !franjaEfectiva) {
+        setError("Revisá la disponibilidad y elegí un turno para continuar.");
+        setPaso(pasoCuando);
+        return;
+      }
+      if (!propiedadActual || !categoria || !catElegida?.activa) {
+        setError("Revisá la categoría y los datos de contacto antes de enviar.");
+        return;
+      }
+      envioEnCurso.current = true;
       setEnviando(true);
       setError(null);
       try {
-        const nuevoServicio = await crearServicio({
+        const datosPedido = {
           propiedadId: propiedadActual.id,
           categoriaSlug: categoria,
           descripcion: descripcionFinal,
           fechaPreferida: dia,
-          franjaPreferida: franja,
+          franjaPreferida: franjaEfectiva,
           estimadoDesdeArs: diagnostico?.estimado?.desdeArs ?? null,
           estimadoHastaArs: diagnostico?.estimado?.hastaArs ?? null,
-        });
+        };
+        const idIntento = await idIntentoPedido(datosPedido);
+        const nuevoServicio = await crearServicio({ ...datosPedido, idIntento });
 
-        /* Lo único que de verdad tiene que pasar antes de mostrarle
-           "pedido enviado" a la persona es crearServicio() de arriba —
-           eso es lo que lo hace visible para operaciones. Subir las
-           fotos, avisar por Telegram y mandar el comprobante por mail
-           son un plus, ninguno de los tres requisito (si fallan, el
-           pedido ya está adentro igual, ver comentarios de cada
-           función) — así que no hay motivo para tener a la persona
-           mirando un spinner mientras se suben y esperan la vuelta de
-           un servidor externo. Corren en background, en el mismo
-           orden de antes (fotos primero, para que el aviso pueda
-           incluir su URL). Las fotos se suben todas en paralelo — una
-           que falle no debe frenar ni ocultar a las demás. */
-        (async () => {
+        /* La base encola el aviso a ENJINIA junto con el pedido.
+           Consultar el estado no dispara otro envío: el consumidor del
+           servidor se ocupa de entregarlo y reintentar. */
+        const avisos: string[] = [];
+        await (async () => {
           if (fotos.length > 0) {
             await Promise.all(
               fotos.map((f) =>
-                subirFotoServicio(nuevoServicio.id, f).catch((e) => {
+                conTiempoLimite(subirFotoServicio(nuevoServicio.id, f), 15000).catch((e) => {
                   console.error("[pedir] no se pudo guardar una foto:", e);
+                  avisos.push("No pudimos confirmar que se adjuntó una foto. Revisá el detalle del pedido.");
                 }),
               ),
             );
           }
           try {
-            await enrutarPedido(nuevoServicio.id, diagnostico);
+            await enrutarPedido(nuevoServicio.id);
           } catch (e) {
             console.error("[pedir] no se pudo avisar del pedido:", e);
-          }
-          try {
-            await mandarComprobantePorMail(nuevoServicio.id);
-          } catch (e) {
-            console.error("[pedir] no se pudo mandar el comprobante:", e);
+            avisos.push("El pedido quedó guardado, pero no pudimos confirmar el estado del aviso al equipo. Conservá el número y consultá Mis pedidos; no hace falta enviarlo otra vez.");
           }
         })();
+        void mandarComprobantePorMail(nuevoServicio.id).catch((e) => console.error("[pedir] comprobante:", e));
 
+        setAvisoEntrega(avisos.length ? [...new Set(avisos)].join(" ") : null);
         setServicioEnviado(nuevoServicio);
+        completarIntentoPedido();
       } catch (e) {
+        setRevisionAgenda(v => v + 1);
+        setAgendaValida(false);
+        setPaso(pasoCuando);
         setError(e instanceof Error ? e.message : "No pudimos enviar el pedido.");
       } finally {
+        envioEnCurso.current = false;
         setEnviando(false);
       }
       return;
@@ -506,19 +529,28 @@ export default function PaginaPedir() {
     setPaso(paso + 1);
   };
 
+  if (esPiloto && (cargandoEdificio || !edificio)) {
+    return <div className="p-6 pt-16 max-w-xl mx-auto">
+      <TituloPaso>{cargandoEdificio ? "Cargando tu edificio…" : "Revisá el enlace"}</TituloPaso>
+      <p role={errorEdificio ? "alert" : "status"} className="mt-4 text-mute">{errorEdificio ?? "Estamos buscando la dirección del edificio."}</p>
+      {errorEdificio && <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-xl bg-brand-600 text-white px-5 py-3">Volver a intentar</button>}
+    </div>;
+  }
+
   if (servicioEnviado) {
     return (
       <Confirmacion
+        avisoEntrega={avisoEntrega}
         servicio={servicioEnviado}
         domicilio={propiedadActual ? `${propiedadActual.nombre} · ${propiedadActual.direccion}` : "—"}
-        diaTexto={proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—"}
-        franjaTexto={FRANJAS.find((f) => f.id === franja)?.texto ?? "—"}
+        diaTexto={servicioEnviado.fechaPreferida ? etiquetaFechaAgenda(servicioEnviado.fechaPreferida) : "—"}
+        franjaTexto={servicioEnviado.franjaPreferida ?? "—"}
       />
     );
   }
 
   return (
-    <div className="absolute inset-0 z-40 bg-sand flex flex-col">
+    <div className="nora-wizard absolute inset-0 z-40 flex flex-col">
       {/* --- Encabezado con progreso ---
           max-w-xl mx-auto en las tres franjas (encabezado, contenido
           scrolleable, pie) — antes cada una ocupaba el ancho entero de
@@ -528,16 +560,17 @@ export default function PaginaPedir() {
           vacío a los costados, más parecido a un layout roto que a un
           sitio prolijo. El fondo (bg-sand) sigue ocupando todo el
           ancho — sólo el contenido en sí se centra y se limita. */}
-      <div className="px-5 pt-12 pb-3 flex items-center gap-3 max-w-xl mx-auto w-full">
+      <div className="px-5 pt-6 pb-5 flex items-center gap-4 max-w-2xl mx-auto w-full">
         <button
           type="button"
           onClick={() => (paso === 0 ? router.push("/inicio") : setPaso(paso - 1))}
-          className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+          className="press w-11 h-11 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
           aria-label={paso === 0 ? "Salir" : "Paso anterior"}
         >
           <ArrowLeft className="w-[18px] h-[18px]" />
         </button>
         <div className="flex-1">
+          <p className="nora-eyebrow mb-2">NORA · {PASOS[paso]} <span className="float-right">{paso + 1} / {PASOS.length}</span></p>
           <div
             className="h-1.5 w-full rounded-full bg-line overflow-hidden"
             role="progressbar"
@@ -554,14 +587,15 @@ export default function PaginaPedir() {
         </div>
         <Link
           href="/inicio"
-          className="press w-10 h-10 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
+          className="press w-11 h-11 grid place-items-center rounded-full bg-surface border border-line text-ink shadow-card"
           aria-label="Cerrar"
         >
           <X className="w-[18px] h-[18px]" />
         </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 max-w-2xl mx-auto w-full">
+        <p className="text-xs leading-relaxed text-mute border-l-2 border-brand-200 pl-3 py-2 mb-6">Nora no atiende emergencias. Si hay riesgo inmediato, contactá al servicio de emergencias o a la administración. No esperes una respuesta por acá.</p>
         {/* Input oculto compartido por ControlFoto en cualquier paso (El
             problema y Análisis) — montado acá, fuera de cualquier
             `paso === N`, porque si viviera dentro de un paso puntual se
@@ -739,46 +773,10 @@ export default function PaginaPedir() {
               viene bien?
             </TituloPaso>
             <p className="text-[13px] text-mute mt-1.5">
-              Elegí día y franja. Te confirmamos el horario exacto.
+              Elegí fecha y horario para reservar tu lugar.
             </p>
-
-            <div className="mt-5 flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5">
-              {proximosDias.map((d) => (
-                <button
-                  key={d.iso}
-                  type="button"
-                  onClick={() => setDia(d.iso)}
-                  aria-pressed={dia === d.iso}
-                  className={`press shrink-0 w-[64px] rounded-2xl shadow-card py-3 flex flex-col items-center gap-0.5 transition-colors ${
-                    dia === d.iso ? "bg-brand-600" : "border border-line bg-surface"
-                  }`}
-                >
-                  <span className={`text-[11px] uppercase ${dia === d.iso ? "text-brand-100" : "text-faint"}`}>
-                    {d.diaSemana}
-                  </span>
-                  <span className={`num text-[18px] font-bold ${dia === d.iso ? "text-white" : "text-ink"}`}>
-                    {d.numero}
-                  </span>
-                  <span className={`text-[11px] ${dia === d.iso ? "text-brand-100" : "text-faint"}`}>{d.mes}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {franjasDisponibles.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFranja(f.id)}
-                  aria-pressed={franja === f.id}
-                  className={`press rounded-2xl shadow-card py-3.5 px-2 text-[13.5px] font-semibold transition-colors ${
-                    franja === f.id ? "bg-brand-600 text-white" : "border border-line bg-surface text-ink"
-                  }`}
-                >
-                  {f.texto}
-                </button>
-              ))}
-            </div>
+            <SelectorAgenda fecha={dia} franja={franja} onChange={(d,f)=>{setDia(d);setFranja(f);}}
+              onValidez={setAgendaValida} revision={revisionAgenda} />
           </section>
         )}
 
@@ -868,6 +866,17 @@ export default function PaginaPedir() {
               error={intentoContinuarContacto ? erroresContacto.mail : undefined}
             />
 
+            {edificio ? <>
+              <div className="mt-4 rounded-xl2 border border-line bg-surface p-4">
+                <p className="font-semibold">{edificio.nombre}</p>
+                <p className="text-sm text-mute">{edificio.calle} {edificio.numero} · {edificio.localidad}</p>
+                <p className="mt-1 text-xs text-mute">ENJINIA gestiona tu pedido en este edificio.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <CampoTexto id="piso-inicial" etiqueta="Piso" placeholder="Ej: PB o 3" maxLength={30} value={pisoInicial} onChange={(e) => setPisoInicial(e.target.value)} error={intentoContinuarContacto && !pisoValido ? "Ingresá el piso." : undefined} />
+                <CampoTexto id="unidad-inicial" etiqueta="Unidad / departamento" placeholder="Ej: A o 12" maxLength={30} value={unidadInicial} onChange={(e) => setUnidadInicial(e.target.value)} error={intentoContinuarContacto && !unidadValida ? "Ingresá la unidad." : undefined} />
+              </div>
+            </> : <>
             <div className="grid grid-cols-[1fr_92px] gap-2.5">
               <CampoTexto
                 id="calle-inicial"
@@ -916,6 +925,7 @@ export default function PaginaPedir() {
                 ))}
               </select>
             </div>
+            </>}
           </section>
         )}
 
@@ -937,8 +947,8 @@ export default function PaginaPedir() {
               <Fila
                 etiqueta="Cuándo"
                 valor={(() => {
-                  const diaTxt = proximosDias.find((d) => d.iso === dia)?.etiquetaLarga ?? "—";
-                  const franjaTxt = FRANJAS.find((f) => f.id === franja)?.texto ?? "";
+                  const diaTxt = dia ? etiquetaFechaAgenda(dia) : "—";
+                  const franjaTxt = franja ?? "";
                   const franjaCorta = franjaTxt.includes(" · ") ? franjaTxt.split(" · ")[1] : franjaTxt;
                   return `${diaTxt} · ${franjaCorta}`;
                 })()}
@@ -968,9 +978,7 @@ export default function PaginaPedir() {
             <div className="mt-3 flex items-start gap-2.5 rounded-xl2 bg-brand-50 border border-brand-100 px-3.5 py-3">
               <Clock className="w-[18px] h-[18px] text-brand-600 shrink-0 mt-0.5" />
               <p className="text-[12.5px] text-ink leading-snug">
-                En menos de <span className="font-semibold">2 horas</span> te contactamos con el precio
-                confirmado — <span className="font-semibold">antes</span> de que arranque el trabajo: no
-                se cobra nada hasta entonces.
+                ENJINIA gestiona tu pedido y te confirma la atención y el precio antes de que arranque el trabajo.
               </p>
             </div>
           </section>
@@ -978,7 +986,7 @@ export default function PaginaPedir() {
       </div>
 
       {/* --- Pie con el botón de avance --- */}
-      <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent max-w-xl mx-auto w-full">
+      <div className="px-5 pb-7 pt-2 bg-gradient-to-t from-sand via-sand to-transparent max-w-2xl mx-auto w-full">
         {error && (
           <p role="alert" className="text-[13px] text-urgent bg-urgent/10 rounded-xl2 px-3.5 py-3 mb-2.5">
             {error}
@@ -1385,11 +1393,13 @@ function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
    llama o escribe por WhatsApp al teléfono que la persona dejó, para
    cerrar el servicio — ver enrutarPedidoCliente.ts. */
 function Confirmacion({
+  avisoEntrega,
   servicio,
   domicilio,
   diaTexto,
   franjaTexto,
 }: {
+  avisoEntrega: string | null;
   servicio: Servicio;
   domicilio: string;
   diaTexto: string;
@@ -1408,21 +1418,20 @@ function Confirmacion({
   }, []);
 
   return (
-    <div className="absolute inset-0 z-40 bg-sand flex flex-col overflow-y-auto no-scrollbar">
+    <div className="nora-wizard absolute inset-0 z-40 flex flex-col overflow-y-auto no-scrollbar">
       <div className="flex-1 flex flex-col items-center px-6 pt-16 pb-6 text-center">
         <div ref={checkRef} className="w-20 h-20 grid place-items-center rounded-full bg-good/15 text-good">
           <Check className="w-10 h-10" />
         </div>
         <TituloPaso className="text-[23px] font-bold font-display text-ink mt-5">
-          ¡Pedido enviado!
+          ¡Turno reservado!
         </TituloPaso>
-        {/* Titular corto y tranquilizador primero, el compromiso
-            concreto (2 horas, por teléfono) como detalle debajo — uno
-            no reemplaza al otro, cada uno cumple un rol distinto. */}
-        <p className="text-[14.5px] font-semibold text-ink mt-2">En breve te contactaremos.</p>
+        <p className="text-sm text-ink mt-3 max-w-sm break-words">{servicio.descripcion.split("\n").filter(Boolean).find(linea => !linea.startsWith("["))?.slice(0,180)}</p>
+        {/* Confirmar recepción no equivale a prometer atención inmediata. */}
+        <p className="text-[14.5px] font-semibold text-ink mt-2">Tu lugar quedó reservado.</p>
+        {avisoEntrega && <p role="alert" className="mt-3 rounded-xl bg-warn/15 p-3 text-sm text-ink max-w-sm">{avisoEntrega}</p>}
         <p className="text-[13.5px] text-mute mt-1 max-w-[300px] leading-relaxed">
-          Ya lo estamos viendo. En menos de 2 horas te contactamos por teléfono con el precio
-          confirmado.
+          El equipo revisará el trabajo y confirmará el precio. Podés consultar las novedades en Mis pedidos.
         </p>
 
         <div
@@ -1450,7 +1459,7 @@ function Confirmacion({
             </span>
             <div className="min-w-0">
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">
-                ¿A qué hora vamos a venir?
+                Turno confirmado · cupo reservado
               </p>
               <p className="text-[14px] font-bold text-ink mt-1">{diaTexto}</p>
               <p className="text-[12.5px] text-mute">{franjaCorta}</p>
@@ -1462,7 +1471,7 @@ function Confirmacion({
             </span>
             <div className="min-w-0">
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-faint">A dónde vamos</p>
-              <p className="text-[13.5px] font-semibold text-ink mt-0.5 truncate">{domicilio}</p>
+              <p className="text-[13.5px] font-semibold text-ink mt-0.5 break-words">{domicilio}</p>
             </div>
           </div>
         </div>
@@ -1470,10 +1479,10 @@ function Confirmacion({
 
       <div className="px-6 pb-8">
         <Link
-          href="/inicio"
+          href="/pedidos"
           className="press w-full flex items-center justify-center gap-2 rounded-xl2 bg-brand-600 text-white py-4 text-[15px] font-semibold shadow-fab"
         >
-          Volver al inicio
+          Ver mis pedidos
         </Link>
       </div>
     </div>
@@ -1484,20 +1493,3 @@ function Confirmacion({
  *  quien quiere agendar con anticipación — antes eran sólo 7, y quien
  *  quería agendar para dentro de dos semanas no tenía cómo. Ya scrollea
  *  horizontal, así que no hace falta rediseñar nada para que quepan. */
-function obtenerProximosDias() {
-  const DIAS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
-  const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const hoy = new Date();
-
-  return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(hoy);
-    d.setDate(hoy.getDate() + i);
-    return {
-      iso: d.toISOString().slice(0, 10),
-      diaSemana: i === 0 ? "HOY" : i === 1 ? "MAÑ" : DIAS[d.getDay()],
-      numero: d.getDate(),
-      mes: MESES[d.getMonth()],
-      etiquetaLarga: i === 0 ? "Hoy" : `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`,
-    };
-  });
-}

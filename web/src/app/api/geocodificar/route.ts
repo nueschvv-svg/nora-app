@@ -24,7 +24,14 @@ export async function POST(request: NextRequest) {
   try {
     cuerpo = await request.json();
   } catch {
-    return NextResponse.json({ lat: null, lng: null });
+    return NextResponse.json({ lat: null, lng: null }, { status: 400 });
+  }
+
+  if (!cuerpo || typeof cuerpo !== "object" || Array.isArray(cuerpo) ||
+      [cuerpo.calle, cuerpo.numero, cuerpo.localidad, cuerpo.provincia].some(
+        (valor) => valor !== undefined && (typeof valor !== "string" || valor.length > 200),
+      )) {
+    return NextResponse.json({ lat: null, lng: null }, { status: 400 });
   }
 
   const calle = (cuerpo.calle ?? "").trim();
@@ -50,6 +57,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const r = await fetch(url, {
+      signal: AbortSignal.timeout(5000),
       headers: {
         "User-Agent": "NoraApp/1.0 (nora-app-849.netlify.app; geocodificacion de domicilios de clientes)",
       },

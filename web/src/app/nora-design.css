@@ -1,0 +1,117 @@
+/* NORA / Casa serena — semantic tokens and shared product surfaces. */
+:root {
+  --nora-pearl: #f5f5ee;
+  --nora-pine: #0e5c54;
+  --nora-glass: rgba(255,255,252,.86);
+  --nora-edge: #d6ded7;
+  --nora-ease: cubic-bezier(.22,1,.36,1);
+  --nora-fast: 160ms;
+  --nora-panel-shadow: 0 2px 3px #123c3210, 0 14px 40px -26px #123c3240;
+}
+@layer base {
+  body { color: var(--color-ink); }
+  h1,h2,h3 { text-wrap: balance; }
+  button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), a { cursor: pointer; }
+  input:not([type=checkbox]):not([type=radio]), textarea, select { transition: border-color var(--nora-fast), box-shadow var(--nora-fast); }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--nora-pine); outline-offset: 3px; }
+  :is(button,a):focus-visible { outline: 3px solid var(--nora-pine); outline-offset: 4px; }
+  button:disabled { cursor: not-allowed; }
+}
+.nora-page { width:100%; max-width:1120px; margin-inline:auto; padding:clamp(20px,4vw,48px); }
+.nora-heading { font-family:var(--font-display); font-size:clamp(26px,3vw,40px); font-weight:600; letter-spacing:-.045em; line-height:1.16; }
+.nora-eyebrow { font-size:11px; font-weight:700; letter-spacing:.16em; line-height:1.6; color:var(--color-brand-600); }
+.nora-panel { background:var(--color-surface); border:1px solid var(--nora-edge); border-radius:24px; box-shadow:var(--nora-panel-shadow); }
+.nora-button, .nora-button-secondary { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:12px 20px; border-radius:14px; font-size:14px; font-weight:600; line-height:1.4; transition:background var(--nora-fast),box-shadow var(--nora-fast); }
+.nora-button { background:var(--nora-pine); color:white; box-shadow:0 4px 12px #0e5c5420; }
+.nora-button:hover { background:var(--color-brand-700); }
+.nora-button-secondary { background:var(--nora-glass); color:var(--color-ink); border:1px solid var(--nora-edge); }
+.nora-button-secondary:hover { background:var(--color-brand-50); }
+.nora-empty { padding:clamp(24px,5vw,56px); border:1px dashed var(--nora-edge); border-radius:24px; background:#ffffffa8; }
+.nora-auth { min-height:100dvh; display:grid; place-items:center; padding:32px 20px; }
+.nora-auth-card { width:100%; max-width:460px; padding:clamp(24px,5vw,48px); border-radius:32px; background:var(--nora-glass); border:1px solid white; box-shadow:0 24px 100px -48px #143f3950; }
+.glass { background:rgba(255,255,252,.87); backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2); border-color:#ffffffb0; box-shadow:var(--nora-panel-shadow); }
+.glass-nav { background:var(--nora-glass); backdrop-filter:blur(16px) saturate(1.2); -webkit-backdrop-filter:blur(16px) saturate(1.2); border-bottom:1px solid var(--nora-edge); box-shadow:0 3px 18px #143f3905; }
+.glass-sheet { background:#fcfcf8f5; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid white; box-shadow:0 -8px 70px #143f3930; }
+.nora-sheet { max-width:720px; margin-inline:auto; padding-bottom:env(safe-area-inset-bottom); }
+.nora-chat { background:rgba(255,255,255,.65); box-shadow:0 20px 80px -40px #18483c55; border:1px solid #ffffffb0; }
+.nora-chat input { min-width:0; }
+.nora-wizard { background:linear-gradient(145deg,#f8faf5,#eff3ed); }
+.nora-wizard main { max-width:720px; margin-inline:auto; }
+.nora-wizard input, .nora-wizard textarea { background:#fff; }
+.nora-intro { height:170dvh; position:relative; --intro-progress:0; background:#edf0e7; }
+.nora-intro-sticky { position:sticky; top:0; height:calc(100dvh - 5rem); min-height:560px; overflow:hidden; background:radial-gradient(ellipse at 82% 35%,#d8e8dc 0,transparent 53%),#f2f3eb; display:flex; flex-direction:column; }
+.nora-intro-grid { width:min(1320px,100%); margin:auto; padding:40px clamp(24px,5vw,88px); display:grid; grid-template-columns:1.05fr 1fr; align-items:center; gap:32px; flex:1; }
+.nora-intro-copy { transform:translateY(calc(var(--intro-progress)*-24px)); }
+.nora-intro-copy h1 { font-family:var(--font-display); font-size:clamp(44px,6.3vw,94px); letter-spacing:-.055em; line-height:1.03; font-weight:500; margin:24px 0; color:#193d35; }
+.nora-intro-copy h1 em { font-family:var(--font-logo); font-weight:400; letter-spacing:-.025em; color:var(--nora-pine); }
+.nora-intro-description { max-width:340px; color:#50665c; font-size:clamp(14px,1.3vw,18px); line-height:1.7; }
+.nora-intro-cta { margin-top:26px; display:inline-flex; gap:16px; align-items:center; padding:15px 22px; background:#183f36; color:white; border-radius:50px; min-height:48px; font-size:14px; font-weight:600; }
+.nora-intro-cta:hover { background:#0e5c54; }
+.nora-hero-art { position:relative; perspective:1100px; min-height:440px; display:grid; place-items:center; }
+.nora-hero-orbit { position:absolute; width:100%; aspect-ratio:1; border:1px solid #adc7b870; border-radius:50%; transform:rotateX(60deg) rotate(-25deg); }
+.nora-hero-plaque { width:clamp(240px,28vw,400px); aspect-ratio: .83; border-radius:36px; padding:26px; display:flex; flex-direction:column; justify-content:space-between; background:linear-gradient(140deg,#3e7466,#204a40 48%,#16382f); border:1px solid #86a894; box-shadow:inset 1px 1px 0 #ffffff45,inset -2px -2px 0 #001d1b80,24px 40px 65px -28px #173c385c; transform:rotateY(calc(-18deg + var(--intro-progress)*18deg)) rotateX(calc(10deg - var(--intro-progress)*10deg)) rotateZ(calc(6deg - var(--intro-progress)*6deg)) scale(calc(.9 + var(--intro-progress)*.1)); }
+.nora-hero-plaque-top { display:flex; justify-content:space-between; gap:12px; font-size:9px; letter-spacing:.15em; color:#d2eae6; }
+.nora-hero-mark { width:49%; margin:24px auto; filter:drop-shadow(0 4px 1px #082d2b60); }
+.nora-hero-plaque-bottom { display:flex; align-items:end; justify-content:space-between; color:#e7f3e8; font-size:14px; line-height:1.5; }
+.nora-hero-star { font-size:36px; line-height:1; color:#bbd2ae; }
+.nora-hero-caption { position:absolute; bottom:-16px; font-size:11px; letter-spacing:.08em; color:#526c5f; }
+.nora-intro-footer { padding:22px clamp(24px,5vw,88px); display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:9px; letter-spacing:.12em; color:#526c5f; border-top:1px solid #cbd8c9; }
+.nora-intro-footer button { display:flex; align-items:center; gap:10px; min-height:44px; font-size:12px; letter-spacing:0; }
+.nora-intro-progress { height:2px; background:#29594b; transform-origin:left; transform:scaleX(var(--intro-progress)); }
+.nora-intro-static { padding:24px; background:#edf0e7; }
+.nora-intro-static h1 { font-family:var(--font-display); font-size:24px; letter-spacing:-.04em; }
+@media(min-width:768px) { .nora-sheet { border-radius:28px 28px 0 0; } }
+@media(max-width:640px) {
+ .nora-intro-sticky { min-height:700px; }
+ .nora-intro-grid { grid-template-columns:1fr; gap:12px; padding:24px; }
+ .nora-intro-copy h1 { font-size:46px; margin:14px 0; }
+ .nora-intro-description { max-width:310px; font-size:14px; }
+ .nora-intro-cta { margin-top:16px; padding:12px 18px; }
+ .nora-hero-art { min-height:220px; pointer-events:none; }
+ .nora-hero-plaque { width:175px; border-radius:24px; padding:16px; }
+ .nora-hero-plaque-top { font-size:6px; }
+ .nora-hero-mark { margin:12px auto; }
+ .nora-hero-plaque-bottom { font-size:10px; }
+ .nora-hero-caption { display:none; }
+ .nora-intro-copy { position:relative; z-index:1; align-self:start; padding-top:0; }
+ .nora-intro-footer { padding:12px 24px; }
+ .nora-intro-footer > span { display:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .nora-intro { height:auto; }
+ .nora-intro-sticky { position:relative; height:auto; }
+ .nora-intro-copy,.nora-hero-plaque { transform:none; }
+}
+@supports not (backdrop-filter:blur(1px)) { .glass,.glass-nav,.glass-sheet { background:#fcfcf8; } }
+
+/* Full-screen intro; application navigation appears only after the introduction. */
+.nora-home-shell > header { position:absolute; inset:0 0 auto; width:100%; transition:opacity 240ms,transform 350ms var(--nora-ease); }
+.nora-home-shell:has(.nora-intro[data-active="true"]) > header { visibility:hidden; opacity:0; transform:translateY(-100%); pointer-events:none; }
+.nora-home-shell .nora-intro-sticky { height:100dvh; }
+.nora-home-shell main > .relative.isolate { padding-top:100px; min-height:100dvh; }
+.nora-intro { background:var(--color-sand); --intro-exit:0; }
+.nora-intro-sticky { border-radius:0 0 calc(var(--intro-exit)*48px) calc(var(--intro-exit)*48px); box-shadow:0 24px 48px -36px #153d3540; }
+.nora-intro-grid { opacity:calc(1 - var(--intro-exit)*.35); transform:translateY(calc(var(--intro-exit)*-40px)); }
+.nora-intro-copy h1 em { display:inline-block; margin-top:.12em; }
+.nora-hero-plaque { background:linear-gradient(115deg,#24483e,#386c5c 52%,#153c33); border-radius:140px 140px 28px 28px; padding:28px; overflow:hidden; }
+.nora-hero-plaque-top { justify-content:center; padding-top:26px; font-size:8px; letter-spacing:.12em; }
+.nora-hero-door { border:1px solid #bcd6c04a; border-bottom:0; border-radius:110px 110px 0 0; margin:20px 16px 0; padding:22px 8px 0; }
+.nora-hero-mark { width:55%; margin:8px auto 0; }
+.nora-hero-signature { font-family:var(--font-display); font-size:clamp(38px,4vw,60px); letter-spacing:-.065em; text-align:center; color:#edf5e9; line-height:1.2; }
+.nora-hero-signature span { color:#c9a6ad; }
+.nora-hero-plaque-bottom { margin-top:20px; padding-top:14px; border-top:1px solid #bcd6c04a; font-size:11px; }
+.nora-hero-seal { font-size:7px; letter-spacing:.14em; }
+.nora-intro-sound { position:absolute; top:20px; right:24px; z-index:5; width:44px; height:44px; display:grid; place-items:center; border:1px solid #cbd8c9; border-radius:50%; color:#29594b; background:#ffffff70; }
+@media(max-width:640px) {
+ .nora-intro-grid { padding-top:64px; }
+ .nora-intro-copy h1 { font-size:46px; line-height:1.08; }
+ .nora-hero-plaque { width:190px; padding:16px; border-radius:88px 88px 20px 20px; }
+ .nora-hero-plaque-top { font-size:5px; padding-top:12px; }
+ .nora-hero-door { margin:10px 8px 0; padding:10px 4px 0; }
+ .nora-hero-signature { font-size:32px; }
+ .nora-hero-plaque-bottom { font-size:9px; margin-top:12px; padding-top:10px; }
+ .nora-hero-seal { font-size:6px; }
+}
+@media(prefers-reduced-motion:reduce) { .nora-intro-grid { transform:none; opacity:1; } }
+@media(max-width:640px) { .nora-hero-art { min-height:280px; } .nora-hero-plaque { aspect-ratio:auto; min-height:270px; } }

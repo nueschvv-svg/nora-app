@@ -95,6 +95,9 @@ export async function POST(request: NextRequest) {
   }
 
   const descripcion = String(form.get("descripcion") ?? "").trim();
+  if (descripcion.length > 4000) {
+    return NextResponse.json({ error: "Contanos el problema en hasta 4000 caracteres." }, { status: 400 });
+  }
   const categoriaSlug = form.get("categoria") ? String(form.get("categoria")) : undefined;
   // El cliente manda cada foto bajo la misma clave ("foto") con
   // FormData.append — getAll las junta a todas, en el orden en que se

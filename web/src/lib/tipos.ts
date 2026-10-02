@@ -93,7 +93,20 @@ export type Equipo = {
   ultimaRevision?: string;
 };
 
+export type Edificio = {
+  id: string;
+  slug: string;
+  nombre: string;
+  calle: string;
+  numero: string;
+  localidad: string;
+  provincia: string;
+};
+
 export type Propiedad = {
+  edificioId?: string;
+  piso?: string;
+  unidad?: string;
   id: string;
   nombre: string;
   direccion: string;
@@ -135,9 +148,8 @@ export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   cancelado: "Cancelado",
 };
 
-/** Mismas cuatro franjas que ofrece /pedir al elegir día y hora — acá
- *  sólo para mostrar de vuelta lo que el cliente ya eligió (no una
- *  hora de llegada calculada, ver Servicio.franjaPreferida). */
+/** Etiquetas históricas. Las nuevas franjas se configuran en agenda_franjas
+ *  y su identificador es el rango legible; se muestran directamente. */
 export const ETIQUETA_FRANJA: Record<string, string> = {
   manana: "Mañana · 8 a 12 h",
   "tarde-1": "Tarde · 13 a 17 h",

@@ -7,10 +7,10 @@ export function BadgeEstado({ estado, className = "" }: { estado: EstadoServicio
   const estilo = estiloEstado(estado);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${estilo.badge} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${estilo.badge} ${className}`}
     >
-      <span className={`w-[7px] h-[7px] rounded-full shrink-0 ${estilo.punto} ${estilo.vivo ? "live-dot" : ""}`} />
-      {ETIQUETA_ESTADO[estado]}
+      <span className={`w-[7px] h-[7px] rounded-full shrink-0 ${estilo.punto}`} />
+      <span>{ETIQUETA_ESTADO[estado]}</span>
     </span>
   );
 }

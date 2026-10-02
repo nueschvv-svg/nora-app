@@ -12,9 +12,8 @@
    ============================================================ */
 
 /** Todo lo que un destino podría necesitar para avisar de un pedido.
- *  Se arma una sola vez, en app/api/pedidos/[id]/enrutar/route.ts,
- *  leyendo de la base con la sesión del propio cliente — nunca datos
- *  que el navegador podría falsear. */
+ *  Se arma en cargarPedido.ts con datos persistidos, desde el consumidor
+ *  del servidor. Los paths de fotos se validan antes de firmarlos. */
 export type PedidoParaEnrutar = {
   servicioId: string;
   categoriaNombre: string;

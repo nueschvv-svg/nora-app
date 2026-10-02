@@ -67,6 +67,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No pudimos leer el mensaje." }, { status: 400 });
   }
 
+  if (!cuerpo || typeof cuerpo !== "object" || Array.isArray(cuerpo)) {
+    return NextResponse.json({ error: "No pudimos leer el mensaje." }, { status: 400 });
+  }
   const historial = validarHistorial(cuerpo.historial);
   if (!historial || historial.length === 0) {
     return NextResponse.json({ error: "Falta el mensaje." }, { status: 400 });
