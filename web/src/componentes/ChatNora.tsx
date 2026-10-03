@@ -51,7 +51,7 @@ export function ChatNora({
   useEffect(() => {
     const el = listaRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [mensajes, enviando]);
 
   const enviar = async (e: React.FormEvent) => {
@@ -160,7 +160,7 @@ export function ChatNora({
               </span>
             )}
             <p
-              className={`max-w-[80%] px-3.5 py-2.5 text-[15px] leading-relaxed whitespace-pre-line shadow-card ${
+              className={`max-w-[80%] px-3.5 py-2.5 text-[15px] leading-relaxed whitespace-pre-line break-words min-w-0 shadow-card ${
                 m.rol === "nora"
                   ? "bg-sand border border-line rounded-2xl rounded-tl-md text-ink"
                   : "bg-brand-600 text-white rounded-2xl rounded-tr-md"
@@ -213,7 +213,7 @@ export function ChatNora({
               onChange={(e) => setEntrada(e.target.value)}
               placeholder="Ej: pierde agua la canilla de la cocina…"
               disabled={enviando}
-              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300 disabled:opacity-60"
+              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-base text-ink placeholder:text-faint outline-none focus:border-brand-300 disabled:opacity-60"
             />
             <button
               type="submit"

@@ -1,67 +1,66 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, Volume2, VolumeX } from "lucide-react";
 import { HeroLlaveCasa, contenedorScrolleable } from "./HeroLlaveCasa";
 import type { ModoBienvenida } from "./useModoBienvenida";
 
 /** Native sticky scroll: no portal, wheel interception or synthetic scroll. */
-export function EscenaCinema({ modo }: { modo: ModoBienvenida }) {
+export function EscenaCinema({ modo, alTerminar }: { modo: ModoBienvenida; alTerminar: () => void }) {
   const driverRef = useRef<HTMLElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [sonido, setSonido] = useState(false);
-  useEffect(() => {
-    if (modo !== "cinema") return;
-    const audio = new Audio('/audio/nora.mp3');
-    audio.volume = 0.55;
+  const terminado = useRef(false);
+  const saludoIntentado = useRef(false);
+  const [saliendo, setSaliendo] = useState(false);
+  const reproducir = useCallback(() => {
+    if (saludoIntentado.current) return;
+    saludoIntentado.current = true;
+    const audio = audioRef.current ?? new Audio('/audio/nora.mp3');
     audioRef.current = audio;
-    let played = false;
-    let disposed = false;
-    const play = () => {
-      if (played || disposed) return;
-      void audio.play().then(() => { played = true; if (!disposed) setSonido(true); }).catch(() => {});
-    };
-    play();
-    window.addEventListener('pointerdown', play, {once:true});
-    window.addEventListener('keydown', play, {once:true});
-    return () => { disposed = true; audio.pause(); audioRef.current = null; window.removeEventListener('pointerdown', play); window.removeEventListener('keydown', play); };
-  }, [modo]);
+    audio.volume = 0.55;
+    void audio.play().then(() => setSonido(true)).catch(() => {
+      // Algunos navegadores no consideran wheel/scroll activación de usuario.
+      saludoIntentado.current = false;
+    });
+  }, []);
   useEffect(() => {
-    const el = driverRef.current;
-    if (!el || modo !== "cinema") return;
-    const scroller = contenedorScrolleable(el);
-    if (!scroller) return;
-    let frame = 0;
-    const paint = () => {
-      frame = 0;
-      const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-      const progress = Math.min(1, Math.max(0, -top / Math.max(1, el.offsetHeight - scroller.clientHeight)));
-      el.style.setProperty("--intro-progress", String(progress));
-      const exit = Math.min(1, Math.max(0, (progress - 0.65) / 0.35));
-      el.style.setProperty("--intro-exit", String(exit));
-      el.dataset.active = String(top + el.offsetHeight > 120);
-    };
-    const update = () => { if (!frame) frame = requestAnimationFrame(paint); };
-    paint();
-    scroller.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    return () => { cancelAnimationFrame(frame); scroller.removeEventListener("scroll", update); window.removeEventListener("resize", update); };
-  }, [modo]);
-  if (modo === "oculto" || modo === "cargando") return null;
-  if (modo === "reposo") return <section className="nora-intro-static"><p className="nora-eyebrow">Bienvenido a Nora</p><h1>Tu casa, en buenas manos.</h1></section>;
-  const saltar = () => {
+    if (!saliendo) return;
+    const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 620;
+    const timer = window.setTimeout(alTerminar, delay);
+    return () => window.clearTimeout(timer);
+  }, [saliendo, alTerminar]);
+  useEffect(() => {
     const el = driverRef.current;
     const scroller = contenedorScrolleable(el);
     if (!el || !scroller) return;
-    const next = el.nextElementSibling as HTMLElement | null;
-    if (!next) return;
-    scroller.scrollTo({top: next.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-    next.querySelector<HTMLInputElement>('input')?.focus({preventScroll:true});
+    let frame = 0;
+    const paint = () => {
+      frame = 0;
+      const progress = Math.min(1, scroller.scrollTop / Math.max(1, el.offsetHeight - scroller.clientHeight));
+      el.style.setProperty('--intro-progress', String(progress));
+      if (scroller.scrollTop > 8) reproducir();
+      if (progress >= 0.96 && !terminado.current) {
+        terminado.current = true;
+        setSaliendo(true);
+      }
+    };
+    const update = () => { if (!frame) frame = requestAnimationFrame(paint); };
+    const touchEnd = () => { if (scroller.scrollTop > 8) reproducir(); };
+    scroller.addEventListener('scroll', update, { passive:true });
+    scroller.addEventListener('touchend', touchEnd, { passive:true });
+    return () => { cancelAnimationFrame(frame); scroller.removeEventListener('scroll', update); scroller.removeEventListener('touchend', touchEnd); };
+  }, [reproducir]);
+  const saltar = () => {
+    reproducir();
+    if (terminado.current) return;
+    terminado.current = true;
+    setSaliendo(true);
   };
-  return <section ref={driverRef} className="nora-intro" data-active="true" aria-label="Bienvenida a Nora">
+  return <section ref={driverRef} className="nora-intro" data-active="true" data-leaving={saliendo} data-reduced={modo === "reposo"} aria-label="Bienvenida a Nora">
     <div className="nora-intro-sticky">
       <button type="button" className="nora-intro-sound" aria-label={sonido ? "Silenciar saludo de Nora" : "Escuchar saludo de Nora"} onClick={() => {
         const audio = audioRef.current;
-        if (!audio) return;
+        if (!audio) { reproducir(); return; }
         if (sonido) { audio.pause(); setSonido(false); }
         else { audio.currentTime = 0; void audio.play().then(()=>setSonido(true)).catch(()=>setSonido(false)); }
       }}>{sonido ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button>

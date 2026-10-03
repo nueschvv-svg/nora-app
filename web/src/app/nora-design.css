@@ -115,3 +115,50 @@
 }
 @media(prefers-reduced-motion:reduce) { .nora-intro-grid { transform:none; opacity:1; } }
 @media(max-width:640px) { .nora-hero-art { min-height:280px; } .nora-hero-plaque { aspect-ratio:auto; min-height:270px; } }
+
+/* Independent intro and conversation screens. */
+.nora-intro-loading,.nora-intro-viewport{height:100%;background:#f2f3eb}
+.nora-intro-viewport{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.nora-intro-viewport .nora-intro{height:150dvh}
+.nora-intro-viewport .nora-intro-sticky{height:100dvh;min-height:0;position:sticky;border-radius:0;transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+.nora-intro[data-leaving="true"] .nora-intro-sticky{opacity:0;transform:translateY(-6dvh) scale(.97);pointer-events:none}
+.nora-intro-viewport .nora-intro-grid{min-height:0;padding-block:clamp(50px,8dvh,90px) 12px}
+.nora-intro-viewport .nora-intro-copy h1{font-size:clamp(36px,min(6.3vw,10dvh),94px)}
+.nora-intro-footer{padding-bottom:max(12px,env(safe-area-inset-bottom));flex-shrink:0}
+.nora-home-shell:has(.nora-intro-loading)>header,.nora-home-shell:has([data-expanded="true"])>header{visibility:hidden;pointer-events:none}
+.nora-conversation-screen{height:100%;overflow:hidden;padding-top:80px;animation:nora-arrive .65s cubic-bezier(.22,1,.36,1) both}
+.nora-home-shell .nora-conversation-screen>.nora-conversation-surface{height:100%;min-height:0;padding:clamp(12px,3vh,32px) clamp(12px,3vw,48px);display:flex;flex-direction:column;gap:20px}
+.nora-conversation-greeting{width:min(100%,880px);margin-inline:auto;flex-shrink:0}
+.nora-conversation-greeting h1{font-family:var(--font-display);font-size:clamp(22px,3vw,36px);line-height:1.2;margin-top:8px}
+.nora-conversation-panel{position:relative;width:min(100%,880px);margin-inline:auto;min-height:0;flex:1;transition:width .35s ease}
+.nora-conversation-screen[data-expanded="true"]{position:fixed;z-index:80;inset:0;top:var(--chat-visible-top,0);height:var(--chat-visible-height,100dvh);padding:0;animation:none}
+.nora-home-shell .nora-conversation-screen[data-expanded="true"]>.nora-conversation-surface{padding:0;gap:0}
+[data-expanded="true"] .nora-conversation-panel{width:100%}
+[data-expanded="true"] .nora-chat{border:0;border-radius:0;box-shadow:none}
+[data-expanded="true"] .nora-chat>.glass:first-child{padding-left:68px;padding-top:max(12px,env(safe-area-inset-top))}
+.nora-chat-back{position:absolute;z-index:2;left:12px;top:max(8px,env(safe-area-inset-top));width:44px;height:44px;display:grid;place-items:center;border-radius:50%}
+.nora-chat-back:hover{background:#ffffff80}
+.nora-chat>.glass:last-child{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.nora-chat input{font-size:16px}
+@keyframes nora-arrive{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@media(max-width:640px){
+.nora-intro-viewport .nora-intro-grid{gap:8px;padding-inline:24px}
+.nora-intro-viewport .nora-intro-copy h1{font-size:clamp(32px,6.7dvh,50px);margin:8px 0}
+.nora-intro-viewport .nora-intro-description{font-size:13px;line-height:1.5}
+.nora-intro-viewport .nora-hero-art{min-height:0;height:clamp(130px,30dvh,280px)}
+.nora-intro-viewport .nora-hero-plaque{min-height:0;transform:scale(.78);transform-origin:center}
+.nora-conversation-greeting .nora-eyebrow{display:none}
+.nora-home-shell .nora-conversation-screen>.nora-conversation-surface{padding:12px;gap:12px}
+}
+@media(max-height:520px){
+.nora-intro-viewport .nora-intro-grid{grid-template-columns:1fr 1fr;padding-block:32px 0;gap:12px}
+.nora-intro-viewport .nora-hero-art{height:180px;min-height:0}
+.nora-intro-viewport .nora-hero-plaque{transform:scale(.55)}
+.nora-intro-description,.nora-intro-copy .nora-eyebrow,.nora-conversation-greeting{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+.nora-intro-viewport .nora-intro-sticky{transition:none}
+.nora-conversation-screen{animation:none}
+.nora-conversation-panel{transition:none}
+}
+@media(max-width:360px){.nora-intro-copy .nora-eyebrow{max-width:calc(100% - 48px);font-size:8px;letter-spacing:.1em}}
