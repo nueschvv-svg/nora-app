@@ -23,6 +23,8 @@ import { direccionConUnidad } from "./edificio";
    La conversión vive acá y en ningún otro lado. */
 
 type FilaPropiedad = {
+  sector15_uf?: number | null;
+  sector15_unidades?: { nucleo: string } | null;
   edificio_id?: string | null;
   piso?: string | null;
   unidad?: string | null;
@@ -39,7 +41,8 @@ function aPropiedad(f: FilaPropiedad): Propiedad {
   return {
     id: f.id,
     nombre: f.nombre,
-    direccion: direccionConUnidad(f.calle, f.numero, f.piso, f.unidad),
+    direccion: direccionConUnidad(f.calle, f.numero, f.piso, f.unidad, f.sector15_unidades?.nucleo, f.sector15_uf),
+    uf: f.sector15_uf ?? undefined,
     edificioId: f.edificio_id ?? undefined,
     piso: f.piso ?? undefined,
     unidad: f.unidad ?? undefined,
@@ -136,7 +139,7 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
 
   const { data, error } = await supabase
     .from("propiedades")
-    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad")
+    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
     .eq("dueno_id", user.id)
     .order("creado_el");
 
@@ -145,6 +148,7 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
 }
 
 export type NuevaPropiedad = {
+  uf?: number;
   edificioId?: string;
   piso?: string;
   unidad?: string;
@@ -213,6 +217,7 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
     .insert({
       dueno_id: user.id,
       edificio_id: datos.edificioId ?? null,
+      sector15_uf: datos.uf ?? null,
       piso: datos.piso?.trim() || null,
       unidad: datos.unidad?.trim() || null,
       nombre: datos.nombre.trim(),
@@ -224,7 +229,7 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
       latitud: lat,
       longitud: lng,
     })
-    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad")
+    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
     .single();
 
   if (error) fallar("guardar el domicilio", error);
@@ -549,4 +554,12 @@ export async function obtenerEdificio(slug: string): Promise<Edificio | null> {
     .eq("slug", slug).eq("activo", true).maybeSingle();
   if (error) fallar("cargar el edificio", error);
   return data as Edificio | null;
+}
+
+/** Catálogo público de ubicaciones: no contiene residentes ni pedidos. */
+export async function listarUnidadesSector15(edificioId: string): Promise<import('./sector15').UnidadSector15[]> {
+  const {data,error} = await supabaseNavegador().from('sector15_unidades')
+    .select('uf,nucleo,piso,unidad').eq('edificio_id',edificioId).order('uf');
+  if(error) fallar('cargar las unidades',error);
+  return data ?? [];
 }

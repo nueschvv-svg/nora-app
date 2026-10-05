@@ -177,7 +177,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
       supabase.from("categorias").select("nombre").eq("slug", servicio.categoria_slug).maybeSingle(),
       supabase
         .from("propiedades")
-        .select("nombre, calle, numero, localidad, provincia, notas_acceso, piso, unidad")
+        .select("nombre, calle, numero, localidad, provincia, notas_acceso, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
         .eq("id", servicio.propiedad_id)
         .maybeSingle(),
       supabase.from("perfiles").select("nombre, telefono").eq("id", servicio.cliente_id).maybeSingle(),
@@ -219,7 +219,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
     cliente: { nombre: perfil?.nombre ?? "—", telefono: perfil?.telefono ?? null },
     propiedad: {
       nombre: propiedad?.nombre ?? "—",
-      direccion: direccionConUnidad(propiedad?.calle ?? "", propiedad?.numero, propiedad?.piso, propiedad?.unidad),
+      direccion: direccionConUnidad(propiedad?.calle ?? "", propiedad?.numero, propiedad?.piso, propiedad?.unidad, (propiedad?.sector15_unidades as unknown as {nucleo: string} | null)?.nucleo, propiedad?.sector15_uf),
       localidad: propiedad?.localidad ?? "",
       provincia: propiedad?.provincia ?? "",
       notasAcceso: propiedad?.notas_acceso ?? null,

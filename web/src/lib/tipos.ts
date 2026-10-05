@@ -104,6 +104,7 @@ export type Edificio = {
 };
 
 export type Propiedad = {
+  uf?: number;
   edificioId?: string;
   piso?: string;
   unidad?: string;

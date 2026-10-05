@@ -10,7 +10,7 @@ export async function cargarPedido(db: SupabaseClient, id: string): Promise<Pedi
     .eq("id", id).single();
   if (error || !servicio) throw new Error("No se pudo cargar el pedido.");
   const [propiedad, perfil, categoria, fotos] = await Promise.all([
-    db.from("propiedades").select("calle, numero, localidad, provincia, notas_acceso, piso, unidad").eq("id", servicio.propiedad_id).single(),
+    db.from("propiedades").select("calle, numero, localidad, provincia, notas_acceso, piso, unidad, sector15_uf, sector15_unidades(nucleo)").eq("id", servicio.propiedad_id).single(),
     db.from("perfiles").select("nombre, telefono").eq("id", servicio.cliente_id).single(),
     db.from("categorias").select("nombre").eq("slug", servicio.categoria_slug).single(),
     db.from("servicio_fotos").select("archivo_path").eq("servicio_id", id).order("creado_el", { ascending: false }).limit(1),
@@ -34,7 +34,7 @@ export async function cargarPedido(db: SupabaseClient, id: string): Promise<Pedi
     diagnostico: { observaciones: "", riesgoInmediato: servicio.descripcion.includes("[RIESGO INMEDIATO]") },
     cliente: { nombre: perfil.data.nombre, telefono: perfil.data.telefono },
     propiedad: {
-      direccion: direccionConUnidad(propiedad.data.calle, propiedad.data.numero, propiedad.data.piso, propiedad.data.unidad),
+      direccion: direccionConUnidad(propiedad.data.calle, propiedad.data.numero, propiedad.data.piso, propiedad.data.unidad, (propiedad.data.sector15_unidades as unknown as {nucleo: string} | null)?.nucleo, propiedad.data.sector15_uf),
       localidad: propiedad.data.localidad, provincia: propiedad.data.provincia,
       notasAcceso: propiedad.data.notas_acceso,
     },

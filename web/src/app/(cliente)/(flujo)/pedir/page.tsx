@@ -25,6 +25,7 @@ import { useEntradaEscalonada } from "@/lib/useEntradaEscalonada";
 import {
   crearServicio,
   obtenerEdificio,
+  listarUnidadesSector15,
   listarCategorias,
   subirFotoServicio,
   PROVINCIAS_CUBIERTAS,
@@ -38,6 +39,7 @@ import { type Edificio, type Propiedad, type Servicio } from "@/lib/tipos";
 import { idIntentoPedido, completarIntentoPedido } from "@/lib/intentoPedido";
 import { errorFotoPedido, telefonoContactoValido } from "@/lib/validacionPedido";
 import { descripcionDelPedido } from "@/lib/descripcionPedido";
+import { SECTOR15_SLUG, opcionesUnidad, seleccionarUnidad, type UnidadSector15 } from "@/lib/sector15";
 import { propiedadDelContexto } from "@/lib/edificio";
 import { SelectorAgenda } from "@/componentes/SelectorAgenda";
 import { etiquetaFechaAgenda } from "@/lib/agenda";
@@ -75,19 +77,23 @@ function FormularioPedido() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { propiedad, agregarPropiedad } = useApp();
-  const edificioSlug = searchParams.get("edificio");
+  const edificioSlug = searchParams.get("edificio") ?? SECTOR15_SLUG;
   const esPiloto = edificioSlug !== null;
   const [edificio, setEdificio] = useState<Edificio | null>(null);
   const [cargandoEdificio, setCargandoEdificio] = useState(esPiloto);
   const [errorEdificio, setErrorEdificio] = useState<string | null>(null);
+  const [unidadesSector, setUnidadesSector] = useState<UnidadSector15[]>([]);
+  const [nucleoInicial, setNucleoInicial] = useState("");
   const [pisoInicial, setPisoInicial] = useState("");
   const [unidadInicial, setUnidadInicial] = useState("");
   useEffect(() => {
     if (edificioSlug === null) return;
     let vigente = true;
-    obtenerEdificio(edificioSlug).then((dato) => {
+    obtenerEdificio(edificioSlug).then(async (dato) => {
+      const unidades = dato?.slug === SECTOR15_SLUG ? await listarUnidadesSector15(dato.id) : [];
       if (vigente) {
         setEdificio(dato);
+        setUnidadesSector(unidades);
         if (!dato) setErrorEdificio("Este enlace de edificio no está habilitado. Pedile el enlace actualizado a ENJINIA.");
       }
     }).catch(() => {
@@ -257,10 +263,13 @@ function FormularioPedido() {
   const numeroValido = numeroInicial.trim() !== "";
   const localidadValida = localidadInicial.trim() !== "";
 
+  const esSector15 = edificioSlug === SECTOR15_SLUG;
+  const opciones = opcionesUnidad(unidadesSector, nucleoInicial, Number(pisoInicial));
+  const unidadElegida = seleccionarUnidad(unidadesSector, nucleoInicial, Number(pisoInicial), unidadInicial);
   const pisoValido = pisoInicial.trim().length > 0 && pisoInicial.trim().length <= 30;
   const unidadValida = unidadInicial.trim().length > 0 && unidadInicial.trim().length <= 30;
   const datosInicialesValidos = nombreValido && telefonoValido && mailValido &&
-    (esPiloto ? !!edificio && pisoValido && unidadValida : calleValida && numeroValido && localidadValida);
+    (esPiloto ? !!edificio && pisoValido && unidadValida && (!esSector15 || !!unidadElegida) : calleValida && numeroValido && localidadValida);
 
   /* Un solo lugar por campo para "¿qué mensaje mostrar?" — antes cuatro
      de los seis campos repetían su condición de validez acá Y de nuevo
@@ -445,6 +454,7 @@ function FormularioPedido() {
             provincia: edificio?.provincia ?? provinciaInicial,
             icono: edificio ? "building-2" : "home",
             edificioId: edificio?.id,
+            uf: unidadElegida?.uf,
             piso: esPiloto ? pisoInicial : undefined,
             unidad: esPiloto ? unidadInicial : undefined,
           });
@@ -816,7 +826,7 @@ function FormularioPedido() {
               onClick={usarOtrosDatos}
               className="press mt-3 w-full text-center text-[13px] font-semibold text-brand-600 underline underline-offset-2 py-1.5"
             >
-              Usar otros datos (otra dirección, otro contacto)
+              Cambiar unidad o contacto
             </button>
           </section>
         )}
@@ -872,10 +882,32 @@ function FormularioPedido() {
                 <p className="text-sm text-mute">{edificio.calle} {edificio.numero} · {edificio.localidad}</p>
                 <p className="mt-1 text-xs text-mute">ENJINIA gestiona tu pedido en este edificio.</p>
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <CampoTexto id="piso-inicial" etiqueta="Piso" placeholder="Ej: PB o 3" maxLength={30} value={pisoInicial} onChange={(e) => setPisoInicial(e.target.value)} error={intentoContinuarContacto && !pisoValido ? "Ingresá el piso." : undefined} />
-                <CampoTexto id="unidad-inicial" etiqueta="Unidad / departamento" placeholder="Ej: A o 12" maxLength={30} value={unidadInicial} onChange={(e) => setUnidadInicial(e.target.value)} error={intentoContinuarContacto && !unidadValida ? "Ingresá la unidad." : undefined} />
-              </div>
+              {esSector15 ? <fieldset className="mt-4 space-y-3">
+                <legend className="font-semibold">¿En qué departamento es el pedido?</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="text-sm">Núcleo
+                    <select aria-label="Núcleo" className="mt-1 w-full rounded-xl border border-line bg-surface p-3 text-base" value={nucleoInicial} onChange={e => { setNucleoInicial(e.target.value); setPisoInicial(""); setUnidadInicial(""); }}>
+                      <option value="">Elegí tu núcleo</option>{opciones.nucleos.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-sm">Piso
+                    <select aria-label="Piso" disabled={!nucleoInicial} className="mt-1 w-full rounded-xl border border-line bg-surface p-3 text-base disabled:opacity-50" value={pisoInicial} onChange={e => { setPisoInicial(e.target.value); setUnidadInicial(""); }}>
+                      <option value="">Elegí el piso</option>{opciones.pisos.map(n => <option key={n} value={n}>{n}° piso</option>)}
+                    </select>
+                  </label>
+                  <label className="text-sm">Departamento
+                    <select aria-label="Departamento" disabled={!pisoInicial} className="mt-1 w-full rounded-xl border border-line bg-surface p-3 text-base disabled:opacity-50" value={unidadInicial} onChange={e => setUnidadInicial(e.target.value)}>
+                      <option value="">Elegí la letra</option>{opciones.letras.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {unidadElegida && <p role="status" className="text-sm text-mute">Núcleo {unidadElegida.nucleo} · Piso {unidadElegida.piso} · Depto {unidadElegida.unidad} · UF {unidadElegida.uf}</p>}
+                {intentoContinuarContacto && !unidadElegida && <p role="alert" className="text-sm text-red-700">Elegí núcleo, piso y departamento.</p>}
+                {!unidadesSector.length && <p role="alert">No pudimos cargar las unidades. Volvé a abrir el pedido.</p>}
+              </fieldset> : <div className="grid grid-cols-2 gap-2.5">
+                <CampoTexto id="piso-inicial" etiqueta="Piso" maxLength={30} value={pisoInicial} onChange={(e) => setPisoInicial(e.target.value)} />
+                <CampoTexto id="unidad-inicial" etiqueta="Unidad / departamento" maxLength={30} value={unidadInicial} onChange={(e) => setUnidadInicial(e.target.value)} />
+              </div>}
             </> : <>
             <div className="grid grid-cols-[1fr_92px] gap-2.5">
               <CampoTexto
