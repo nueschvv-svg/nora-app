@@ -14,7 +14,7 @@ import { mensajeErrorAgenda } from "./agenda";
    ============================================================ */
 
 import { supabaseNavegador } from "./supabase/cliente";
-import { Edificio, Equipo, Propiedad, Servicio, TipoEquipo } from "./tipos";
+import { Edificio, Equipo, Propiedad, Servicio, TipoEquipo, esSituacion } from "./tipos";
 
 import { direccionConUnidad } from "./edificio";
 
@@ -83,6 +83,8 @@ type FilaServicio = {
   categoria_slug: string;
   descripcion: string;
   estado: string;
+  situacion: string | null;
+  situacion_nota: string | null;
   creado_el: string;
   fecha_preferida: string | null;
   franja_preferida: string | null;
@@ -96,7 +98,7 @@ type FilaServicio = {
 
 /** Columnas de `servicios` que necesita el lado cliente — sin técnico. */
 const COLUMNAS_SERVICIO =
-  "id, numero_orden, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
+  "id, numero_orden, propiedad_id, categoria_slug, descripcion, estado, situacion, situacion_nota, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
 
 function aServicio(f: FilaServicio): Servicio {
   return {
@@ -106,6 +108,11 @@ function aServicio(f: FilaServicio): Servicio {
     categoriaSlug: f.categoria_slug,
     descripcion: f.descripcion,
     estado: f.estado as Servicio["estado"],
+    /* Se valida en vez de castear: si algún día la base tiene un valor que
+       este código no conoce, preferimos no mostrar nada antes que una
+       etiqueta rota en la pantalla de seguimiento. */
+    situacion: esSituacion(f.situacion) ? f.situacion : null,
+    situacionNota: f.situacion_nota,
     creadoEl: f.creado_el.slice(0, 10),
     fechaPreferida: f.fecha_preferida,
     franjaPreferida: f.franja_preferida,

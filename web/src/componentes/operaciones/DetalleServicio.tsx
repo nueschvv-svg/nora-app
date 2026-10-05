@@ -19,6 +19,7 @@ import {
   Wrench,
   X,
   type LucideIcon,
+  PauseCircle,
 } from "lucide-react";
 import { Bloque, ErrorCarga } from "@/componentes/Esqueleto";
 import { BadgeEstado } from "@/componentes/BadgeEstado";
@@ -27,6 +28,7 @@ import {
   aceptarPedidoDirecto,
   agregarNotaServicio,
   avanzarEstado,
+  marcarSituacion,
   cancelarPedido,
   editarPrecio,
   obtenerServicioOperaciones,
@@ -36,7 +38,16 @@ import {
   type ServicioDetalle,
 } from "@/lib/operaciones";
 import { suscribirseAServicio } from "@/lib/tiempoReal";
-import { ETIQUETA_ESTADO, type EstadoServicio } from "@/lib/tipos";
+import {
+  ETIQUETA_ESTADO,
+  ETIQUETA_SITUACION,
+  type EstadoServicio,
+  type SituacionServicio,
+} from "@/lib/tipos";
+
+/** El orden en que operaciones las ve. No se deriva del Record para que el
+ *  orden en pantalla sea una decisión y no un detalle de implementación. */
+const SITUACIONES: SituacionServicio[] = ["segunda_visita", "materiales", "administracion"];
 import { fecha } from "@/lib/formato";
 
 /* La secuencia normal, una vez que el pedido ya tiene precio
@@ -234,6 +245,30 @@ export function DetalleServicio({ id }: { id: string }) {
                 }
               />
             )}
+            {/* Por qué está frenado. No mueve el estado: el pedido sigue donde
+                está y esto explica por qué no avanza. En el archivo de ENJINIA
+                el 28% de los casos queda sin terminar en su certificado, así
+                que esto no es un caso raro: es lo habitual. */}
+            {SITUACIONES.map((s) => (
+              <BotonAccion
+                key={s}
+                texto={servicio.situacion === s ? `Quitar «${ETIQUETA_SITUACION[s]}»` : ETIQUETA_SITUACION[s]}
+                icono={PauseCircle}
+                cargando={guardando === `situacion-${s}`}
+                onClick={() =>
+                  conGuardado(`situacion-${s}`, () =>
+                    marcarSituacion(
+                      servicio.id,
+                      servicio.estado,
+                      servicio.situacion === s ? null : s,
+                      servicio.situacion === s
+                        ? null
+                        : window.prompt("Detalle para el residente (opcional)") ?? null,
+                    ),
+                  )
+                }
+              />
+            ))}
             {puedeCancelar && (
               <BotonAccion
                 texto="Cancelar pedido"
