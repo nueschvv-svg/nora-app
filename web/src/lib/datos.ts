@@ -175,29 +175,6 @@ export type NuevaPropiedad = {
    que hoy atendemos. */
 export const PROVINCIAS_CUBIERTAS = ["CABA", "Buenos Aires"] as const;
 
-/* Best-effort: si Nominatim no responde o no encuentra nada, seguimos
-   sin lat/lng — nunca por esto se frena el alta de un domicilio. Ver
-   api/geocodificar/route.ts. */
-async function geocodificar(datos: NuevaPropiedad): Promise<{ lat: number | null; lng: number | null }> {
-  try {
-    const r = await fetch("/api/geocodificar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        calle: datos.calle,
-        numero: datos.numero,
-        localidad: datos.localidad,
-        provincia: datos.provincia,
-      }),
-    });
-    if (!r.ok) return { lat: null, lng: null };
-    const { lat, lng } = (await r.json()) as { lat: number | null; lng: number | null };
-    return { lat, lng };
-  } catch {
-    return { lat: null, lng: null };
-  }
-}
-
 export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> {
   const supabase = supabaseNavegador();
 
@@ -217,7 +194,11 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
   if (datos.edificioId && (!datos.piso?.trim() || !datos.unidad?.trim() || datos.piso.trim().length > 30 || datos.unidad.trim().length > 30)) {
     throw new Error("Ingresá piso y unidad (hasta 30 caracteres cada uno).");
   }
-  const { lat, lng } = datos.edificioId ? { lat: null, lng: null } : await geocodificar(datos);
+  /* Sin geocodificación: en el Sector 15 la dirección es fija y canónica,
+     la pone la base desde el edificio. Nominatim servía para la bolsa de
+     técnicos por distancia, que ya no existe — mandarle la dirección de un
+     residente a un servicio externo sin que nadie use el resultado es un
+     dato personal que viaja para nada. */
 
   const { data, error } = await supabase
     .from("propiedades")
@@ -233,8 +214,8 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
       localidad: datos.localidad.trim(),
       provincia: datos.provincia.trim(),
       icono: datos.icono,
-      latitud: lat,
-      longitud: lng,
+      latitud: null,
+      longitud: null,
     })
     .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
     .single();

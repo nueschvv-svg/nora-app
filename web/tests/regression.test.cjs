@@ -21,13 +21,6 @@ test('authenticated account keeps existing login redirect', async () => {
   const response = await middleware({ id: 'operator', is_anonymous: false })(new NextRequest('https://nora.test/entrar'));
   assert.equal(new URL(response.headers.get('location')).pathname, '/inicio');
 });
-for (const body of [null, [], { calle: 123, localidad: 'CABA' }, { calle: 'a', localidad: {} }]) {
-  test(`geocoding handles invalid body ${JSON.stringify(body)} without throwing`, async () => {
-    const { POST } = load('src/app/api/geocodificar/route.ts');
-    const response = await POST(new NextRequest('https://nora.test/api/geocodificar', { method: 'POST', body: JSON.stringify(body) }));
-    assert.equal(response.status, 400);
-  });
-}
 test('chat rejects null JSON before calling paid model', async () => {
   const { POST } = load('src/app/api/chat/route.ts', {
     '@/lib/supabase/servidor': { supabaseServidor: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'test' } } }) } }) },

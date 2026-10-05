@@ -5,10 +5,14 @@ import type { MetadataRoute } from "next";
    Los íconos hay que generarlos a partir del isotipo (pendiente). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Nora, tu hogar en control",
+    name: "Nora · Sector 15",
     short_name: "Nora",
+    /* Lo que decía antes ("técnicos verificados y presupuesto claro") es de
+       otro producto: acá no hay técnicos externos y el precio lo confirma
+       ENJINIA después. Prometer eso en la pantalla de instalación es una
+       promesa que la app no cumple. */
     description:
-      "Pedí un servicio para tu casa y seguí todo desde el celular. Técnicos verificados y presupuesto claro.",
+      "Pedí un arreglo para tu departamento del Sector 15 y seguí cómo avanza. Lo resuelve ENJINIA.",
     start_url: "/inicio",
     display: "standalone",
     background_color: "#0e5c54",
