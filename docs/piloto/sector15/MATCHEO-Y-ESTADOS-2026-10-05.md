@@ -221,3 +221,23 @@ Escritorio y 375×812 sin desborde horizontal.
 familia y la elección de antecedentes la hace el modelo, y el modelo no
 respondió ni una vez en todo el bloque. Lo probado es la validación de
 servidor, el recorrido y la persistencia.
+
+## 8. CI
+
+Fallaba —ya antes de este bloque— en un único paso: `npm audit
+--audit-level=high`, por el GHSA de braces. Como ese paso corría antes del
+build, **el build nunca llegaba a ejecutarse en CI**.
+
+Se separó en dos pasos, sin silenciar nada:
+
+- **bloqueante:** `npm audit --omit=dev --audit-level=high`. Lo que se
+  despliega tiene que estar limpio, sin excepciones. Hoy da cero.
+- **informativo:** la auditoría completa, que se sigue imprimiendo en cada
+  corrida pero no frena el release.
+
+El criterio: no tiene sentido bloquear indefinidamente por una
+vulnerabilidad **sin parche disponible**, en una dependencia de desarrollo,
+que no viaja al navegador de ningún residente. Un CI permanentemente rojo
+por algo que nadie puede arreglar enseña a ignorar el CI. La alerta sigue
+visible en cada corrida y en Dependabot. **Volver a hacerlo bloqueante en
+cuanto exista versión parcheada de braces.**
