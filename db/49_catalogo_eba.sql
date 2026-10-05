@@ -28,6 +28,9 @@ alter table public.catalogo_eba enable row level security;
 drop policy if exists catalogo_eba_lectura on public.catalogo_eba;
 -- Lectura publica: no contiene datos personales ni unidad identificable.
 create policy catalogo_eba_lectura on public.catalogo_eba for select using (true);
+-- Explicito a proposito: no dependemos de los privilegios por defecto del
+-- proyecto. Se lee, no se escribe.
+grant select on public.catalogo_eba to anon, authenticated, service_role;
 revoke insert, update, delete on public.catalogo_eba from anon, authenticated;
 
 delete from public.catalogo_eba;

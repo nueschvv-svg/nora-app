@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Send, Sparkles } from "lucide-react";
 import { chatearConNora, type TurnoChat } from "@/lib/chatCliente";
+import type { AntecedenteParaCliente } from "@/lib/antecedentes";
 import { IsotipoNora } from "@/componentes/LogoNora";
 
 type Mensaje = { rol: "cliente" | "nora"; texto: string };
@@ -39,6 +40,10 @@ export function ChatNora({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState<{ categoriaSlug: string; resumen: string } | null>(null);
+  /* Antecedentes reales de ENJINIA que el servidor ya validó contra la base.
+     Se muestran acá para que la persona vea, antes de pedir, que esto no es
+     una respuesta genérica: es lo que ya pasó en su propio edificio. */
+  const [antecedentes, setAntecedentes] = useState<AntecedenteParaCliente[]>([]);
   const listaRef = useRef<HTMLDivElement>(null);
 
   /* scrollTo() sobre el propio contenedor de mensajes, no
@@ -74,6 +79,7 @@ export function ChatNora({
       const historial: TurnoChat[] = nuevos.slice(1).map((m) => ({ rol: m.rol, texto: m.texto }));
       const resultado = await chatearConNora(historial);
       setMensajes((prev) => [...prev, { rol: "nora", texto: resultado.respuesta }]);
+      setAntecedentes(resultado.antecedentes ?? []);
       if (resultado.listo && resultado.categoriaSlug) {
         setListo({ categoriaSlug: resultado.categoriaSlug, resumen: resultado.resumen });
       }
@@ -190,6 +196,24 @@ export function ChatNora({
           </p>
         )}
       </div>
+
+      {listo && antecedentes.length > 0 && (
+        <div className="shrink-0 px-4 pb-2">
+          <div className="rounded-xl2 bg-surface border border-hair px-3 py-2.5 space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+              ENJINIA ya resolvió esto acá
+            </p>
+            {antecedentes.map((a) => (
+              <p key={a.id} className="text-[12px] text-mute leading-snug">
+                «{a.desperfecto}» — suele ser: {a.sueleSer}
+              </p>
+            ))}
+            <p className="text-[11px] text-faint leading-snug">
+              Orientación de trabajos anteriores, no un diagnóstico.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="glass shrink-0 px-4 py-3 border-t border-line/50">
         {listo ? (

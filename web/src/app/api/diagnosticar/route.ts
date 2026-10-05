@@ -16,6 +16,8 @@ import {
   type Tarifa,
   type Trabajo,
 } from "@/lib/precios";
+import { cargarCatalogoEba } from "@/lib/antecedentesDatos";
+import { paraCliente } from "@/lib/antecedentes";
 
 /* Diagnóstico por foto.
 
@@ -155,7 +157,7 @@ export async function POST(request: NextRequest) {
 
   /* Catálogo y tarifas se leen con la sesión de quien pide: ambos son
      públicos, pero mantenemos el mismo camino de permisos que el resto. */
-  const [{ data: filasCatalogo }, { data: filasTarifas }] = await Promise.all([
+  const [{ data: filasCatalogo }, { data: filasTarifas }, casos] = await Promise.all([
     supabase
       .from("catalogo_trabajos")
       .select(
@@ -165,6 +167,7 @@ export async function POST(request: NextRequest) {
       .from("tarifas")
       .select("categoria_slug, visita_ars, visita_max_ars, hora_ars, hora_max_ars, recargo_urgencia")
       .order("vigente_desde", { ascending: false }),
+    cargarCatalogoEba(supabase),
   ]);
 
   const catalogo: Trabajo[] = (filasCatalogo ?? []).map((f) => ({
@@ -202,7 +205,7 @@ export async function POST(request: NextRequest) {
 
   let resultado;
   try {
-    resultado = await diagnosticar({ descripcion, imagenes, categoriaSlug }, catalogo);
+    resultado = await diagnosticar({ descripcion, imagenes, categoriaSlug }, catalogo, casos);
   } catch (e) {
     console.error("[api/diagnosticar]", e);
     return NextResponse.json(
@@ -232,6 +235,9 @@ export async function POST(request: NextRequest) {
       observaciones: resultado.observaciones,
       preguntas: resultado.preguntas,
       riesgoInmediato: resultado.riesgoInmediato,
+      familia: resultado.familia,
+      antecedentes: paraCliente(resultado.antecedentes),
+      conFotos: imagenes.length > 0,
       estimado: estimadoVisita
         ? {
             ...textoVisita(estimadoVisita),
@@ -262,6 +268,9 @@ export async function POST(request: NextRequest) {
     identificado: true,
     confianza: resultado.confianza,
     observaciones: resultado.observaciones,
+    familia: resultado.familia,
+    antecedentes: paraCliente(resultado.antecedentes),
+    conFotos: imagenes.length > 0,
     preguntas: resultado.preguntas.length ? resultado.preguntas : trabajo.preguntas,
     riesgoInmediato: resultado.riesgoInmediato,
     trabajo: {

@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseServidor } from "@/lib/supabase/servidor";
 import { chatearConNora, type TurnoChat } from "@/lib/chatNora";
+import { cargarCatalogoEba } from "@/lib/antecedentesDatos";
+import { paraCliente } from "@/lib/antecedentes";
 
 /* Chat conversacional de Inicio. Misma razón de ser que /api/diagnosticar:
    la clave de Anthropic no puede llegar al navegador, así que la charla
@@ -85,11 +87,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No pudimos cargar los rubros." }, { status: 502 });
   }
 
+  const casos = await cargarCatalogoEba(supabase);
+
   registrarUso(user.id);
 
   try {
-    const resultado = await chatearConNora(historial, filasCategorias ?? []);
-    return NextResponse.json(resultado);
+    const resultado = await chatearConNora(historial, filasCategorias ?? [], casos);
+    /* Los antecedentes salen mapeados: el navegador recibe lo que se muestra,
+       no la fila cruda del catálogo. */
+    return NextResponse.json({
+      ...resultado,
+      antecedentes: paraCliente(resultado.antecedentes),
+    });
   } catch (e) {
     console.error("[api/chat]", e);
     return NextResponse.json(

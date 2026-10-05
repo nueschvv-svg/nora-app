@@ -7,6 +7,7 @@
    ============================================================ */
 
 import type { NivelUrgencia } from "./precios";
+import type { AntecedenteParaCliente, Familia } from "./antecedentes";
 
 export type ResultadoDiagnostico = {
   identificado: boolean;
@@ -14,6 +15,13 @@ export type ResultadoDiagnostico = {
   observaciones: string;
   preguntas: string[];
   riesgoInmediato: boolean;
+  /** Familia del archivo de ENJINIA. El servidor ya la validó. */
+  familia?: Familia | null;
+  /** Antecedentes reales. El servidor descartó cualquier id inventado. */
+  antecedentes?: AntecedenteParaCliente[];
+  /** Si el análisis miró fotos de verdad. La pantalla no debe decir
+   *  "foto analizada" cuando esto es false. */
+  conFotos?: boolean;
   trabajo?: {
     slug: string;
     nombre: string;

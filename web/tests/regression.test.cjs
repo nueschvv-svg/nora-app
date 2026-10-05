@@ -32,6 +32,8 @@ test('chat rejects null JSON before calling paid model', async () => {
   const { POST } = load('src/app/api/chat/route.ts', {
     '@/lib/supabase/servidor': { supabaseServidor: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'test' } } }) } }) },
     '@/lib/chatNora': { chatearConNora: () => { throw Error('must not call model'); } },
+    // Frontera de servicio: leer el archivo histórico no debe ocurrir antes de validar el cuerpo.
+    '@/lib/antecedentesDatos': { cargarCatalogoEba: () => { throw Error('must not read catalog'); } },
   });
   const response = await POST(new NextRequest('https://nora.test/api/chat', { method: 'POST', body: 'null' }));
   assert.equal(response.status, 400);

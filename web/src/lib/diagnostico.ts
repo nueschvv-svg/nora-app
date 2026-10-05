@@ -2,6 +2,16 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { Trabajo } from "./precios";
+import {
+  INSTRUCCIONES_ANTECEDENTES,
+  SIN_FAMILIA,
+  familiasConCasos,
+  seccionPromptAntecedentes,
+  validarAntecedentes,
+  validarFamilia,
+  type CasoEba,
+  type Familia,
+} from "./antecedentes";
 
 /* ============================================================
    DIAGNÓSTICO A PARTIR DE FOTO Y TEXTO
@@ -83,6 +93,10 @@ export type ResultadoDiagnostico = {
   preguntas: string[];
   /** true si la foto muestra algo que requiere atención inmediata. */
   riesgoInmediato: boolean;
+  /** Familia del archivo histórico de ENJINIA, ya validada contra el enum. */
+  familia: Familia | null;
+  /** Antecedentes reales de esa familia. Sólo ids que existen en la base. */
+  antecedentes: CasoEba[];
 };
 
 /* El esquema de salida. Con `output_config.format` la respuesta viene
@@ -96,10 +110,29 @@ export type ResultadoDiagnostico = {
    slugs, y la validación de abajo lo convierte en null. */
 export const SIN_IDENTIFICAR = "ninguno";
 
-function construirEsquema(slugs: string[]) {
+function construirEsquema(slugs: string[], casos: CasoEba[]) {
+  const familias = familiasConCasos(casos);
+  const antecedentes =
+    casos.length === 0
+      ? {}
+      : {
+          familia: {
+            type: "string",
+            enum: [...familias, SIN_FAMILIA],
+            description: `La familia del archivo histórico de ENJINIA a la que corresponde el problema. Usá "${SIN_FAMILIA}" sólo si de verdad no podés ubicarlo en ninguna.`,
+          },
+          antecedentes: {
+            type: "array",
+            items: { type: "string", enum: casos.map((c) => c.id) },
+            description:
+              "Hasta 3 identificadores de antecedentes de ESA MISMA familia que se parezcan al caso. Vacío si ninguno se parece. Nunca inventes un identificador.",
+          },
+        };
+
   return {
     type: "object" as const,
     properties: {
+      ...antecedentes,
       slug: {
         type: "string",
         enum: [...slugs, SIN_IDENTIFICAR],
@@ -127,19 +160,30 @@ function construirEsquema(slugs: string[]) {
           "true sólo si se ve algo con riesgo para las personas o de daño material grave en curso: agua cerca de instalación eléctrica, cable quemado o derretido, fuga de gas visible, olor a gas reportado, agua corriendo sin control.",
       },
     },
-    required: ["slug", "confianza", "observaciones", "preguntas", "riesgo_inmediato"],
+    required: [
+      ...(casos.length === 0 ? [] : ["familia", "antecedentes"]),
+      "slug",
+      "confianza",
+      "observaciones",
+      "preguntas",
+      "riesgo_inmediato",
+    ],
     additionalProperties: false,
   };
 }
 
-function construirInstrucciones(catalogo: Trabajo[]): string {
+function construirInstrucciones(catalogo: Trabajo[], casos: CasoEba[]): string {
   const lista = catalogo
     .map((t) => `- ${t.slug} (${t.categoriaSlug}): ${t.nombre}. ${t.diagnostico}`)
     .join("\n");
 
-  return `Sos el asistente técnico de Nora, una app argentina de servicios para el hogar.
+  const bloqueAntecedentes = casos.length
+    ? `\n\n${INSTRUCCIONES_ANTECEDENTES}\n\n${seccionPromptAntecedentes(casos)}\n`
+    : "";
 
-Tu única tarea es mirar la o las fotos (puede haber hasta 3, del mismo problema desde distintos ángulos o momentos) junto con la descripción, y decir CUÁL de los trabajos del catálogo corresponde.
+  return `Sos el asistente técnico de Nora. Nora atiende exclusivamente a los 175 hogares del Sector 15 del predio Estación Buenos Aires, en Barracas, CABA. Los trabajos los hace ENJINIA, que viene trabajando en el predio desde hace años.
+
+Tu tarea es mirar la o las fotos (puede haber hasta 3, del mismo problema desde distintos ángulos o momentos) junto con la descripción, ubicar el problema en el archivo histórico de ENJINIA y decir CUÁL de los trabajos del catálogo corresponde.${bloqueAntecedentes}
 
 CATÁLOGO (son los únicos valores válidos para "slug"):
 ${lista}
@@ -147,14 +191,20 @@ ${lista}
 Reglas:
 
 1. NO estimes precios, montos, tiempos ni duraciones. Nunca. El presupuesto lo
-   calcula el sistema con sus propias tarifas. Si mencionás un número de plata,
+   confirma ENJINIA después de ver el problema. Si mencionás un número de plata,
    estás rompiendo el sistema.
 
 2. Si las fotos no alcanzan para decidir, poné slug en null y confianza baja. Es
    preferible preguntar a arriesgar. Un diagnóstico equivocado hace que
    lleguemos con las herramientas equivocadas.
 
-3. Describí sólo lo que se ve. No supongas la causa si no está a la vista.
+3. Describí sólo lo que se ve, y sólo si hay fotos. Si la persona escribió pero no
+   mandó ninguna imagen, no digas ni sugieras que miraste una foto: trabajás con
+   lo que te contó. No supongas la causa si no está a la vista.
+
+3 bis. Nunca afirmes un diagnóstico como certeza ni como una inspección hecha.
+   Nora no entra al departamento ni revisa nada. Decí qué suele ser y preguntá lo
+   que haga falta para confirmarlo.
 
 4. Marcá riesgo_inmediato únicamente ante peligro real: agua cerca de electricidad,
    cables quemados, fuga de gas. No lo uses para "esto es urgente" en general.
@@ -179,6 +229,7 @@ export type EntradaDiagnostico = {
 export async function diagnosticar(
   entrada: EntradaDiagnostico,
   catalogo: Trabajo[],
+  casos: CasoEba[] = [],
 ): Promise<ResultadoDiagnostico> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -200,6 +251,8 @@ export async function diagnosticar(
       observaciones: "Todavía no tenemos trabajos cargados para ese rubro.",
       preguntas: [],
       riesgoInmediato: false,
+      familia: null,
+      antecedentes: [],
     };
   }
 
@@ -224,9 +277,9 @@ export async function diagnosticar(
   const respuesta = await anthropic.messages.create({
     model: MODELO,
     max_tokens: 2000,
-    system: construirInstrucciones(candidatos),
+    system: construirInstrucciones(candidatos, casos),
     thinking: { type: "adaptive" },
-    output_config: { format: { type: "json_schema", schema: construirEsquema(candidatos.map((t) => t.slug)) } },
+    output_config: { format: { type: "json_schema", schema: construirEsquema(candidatos.map((t) => t.slug), casos) } },
     messages: [{ role: "user", content: contenido }],
   });
 
@@ -241,6 +294,8 @@ export async function diagnosticar(
       observaciones: "No pudimos analizar esa imagen. Contanos el problema por escrito.",
       preguntas: [],
       riesgoInmediato: false,
+      familia: null,
+      antecedentes: [],
     };
   }
 
@@ -249,7 +304,7 @@ export async function diagnosticar(
     throw new Error("El modelo no devolvió texto.");
   }
 
-  return validar(bloqueTexto.text, candidatos);
+  return validar(bloqueTexto.text, candidatos, casos);
 }
 
 /* ---------- Validación ----------
@@ -262,7 +317,7 @@ export async function diagnosticar(
    día el modelo devuelve un identificador que no existe, acá se convierte
    en "no sé" en vez de propagarse a una búsqueda de trabajo inexistente. */
 
-function validar(crudo: string, candidatos: Trabajo[]): ResultadoDiagnostico {
+function validar(crudo: string, candidatos: Trabajo[], casos: CasoEba[]): ResultadoDiagnostico {
   let datos: Record<string, unknown>;
   try {
     datos = JSON.parse(crudo) as Record<string, unknown>;
@@ -295,6 +350,11 @@ function validar(crudo: string, candidatos: Trabajo[]): ResultadoDiagnostico {
         .map((p) => p.trim().slice(0, 200))
     : [];
 
+  /* La familia y los antecedentes pasan por la misma puerta que el slug: lo
+     que el modelo devuelve es dato de entrada. Un id inventado se descarta
+     acá y nunca llega a la pantalla de la persona. */
+  const familia = validarFamilia(datos.familia, casos);
+
   return {
     // Sin slug no hay diagnóstico: la confianza cae a cero pase lo que pase.
     slug: slugValido,
@@ -302,5 +362,7 @@ function validar(crudo: string, candidatos: Trabajo[]): ResultadoDiagnostico {
     observaciones,
     preguntas,
     riesgoInmediato: datos.riesgo_inmediato === true,
+    familia,
+    antecedentes: validarAntecedentes(datos.antecedentes, casos, familia),
   };
 }

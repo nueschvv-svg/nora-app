@@ -419,7 +419,20 @@ function FormularioPedido() {
     ? `[Estimado de Nora] ${diagnostico.trabajo ? `${diagnostico.trabajo.nombre}: ` : ""}${diagnostico.estimado.titulo} — ${diagnostico.estimado.aclaracion}`
     : null;
 
-  const descripcionFinal = descripcionDelPedido(descripcion, !!diagnostico?.riesgoInmediato, diagnostico?.observaciones, lineaEstimado);
+  const descripcionFinal = descripcionDelPedido(
+    descripcion,
+    !!diagnostico?.riesgoInmediato,
+    diagnostico?.observaciones,
+    lineaEstimado,
+    {
+      conFotos: !!diagnostico?.conFotos,
+      familiaNombre: diagnostico?.antecedentes?.[0]?.familiaNombre ?? null,
+      antecedentes: (diagnostico?.antecedentes ?? []).map((a) => ({
+        desperfecto: a.desperfecto,
+        sueleSer: a.sueleSer,
+      })),
+    },
+  );
 
   const avanzar = async () => {
     if (!puedeAvanzar || enviando || envioEnCurso.current || (esPiloto && !edificio)) return;
@@ -1097,6 +1110,32 @@ function ResultadoAnalisis({ resultado }: { resultado: ResultadoDiagnostico }) {
             <p className="text-[11px] text-faint mt-0.5">{resultado.estimado.aclaracion}</p>
           </div>
         )
+      )}
+
+      {/* Lo que ENJINIA ya resolvió acá. Es lo que distingue a Nora de buscar
+          en Google: no es una respuesta genérica, son casos de este predio.
+          Se presenta como orientación a propósito — el archivo está lleno de
+          casos donde lo que parecía a distancia no era lo que estaba pasando. */}
+      {!!resultado.antecedentes?.length && (
+        <div className="rounded-xl2 bg-surface border border-hair px-3 py-2.5 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+            ENJINIA ya resolvió esto acá
+          </p>
+          {resultado.antecedentes.map((a) => (
+            <div key={a.id} className="space-y-0.5">
+              <p className="text-[12.5px] text-ink leading-snug">
+                «{a.desperfecto}» — {a.frecuencia === 1 ? "1 vez" : `${a.frecuencia} veces`}
+              </p>
+              <p className="text-[12px] text-mute leading-snug">Suele ser: {a.sueleSer}</p>
+              {a.tambienFue && (
+                <p className="text-[11.5px] text-faint leading-snug">También fue: {a.tambienFue}</p>
+              )}
+            </div>
+          ))}
+          <p className="text-[11px] text-faint leading-snug">
+            Es orientación de trabajos anteriores, no un diagnóstico. ENJINIA lo confirma al verlo.
+          </p>
+        </div>
       )}
 
       {resultado.preguntas.length > 0 && (
