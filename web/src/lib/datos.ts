@@ -512,10 +512,16 @@ export type CategoriaBD = {
   activa: boolean;
 };
 
+/* Sólo rubros activos. Antes traía también los inactivos y el wizard los
+   mostraba en gris con un cartel "PRONTO": eso tenía sentido en una app
+   nacional con una hoja de ruta de rubros por abrir. Acá no hay tal hoja de
+   ruta —son 175 hogares y un contratista— y además deja a la vista rubros
+   internos, como el de QA de staging, en la pantalla del residente. */
 export async function listarCategorias(): Promise<CategoriaBD[]> {
   const { data, error } = await supabaseNavegador()
     .from("categorias")
     .select("slug, nombre, icono, requiere_matricula, activa")
+    .eq("activa", true)
     .order("orden");
 
   if (error) fallar("cargar los rubros", error);

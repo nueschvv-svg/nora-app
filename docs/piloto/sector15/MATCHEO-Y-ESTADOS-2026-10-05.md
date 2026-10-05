@@ -174,3 +174,50 @@ En producción, que no tiene Deployment Protection, ese secreto no hace falta.
 
 **No se envió ningún mensaje real de Telegram en este bloque** y no se
 reintentaron avisos de pedidos viejos.
+
+## 7. Recorrido real en navegador, y dos bugs que sólo aparecieron ahí
+
+Servidor local contra **staging Nora EBA**, a 375×812 y en escritorio.
+
+**Bug 1 — el rubro nuevo rompía el análisis.** `humedad` no tiene filas en
+`catalogo_trabajos`, así que `diagnosticar()` cortaba antes de llamar al
+modelo y la persona veía «Todavía no tenemos trabajos cargados para ese
+rubro» **en el lugar del diagnóstico**: un mensaje interno presentado como
+análisis, y además ignorando los 15 antecedentes reales que sí tenemos para
+humedad. Ahora sólo se rinde si no hay ni trabajos ni antecedentes, y el
+prompt le dice al modelo que se concentre en familia y antecedentes cuando
+no hay catálogo tarifado.
+
+**Bug 2 — un rubro interno visible para el residente.** El wizard listaba
+también los rubros inactivos, en gris con un cartel «PRONTO», y así
+aparecía «QA aislamiento staging» en la pantalla del vecino. Ese patrón
+tenía sentido en una app nacional con una hoja de ruta de rubros por abrir;
+acá no hay tal hoja de ruta. `listarCategorias` ahora filtra por activa.
+
+**Recorrido completo verificado**, pedido QA `#1017`
+(`7799ef62-89a8-4ec4-a217-f94c480a096a`):
+
+- Categoría «Humedad y filtraciones» disponible como rubro real.
+- El análisis falla por la clave de Anthropic y **se muestra como error, en
+  rojo, no como diagnóstico**; «Continuar» queda habilitado y el pedido se
+  completa igual.
+- Contacto sin calle ni altura; dirección canónica del predio.
+- Núcleo 15-2 / piso 1 ofrece **sólo B, C, D, E** — la excepción del primer
+  piso sale del catálogo, no de una fórmula.
+- Unidad B → **UF 2226**, el valor correcto según el CSV.
+- En la base: `sector15_uf=2226`, `piso=1`, `unidad=B`,
+  **`latitud` y `longitud` en NULL** (geocodificación retirada), y el aviso
+  quedó encolado `pendiente`.
+- Migración 50 probada **contra Supabase real**, no sólo en PGlite: marcar
+  `materiales` dejó el estado en `solicitado` y registró
+  «Esperando materiales. QA - no realizar trabajo» sin inventar una
+  transición. Al cancelar, la situación se limpió sola.
+- Pedido QA cancelado y su aviso retenido como `fallido` para que no llegue
+  al operador.
+
+Escritorio y 375×812 sin desborde horizontal.
+
+**Lo que esto NO prueba:** que el matcheo funcione. La clasificación en
+familia y la elección de antecedentes la hace el modelo, y el modelo no
+respondió ni una vez en todo el bloque. Lo probado es la validación de
+servidor, el recorrido y la persistencia.

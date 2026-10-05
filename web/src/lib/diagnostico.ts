@@ -173,9 +173,12 @@ function construirEsquema(slugs: string[], casos: CasoEba[]) {
 }
 
 function construirInstrucciones(catalogo: Trabajo[], casos: CasoEba[]): string {
-  const lista = catalogo
-    .map((t) => `- ${t.slug} (${t.categoriaSlug}): ${t.nombre}. ${t.diagnostico}`)
-    .join("\n");
+  /* Puede venir vacío: hay rubros con antecedentes de ENJINIA y sin trabajos
+     tarifados. En ese caso no se le muestra un catálogo vacío al modelo —
+     se le dice que no hay, y clasifica igual por familia. */
+  const lista = catalogo.length
+    ? catalogo.map((t) => `- ${t.slug} (${t.categoriaSlug}): ${t.nombre}. ${t.diagnostico}`).join("\n")
+    : `(sin trabajos cargados para este rubro: devolvé "${SIN_IDENTIFICAR}" en "slug" y concentrate en la familia y los antecedentes)`;
 
   const bloqueAntecedentes = casos.length
     ? `\n\n${INSTRUCCIONES_ANTECEDENTES}\n\n${seccionPromptAntecedentes(casos)}\n`
@@ -244,11 +247,18 @@ export async function diagnosticar(
     ? catalogo.filter((t) => t.categoriaSlug === entrada.categoriaSlug)
     : catalogo;
 
-  if (candidatos.length === 0) {
+  /* Un rubro puede no tener trabajos en catalogo_trabajos y aun así tener
+     antecedentes reales de ENJINIA — es exactamente el caso de humedad, que
+     es el rubro más frecuente del archivo. Antes se cortaba acá y la persona
+     veía "todavía no tenemos trabajos cargados" en el lugar del análisis:
+     un mensaje interno presentado como si fuera el diagnóstico.
+
+     Sólo nos rendimos si no hay NI trabajos NI antecedentes. */
+  if (candidatos.length === 0 && casos.length === 0) {
     return {
       slug: null,
       confianza: 0,
-      observaciones: "Todavía no tenemos trabajos cargados para ese rubro.",
+      observaciones: "Todavía no podemos analizar este rubro. Contanos el problema y seguimos igual.",
       preguntas: [],
       riesgoInmediato: false,
       familia: null,
