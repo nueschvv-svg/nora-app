@@ -1,24 +1,10 @@
 # Prompt de cierre — para pegar en ChatGPT
 
-**Antes de pegarlo, hacé estas dos cosas. No las puede hacer la IA.**
-
-1. **Clave de Anthropic.** La actual devuelve `HTTP 401 invalid x-api-key`.
-   Sacá una nueva en console.anthropic.com → API Keys, y ponela en
-   `web/.env.local` y en las variables de entorno del preview en Vercel.
-2. **Token de bypass de Vercel.** Vercel → proyecto `nora-app` → Settings →
-   Deployment Protection → Protection Bypass for Automation → generar y
-   copiar. Guardalo donde lo tengas a mano; el agente lo va a necesitar.
-
-Si alguna de las dos no está, decíselo al agente al principio: va a trabajar
-igual, pero sin poder cerrar la verificación que falta.
-
----
-
 Seguís trabajando sobre NORA, rama `codex/auditoria-piloto`, en
 `/Users/valentinnuesch/Documents/ChatGPT/enji/nora-app`.
 
 El bloque de matcheo histórico, situaciones y limpieza del recorrido **ya está
-implementado y pusheado** (commits `e78d420` a `2a841b0`). No lo rehagas.
+implementado y pusheado** (commits `e78d420` a `e0deab6`). No lo rehagas.
 Leé primero, en este orden:
 
 1. `~/.claude/projects/-Users-valentinnuesch-Claude-Projects-Nora-APP/memory/MEMORY.md`
@@ -40,17 +26,101 @@ está documentado como verificado.
   columnas `situacion`/`situacion_nota` en `servicios`.
 - CI en verde. 60 tests, lint y build correctos.
 - pg_cron y pg_net instalados en staging; el job `nora-avisos-telegram` corre
-  cada minuto y dispara solo, pero Vercel lo rechaza con 401 por Deployment
-  Protection.
+  cada minuto y dispara solo.
 - Precios **pospuestos** por decisión del usuario. No implementes tarifas ni
   bloquees ningún pedido por falta de precio.
 
+---
+
+# Dónde me frené, y qué observé exactamente
+
+Son dos cosas. En las dos describo **sólo lo que medí**. No asumas que mi
+lectura de la causa es correcta: puede haber configuración, credenciales o
+entornos que yo no veo desde donde estaba trabajando. Averiguá vos qué está
+pasando antes de cambiar nada.
+
+## 1. El modelo de Anthropic no respondió nunca
+
+**Lo que hice:** leí `ANTHROPIC_API_KEY` de `web/.env.local` (64 caracteres) y
+mandé una llamada mínima:
+
+```
+POST https://api.anthropic.com/v1/messages
+model claude-opus-5, max_tokens 16
+```
+
+**Lo que recibí, textual:**
+
+```
+HTTP 401
+{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"},"request_id":"req_011CfjHntKqtMy2uwuh2AvxB"}
+```
+
+Lo mismo se ve desde la app: al pedir el análisis, la ruta devuelve 502 y la
+pantalla muestra el error (correctamente, como error y no como diagnóstico).
+
+**Lo que NO sé:** si esa clave está revocada, si es de otra cuenta, si está mal
+copiada en ese archivo, si quedó con algún carácter de más, o si la que
+realmente sirve está configurada en otro lugar —Vercel, otro `.env`, un gestor
+de secretos, tu propia sesión— y `web/.env.local` simplemente quedó
+desactualizado. No toqué ese archivo ni busqué credenciales fuera de él.
+
+**Lo que te toca:** averiguar de dónde tiene que salir la clave buena para este
+entorno y dejar el camino andando. Reportá qué era, porque conviene que quede
+escrito.
+
+## 2. El cron llega a Vercel pero Vercel lo rechaza
+
+**Lo que verifiqué que SÍ funciona:**
+
+- `cron.job_run_details` → `succeeded`. El scheduler dispara solo cada minuto,
+  **sin ninguna pestaña abierta**.
+- `net._http_response` → la base sale a internet y alcanza el host de Vercel.
+
+**Lo que recibí al llegar:**
+
+```
+status_code 401
+{"error":{"code":"401","message":"Protected deployment"},
+ "access":"vercel curl <deployment-url>", ...}
+```
+
+Y con `curl` sobre el mismo preview, `GET /inicio` devuelve `302
+Protected by Vercel Authentication`.
+
+Es decir: el pedido **no llega a la app**. Lo corta la protección del
+despliegue antes.
+
+**Ojo con esto, que me confundió a mí:** hay dos 401 distintos. Uno con cuerpo
+`"Protected deployment"` es de Vercel. Uno sin ese cuerpo es de nuestra propia
+ruta `/api/cron/avisos` y significaría que el secreto no coincide. En una
+medición anterior leí mal el primero y lo tomé por el segundo.
+
+**Lo que NO sé:** cómo está configurada la protección de ese proyecto, si ya
+existe algún mecanismo de acceso para automatizaciones, o si directamente el
+destino correcto del cron debería ser otro entorno. No tenía CLI de Vercel ni
+token en la máquina donde trabajé, así que no pude mirar la configuración del
+proyecto ni cambiar nada ahí.
+
+**Lo que dejé preparado:** `db/operacion/activar_cron_avisos.sql` acepta un
+tercer secreto opcional en Vault, `nora_vercel_bypass`. Si existe, el job
+agrega el header `x-vercel-protection-bypass` y atraviesa la protección sin
+desactivarla. El job ya está programado y activo: si esa es la solución, con
+cargar el secreto empieza a andar sin tocar nada más.
+
+Pero elegí vos el camino. Si hay una forma mejor para este proyecto —otro
+entorno, otra configuración— tomala y decime por qué.
+
+---
+
+# Lo que falta hacer
+
 ## Tarea 1 — Verificar el matcheo contra el modelo real
 
-Esto es lo único que falta para poder decir READY, y nunca se pudo probar
-porque la clave estaba caída. **No lo des por bueno con mocks.**
+Es lo único que impide decir READY. Nunca se pudo probar. **No lo des por
+bueno con mocks ni porque compile.**
 
-Con la clave nueva, probá de punta a punta y mostrame la evidencia:
+Probá de punta a punta y mostrame la evidencia:
 
 - «Tengo una mancha en el techo del baño y gotea cuando el de arriba se ducha»
   → tiene que caer en `humedad_filtracion` y mostrar antecedentes reales de
@@ -64,19 +134,16 @@ Con la clave nueva, probá de punta a punta y mostrame la evidencia:
 
 Comprobá que Nora no afirme un diagnóstico como certeza ni diga que revisó
 algo. Si en los textos reales aparece ese tono, corregí el prompt de
-`web/src/lib/diagnostico.ts` y `chatNora.ts`, no la validación.
+`web/src/lib/diagnostico.ts` y `chatNora.ts`, **no la validación**: esa
+validación es la única barrera contra antecedentes inventados.
 
 Confirmá que los antecedentes elegidos **llegan a Telegram y al detalle de
 operaciones** dentro de la descripción persistida.
 
 ## Tarea 2 — Cerrar el cron
 
-Guardá el token de bypass en Vault como `nora_vercel_bypass` (el script
-`db/operacion/activar_cron_avisos.sql` ya lo soporta y agrega el header solo).
-Después verificá en `net._http_response` que la respuesta sea **200**, no 401.
-
-Ojo con esto: un 401 con cuerpo `"Protected deployment"` es de Vercel; un 401
-sin ese cuerpo es de la ruta y significa que el secreto no coincide.
+Una vez resuelto el acceso, verificá en `net._http_response` que la respuesta
+sea **200**.
 
 Probá el ciclo completo: creá un pedido QA, cerrá la pestaña antes de que
 salga el aviso, y comprobá que el cron lo entrega solo. Marcá el mensaje
@@ -105,8 +172,7 @@ aplicá **44 a 50 en orden**. No ejecutes `db/INSTALAR-TODO.sql` ni migraciones
 históricas: hay scripts destructivos. 44, 45 y 48 no son repetibles; 46, 49 y
 50 sí.
 
-Recién ahí desplegá el código y configurá el cron contra la URL de producción,
-que no tiene Deployment Protection y por lo tanto no necesita el bypass.
+Recién ahí desplegá el código y configurá el cron contra producción.
 
 ## Cómo trabajar
 
@@ -114,9 +180,10 @@ Bloque por bloque, publicando cada uno verificado. Después de cada bloque
 decime qué cambió, qué probaste y cómo.
 
 No reportes algo como funcionando si sólo compila. Si algo queda bloqueado por
-afuera, decime exactamente qué falta y quién lo tiene que hacer. Cerrá READY
-sólo si el circuito está realmente validado; si no, NOT READY con el motivo
-concreto. Los precios pospuestos no cuentan como pendiente.
+afuera, decime exactamente qué observaste —el error textual, no tu
+interpretación— y qué hace falta. Cerrá READY sólo si el circuito está
+realmente validado; si no, NOT READY con el motivo concreto. Los precios
+pospuestos no cuentan como pendiente.
 
 Una advertencia del historial de este proyecto: hubo un caso en que se
 reescribió un trigger de autorización desde una versión vieja y se perdieron
