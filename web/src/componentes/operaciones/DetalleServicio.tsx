@@ -245,30 +245,6 @@ export function DetalleServicio({ id }: { id: string }) {
                 }
               />
             )}
-            {/* Por qué está frenado. No mueve el estado: el pedido sigue donde
-                está y esto explica por qué no avanza. En el archivo de ENJINIA
-                el 28% de los casos queda sin terminar en su certificado, así
-                que esto no es un caso raro: es lo habitual. */}
-            {SITUACIONES.map((s) => (
-              <BotonAccion
-                key={s}
-                texto={servicio.situacion === s ? `Quitar «${ETIQUETA_SITUACION[s]}»` : ETIQUETA_SITUACION[s]}
-                icono={PauseCircle}
-                cargando={guardando === `situacion-${s}`}
-                onClick={() =>
-                  conGuardado(`situacion-${s}`, () =>
-                    marcarSituacion(
-                      servicio.id,
-                      servicio.estado,
-                      servicio.situacion === s ? null : s,
-                      servicio.situacion === s
-                        ? null
-                        : window.prompt("Detalle para el residente (opcional)") ?? null,
-                    ),
-                  )
-                }
-              />
-            ))}
             {puedeCancelar && (
               <BotonAccion
                 texto="Cancelar pedido"
@@ -309,6 +285,29 @@ export function DetalleServicio({ id }: { id: string }) {
             guardando={guardando === "nota"}
             onGuardar={(texto) => conGuardado("nota", () => agregarNotaServicio(servicio.id, texto, servicio.estado))}
           />
+        </Seccion>
+      )}
+
+      {/* La situación es independiente del presupuesto y del estado del pedido. */}
+      {!["finalizado", "pagado", "calificado", "cancelado"].includes(servicio.estado) && (
+        <Seccion titulo="Situación del trabajo" icono={PauseCircle}>
+          <p className="text-sm text-mute mb-3">Informá qué está pendiente sin cambiar el estado del pedido.</p>
+          <div className="flex flex-wrap gap-2.5">
+            {SITUACIONES.map((s) => (
+              <BotonAccion
+                key={s}
+                texto={servicio.situacion === s ? `Quitar «${ETIQUETA_SITUACION[s]}»` : ETIQUETA_SITUACION[s]}
+                icono={PauseCircle}
+                cargando={guardando === `situacion-${s}`}
+                onClick={() => {
+                  const quitar = servicio.situacion === s;
+                  const nota = quitar ? null : window.prompt("Detalle para el residente (opcional)");
+                  if (!quitar && nota === null) return;
+                  conGuardado(`situacion-${s}`, () => marcarSituacion(servicio.id, servicio.estado, quitar ? null : s, nota));
+                }}
+              />
+            ))}
+          </div>
         </Seccion>
       )}
 
