@@ -93,7 +93,21 @@ export type Equipo = {
   ultimaRevision?: string;
 };
 
+export type Edificio = {
+  id: string;
+  slug: string;
+  nombre: string;
+  calle: string;
+  numero: string;
+  localidad: string;
+  provincia: string;
+};
+
 export type Propiedad = {
+  uf?: number;
+  edificioId?: string;
+  piso?: string;
+  unidad?: string;
   id: string;
   nombre: string;
   direccion: string;
@@ -122,6 +136,29 @@ export type EstadoServicio =
   | "calificado"
   | "cancelado";
 
+/* Por qué está frenado un trabajo. Es un eje separado del estado, no un
+   estado más: ver db/50_situacion_servicio.sql para el razonamiento. Un
+   pedido puede estar "en curso" y además esperando materiales. */
+export type SituacionServicio = "segunda_visita" | "administracion" | "materiales";
+
+/** Lo que lee el residente cuando su pedido está frenado. */
+export const ETIQUETA_SITUACION: Record<SituacionServicio, string> = {
+  segunda_visita: "Falta una segunda visita",
+  administracion: "Lo sigue la administración",
+  materiales: "Esperando materiales",
+};
+
+/** La explicación, para que no quede como una etiqueta sin sentido. */
+export const DETALLE_SITUACION: Record<SituacionServicio, string> = {
+  segunda_visita: "Se avanzó, pero hay que volver para terminarlo.",
+  administracion: "No se resuelve puertas adentro de tu unidad: lo tiene que ver la administración del edificio.",
+  materiales: "Falta un material para poder terminar. Apenas llega, se retoma.",
+};
+
+export function esSituacion(valor: unknown): valor is SituacionServicio {
+  return valor === "segunda_visita" || valor === "administracion" || valor === "materiales";
+}
+
 /** Los estados que ve el cliente, con su texto. */
 export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   solicitado: "Pedido enviado",
@@ -135,9 +172,8 @@ export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   cancelado: "Cancelado",
 };
 
-/** Mismas cuatro franjas que ofrece /pedir al elegir día y hora — acá
- *  sólo para mostrar de vuelta lo que el cliente ya eligió (no una
- *  hora de llegada calculada, ver Servicio.franjaPreferida). */
+/** Etiquetas históricas. Las nuevas franjas se configuran en agenda_franjas
+ *  y su identificador es el rango legible; se muestran directamente. */
 export const ETIQUETA_FRANJA: Record<string, string> = {
   manana: "Mañana · 8 a 12 h",
   "tarde-1": "Tarde · 13 a 17 h",
@@ -198,6 +234,9 @@ export type Servicio = {
   categoriaSlug: string;
   descripcion: string;
   estado: EstadoServicio;
+  /** Por qué está frenado, si lo está. Lo escribe sólo operaciones. */
+  situacion: SituacionServicio | null;
+  situacionNota: string | null;
   creadoEl: string;
   /** Día y franja que eligió el cliente al pedir — no una hora de llegada
    *  calculada (para eso haría falta un servicio de ruteo con tránsito en

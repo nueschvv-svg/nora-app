@@ -1,0 +1,15 @@
+# Intro y chat — 03/10/2026
+
+La intro se monta sola: la conversación no existe debajo del scroll y no recibe foco accidental. Al completar el recorrido o activar «Deslizá para empezar», sale mediante una transición de 620 ms y se monta la conversación. Con movimiento reducido la salida es inmediata y no hay animación de entrada. El saludo ya no se reproduce al montar ni por cualquier click; se solicita al desplazar más de 8 px, terminar el gesto táctil o pulsar el botón de entrada. Las restricciones del navegador pueden bloquear audio por scroll: el control explícito de sonido se conserva. No se garantiza reproducción automática en todos los navegadores.
+
+El primer mensaje expande el mismo componente de chat a todo el viewport, conservando mensajes y petición en curso. Encabezado y compositor permanecen visibles y sólo los mensajes tienen scroll. Incluye retorno al modo inicial sin perder la conversación; no vuelve a mostrar la intro. Se usan visualViewport y safe-area para adaptar el alto al teclado y evitar zonas del sistema; input de 16 px para evitar zoom de enfoque iOS. Storage de sesión bloqueado ya no impide abrir la bienvenida.
+
+QA real en navegador local: intro sola y gesto de salida; envío del primer mensaje y expansión completa; vistas 390×844, 320×568, 768×1024, 1440×900 y 667×375. Sin cabecera principal ni intro detrás del chat expandido. No se certifica teclado físico Safari/iOS ni reproducción audible en todos los dispositivos; requiere comprobación en hardware. Lint sin errores, build correcto, suite 53 aprobados/1 prueba opcional PostgreSQL omitida (sin cambios de agenda).
+
+Bloqueo externo encontrado: POST /api/chat alcanza Anthropic pero devuelve invalid_request_error por saldo insuficiente. Se verificó el estado de error y conservación del mensaje; no se pudo verificar respuesta conversacional exitosa. No se modificaron claves ni se compraron créditos. Persiste el trabajo pendiente del piloto Sector 15 (UF, familias, precios, estados, cron).
+
+## Publicación y seguimiento — 05/10/2026
+
+Cambios publicados en GitHub en `1dad79a` y desplegados en el alias de preview https://nora-app-git-codex-auditoria-piloto-nueschvv-svgs-projects.vercel.app/inicio. Se comprobó en el navegador publicado la intro independiente y el paso por scroll a la conversación. Producción no se modificó.
+
+El control de GitHub Actions falla en `npm audit`, no en los tests ni lint. La alerta GHSA-vfj7-8cjw-p6xm afecta `braces` a través de `eslint-config-next` (herramientas de desarrollo); npm ofrece un downgrade incompatible como solución automática. Al 05/10, el registro devuelve 3.0.3 como última versión y el aviso oficial no lista parche: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm. No se aplicó `--force` ni se ocultó la alerta. `npm audit --omit=dev --audit-level=high` devuelve 0 vulnerabilidades. CI completo sigue pendiente de resolver esta dependencia; el build local y el despliegue de Vercel sí terminaron correctamente.

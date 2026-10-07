@@ -1,0 +1,57 @@
+
+> web@0.1.0 build
+> next build
+
+▲ Next.js 16.3.5 (Turbopack)
+✓ Running next.config.ts took 419ms
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 1644ms
+  Running next.config.js provided runAfterProductionCompile ...
+✓ Completed runAfterProductionCompile in 1508ms
+  Running TypeScript ...
+  Finished TypeScript in 3.0s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/19) ...
+  Generating static pages using 7 workers (4/19) 
+  Generating static pages using 7 workers (9/19) 
+  Generating static pages using 7 workers (14/19) 
+✓ Generating static pages using 7 workers (19/19) in 526ms
+  Finalizing page optimization ...
+
+Route (app)                    Revalidate  Expire
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/chat
+├ ƒ /api/diagnosticar
+├ ○ /api/dolar                         1h      1y
+├ ƒ /api/geocodificar
+├ ƒ /api/pedidos/[id]/enrutar
+├ ƒ /api/pedidos/[id]/mail
+├ ƒ /auth/callback
+├ ƒ /auth/confirm
+├ ○ /cambiar-clave
+├ ○ /entrar
+├ ƒ /inicio
+├ ƒ /inicio/agenda
+├ ƒ /inicio/score
+├ ○ /manifest.webmanifest
+├ ƒ /operaciones
+├ ƒ /operaciones/[id]
+├ ƒ /pedidos
+└ ƒ /pedir
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

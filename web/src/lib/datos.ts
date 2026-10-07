@@ -1,3 +1,4 @@
+import { mensajeErrorAgenda } from "./agenda";
 /* ============================================================
    ACCESO A DATOS
 
@@ -13,13 +14,20 @@
    ============================================================ */
 
 import { supabaseNavegador } from "./supabase/cliente";
-import { Equipo, Propiedad, Servicio, TipoEquipo } from "./tipos";
+import { Edificio, Equipo, Propiedad, Servicio, TipoEquipo, esSituacion } from "./tipos";
+
+import { direccionConUnidad } from "./edificio";
 
 /* ---------- Traducción entre la base y la app ----------
    La base usa nombres_con_guion_bajo, el código usa nombresEnCamello.
    La conversión vive acá y en ningún otro lado. */
 
 type FilaPropiedad = {
+  sector15_uf?: number | null;
+  sector15_unidades?: { nucleo: string } | null;
+  edificio_id?: string | null;
+  piso?: string | null;
+  unidad?: string | null;
   id: string;
   nombre: string;
   calle: string;
@@ -33,7 +41,11 @@ function aPropiedad(f: FilaPropiedad): Propiedad {
   return {
     id: f.id,
     nombre: f.nombre,
-    direccion: [f.calle, f.numero].filter(Boolean).join(" "),
+    direccion: direccionConUnidad(f.calle, f.numero, f.piso, f.unidad, f.sector15_unidades?.nucleo, f.sector15_uf),
+    uf: f.sector15_uf ?? undefined,
+    edificioId: f.edificio_id ?? undefined,
+    piso: f.piso ?? undefined,
+    unidad: f.unidad ?? undefined,
     localidad: f.localidad,
     provincia: f.provincia,
     icono: (f.icono as Propiedad["icono"]) ?? "home",
@@ -71,6 +83,8 @@ type FilaServicio = {
   categoria_slug: string;
   descripcion: string;
   estado: string;
+  situacion: string | null;
+  situacion_nota: string | null;
   creado_el: string;
   fecha_preferida: string | null;
   franja_preferida: string | null;
@@ -84,7 +98,7 @@ type FilaServicio = {
 
 /** Columnas de `servicios` que necesita el lado cliente — sin técnico. */
 const COLUMNAS_SERVICIO =
-  "id, numero_orden, propiedad_id, categoria_slug, descripcion, estado, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
+  "id, numero_orden, propiedad_id, categoria_slug, descripcion, estado, situacion, situacion_nota, creado_el, fecha_preferida, franja_preferida, monto_ars, metodo_pago, pago_confirmado_el, reporte, estimado_desde_ars, estimado_hasta_ars";
 
 function aServicio(f: FilaServicio): Servicio {
   return {
@@ -94,6 +108,11 @@ function aServicio(f: FilaServicio): Servicio {
     categoriaSlug: f.categoria_slug,
     descripcion: f.descripcion,
     estado: f.estado as Servicio["estado"],
+    /* Se valida en vez de castear: si algún día la base tiene un valor que
+       este código no conoce, preferimos no mostrar nada antes que una
+       etiqueta rota en la pantalla de seguimiento. */
+    situacion: esSituacion(f.situacion) ? f.situacion : null,
+    situacionNota: f.situacion_nota,
     creadoEl: f.creado_el.slice(0, 10),
     fechaPreferida: f.fecha_preferida,
     franjaPreferida: f.franja_preferida,
@@ -109,7 +128,9 @@ function aServicio(f: FilaServicio): Servicio {
 /* Un error de base no le sirve a nadie en pantalla ("duplicate key value
    violates unique constraint..."). Lo registramos para poder depurarlo y
    devolvemos algo legible. */
-function fallar(contexto: string, error: { message: string }): never {
+function fallar(contexto: string, error: { message: string; code?: string }): never {
+  const agenda = mensajeErrorAgenda(error);
+  if (agenda) throw new Error(agenda);
   console.error(`[datos] ${contexto}:`, error.message);
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
 }
@@ -125,7 +146,7 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
 
   const { data, error } = await supabase
     .from("propiedades")
-    .select("id, nombre, calle, numero, localidad, provincia, icono")
+    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
     .eq("dueno_id", user.id)
     .order("creado_el");
 
@@ -134,6 +155,10 @@ export async function listarPropiedades(): Promise<Propiedad[]> {
 }
 
 export type NuevaPropiedad = {
+  uf?: number;
+  edificioId?: string;
+  piso?: string;
+  unidad?: string;
   nombre: string;
   calle: string;
   numero: string;
@@ -149,29 +174,6 @@ export type NuevaPropiedad = {
    crearPropiedad aceptarían en silencio una dirección fuera de la zona
    que hoy atendemos. */
 export const PROVINCIAS_CUBIERTAS = ["CABA", "Buenos Aires"] as const;
-
-/* Best-effort: si Nominatim no responde o no encuentra nada, seguimos
-   sin lat/lng — nunca por esto se frena el alta de un domicilio. Ver
-   api/geocodificar/route.ts. */
-async function geocodificar(datos: NuevaPropiedad): Promise<{ lat: number | null; lng: number | null }> {
-  try {
-    const r = await fetch("/api/geocodificar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        calle: datos.calle,
-        numero: datos.numero,
-        localidad: datos.localidad,
-        provincia: datos.provincia,
-      }),
-    });
-    if (!r.ok) return { lat: null, lng: null };
-    const { lat, lng } = (await r.json()) as { lat: number | null; lng: number | null };
-    return { lat, lng };
-  } catch {
-    return { lat: null, lng: null };
-  }
-}
 
 export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> {
   const supabase = supabaseNavegador();
@@ -189,22 +191,33 @@ export async function crearPropiedad(datos: NuevaPropiedad): Promise<Propiedad> 
     throw new Error("Por ahora sólo cubrimos CABA y Buenos Aires.");
   }
 
-  const { lat, lng } = await geocodificar(datos);
+  if (datos.edificioId && (!datos.piso?.trim() || !datos.unidad?.trim() || datos.piso.trim().length > 30 || datos.unidad.trim().length > 30)) {
+    throw new Error("Ingresá piso y unidad (hasta 30 caracteres cada uno).");
+  }
+  /* Sin geocodificación: en el Sector 15 la dirección es fija y canónica,
+     la pone la base desde el edificio. Nominatim servía para la bolsa de
+     técnicos por distancia, que ya no existe — mandarle la dirección de un
+     residente a un servicio externo sin que nadie use el resultado es un
+     dato personal que viaja para nada. */
 
   const { data, error } = await supabase
     .from("propiedades")
     .insert({
       dueno_id: user.id,
+      edificio_id: datos.edificioId ?? null,
+      sector15_uf: datos.uf ?? null,
+      piso: datos.piso?.trim() || null,
+      unidad: datos.unidad?.trim() || null,
       nombre: datos.nombre.trim(),
       calle: datos.calle.trim(),
       numero: datos.numero.trim() || null,
       localidad: datos.localidad.trim(),
       provincia: datos.provincia.trim(),
       icono: datos.icono,
-      latitud: lat,
-      longitud: lng,
+      latitud: null,
+      longitud: null,
     })
-    .select("id, nombre, calle, numero, localidad, provincia, icono")
+    .select("id, nombre, calle, numero, localidad, provincia, icono, edificio_id, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
     .single();
 
   if (error) fallar("guardar el domicilio", error);
@@ -267,6 +280,8 @@ export async function listarServicios(): Promise<Servicio[]> {
 }
 
 export type NuevoServicio = {
+  /** UUID estable durante los reintentos; la PK de Postgres evita duplicados. */
+  idIntento?: string;
   propiedadId: string;
   categoriaSlug: string;
   descripcion: string;
@@ -297,6 +312,7 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
   const { data, error } = await supabase
     .from("servicios")
     .insert({
+      ...(datos.idIntento ? { id: datos.idIntento } : {}),
       cliente_id: user.id,
       propiedad_id: datos.propiedadId,
       categoria_slug: datos.categoriaSlug,
@@ -310,6 +326,14 @@ export async function crearServicio(datos: NuevoServicio): Promise<Servicio> {
     .select(COLUMNAS_SERVICIO)
     .single();
 
+  if (error && datos.idIntento) {
+    // El INSERT pudo confirmarse aunque se perdiera la respuesta. Nunca
+    // usar upsert: un reintento no debe modificar un pedido ya recibido.
+    const { data: existente, error: errorLectura } = await supabase
+      .from("servicios").select(COLUMNAS_SERVICIO)
+      .eq("id", datos.idIntento).eq("cliente_id", user.id).maybeSingle();
+    if (!errorLectura && existente) return aServicio(existente as FilaServicio);
+  }
   if (error) fallar("enviar el pedido", error);
   return aServicio(data as FilaServicio);
 }
@@ -488,10 +512,16 @@ export type CategoriaBD = {
   activa: boolean;
 };
 
+/* Sólo rubros activos. Antes traía también los inactivos y el wizard los
+   mostraba en gris con un cartel "PRONTO": eso tenía sentido en una app
+   nacional con una hoja de ruta de rubros por abrir. Acá no hay tal hoja de
+   ruta —son 175 hogares y un contratista— y además deja a la vista rubros
+   internos, como el de QA de staging, en la pantalla del residente. */
 export async function listarCategorias(): Promise<CategoriaBD[]> {
   const { data, error } = await supabaseNavegador()
     .from("categorias")
     .select("slug, nombre, icono, requiere_matricula, activa")
+    .eq("activa", true)
     .order("orden");
 
   if (error) fallar("cargar los rubros", error);
@@ -508,4 +538,22 @@ export async function listarCategorias(): Promise<CategoriaBD[]> {
     requiereMatricula: c.requiere_matricula,
     activa: c.activa,
   }));
+}
+
+/** Sólo registros habilitados; las políticas también filtran en base. */
+export async function obtenerEdificio(slug: string): Promise<Edificio | null> {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) return null;
+  const { data, error } = await supabaseNavegador().from("edificios")
+    .select("id, slug, nombre, calle, numero, localidad, provincia")
+    .eq("slug", slug).eq("activo", true).maybeSingle();
+  if (error) fallar("cargar el edificio", error);
+  return data as Edificio | null;
+}
+
+/** Catálogo público de ubicaciones: no contiene residentes ni pedidos. */
+export async function listarUnidadesSector15(edificioId: string): Promise<import('./sector15').UnidadSector15[]> {
+  const {data,error} = await supabaseNavegador().from('sector15_unidades')
+    .select('uf,nucleo,piso,unidad').eq('edificio_id',edificioId).order('uf');
+  if(error) fallar('cargar las unidades',error);
+  return data ?? [];
 }

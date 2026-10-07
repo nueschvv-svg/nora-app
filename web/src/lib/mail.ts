@@ -77,7 +77,7 @@ export async function enviarComprobantePedido(mailDestino: string, datos: DatosC
         </div>
         <p style="font-size: 12.5px; color: #5b6b68; line-height: 1.5;">
           Ante cualquier consulta con soporte, este número de orden es tu referencia.
-          En menos de 2 horas te contactamos por teléfono con el precio confirmado.
+          ENJINIA gestiona tu pedido y te confirma la atención y el precio antes de comenzar el trabajo.
         </p>
       </div>
     `,

@@ -1,0 +1,59 @@
+
+> web@0.1.0 test
+> node --test tests/*.test.cjs
+
+✔ retry identifier survives reload without storing personal data (232.162792ms)
+✔ pilot validates unit, active building, canonical address and immutable snapshot; generic homes still work (3920.456291ms)
+✔ pilot ignores another saved home and displays floor and unit (73.43725ms)
+✔ saved pilot property includes floor and unit in customer-facing address (69.406167ms)
+✔ emergency and estimate survive even without diagnostic observations (5.00125ms)
+✔ pilot property creation requires unit before storage or geocoding (22.938375ms)
+✔ notification failure returned as HTTP 200 is not silently accepted (263.798958ms)
+✔ long order with image stays within Telegram limits and retains contact (58.463875ms)
+✔ Telegram HTTP 200 with ok false is a failure and raw transport secrets are never returned (2070.689375ms)
+✔ retry after lost response and concurrent submissions return the same order (302.723084ms)
+✔ resident cannot alter immutable fields while accepting, rejecting, cancelling or paying (4018.793417ms)
+✔ valid quote acceptance, rejection, all early cancellations and cash payment work (1216.1305ms)
+✔ anonymous identities isolate orders and cannot promote their own profile (1164.900875ms)
+✔ insert only allows an own-property unpaid request without fabricated operational fields (789.992458ms)
+✔ restrictive ownership survives an accidentally broad permissive policy and migration is repeatable (672.083583ms)
+✔ privileged payload loader never signs another order image or traversal path (253.195916ms)
+✔ persisted payload retains unit, contact, emergency and a valid own signed image (32.312417ms)
+✔ missing required profile data causes retry rather than an incomplete notification (27.630959ms)
+✔ cron reaches its own authentication without creating or requiring a resident session (203.994709ms)
+✔ queue status rejects absent session and hides other resident orders (55.867459ms)
+✔ queue acknowledgment distinguishes queued from absent or exhausted delivery (60.109334ms)
+✔ operations loads every pending page even when newer delivered orders fill the default query limit (14.37525ms)
+✔ worker persists failure for retry, without propagating secrets from transport exceptions (213.424042ms)
+✔ worker does not report sent if recording confirmation fails (15.029958ms)
+✔ empty queue does not contact Telegram (7.267292ms)
+✔ obsolete lease cannot report success (10.539375ms)
+✔ cron without secret or with wrong credential rejects before constructing privileged client (96.445084ms)
+✔ order and notification are atomic, isolated, leased and retryable in PostgreSQL (3558.685041ms)
+✔ exhausted crashed delivery remains visible and operations can recover without a new order (1040.274833ms)
+✔ operations reconciliation filters delivered history in SQL before pagination (1039.105958ms)
+✔ anonymous visitor can reach operations login (128.5965ms)
+✔ anonymous visitor to operations is directed to login (20.16025ms)
+✔ authenticated account keeps existing login redirect (17.067416ms)
+✔ geocoding handles invalid body null without throwing (22.141291ms)
+✔ geocoding handles invalid body [] without throwing (19.173708ms)
+✔ geocoding handles invalid body {"calle":123,"localidad":"CABA"} without throwing (42.356375ms)
+✔ geocoding handles invalid body {"calle":"a","localidad":{}} without throwing (59.706375ms)
+✔ chat rejects null JSON before calling paid model (33.6785ms)
+✔ auth callback keeps destination on site: javascript:alert(1) (276.68775ms)
+✔ auth callback keeps destination on site: //evil.test (15.787458ms)
+✔ auth callback keeps destination on site: /\evil.test (30.27975ms)
+✔ auth callback keeps destination on site: https://evil.test (5.389083ms)
+✔ navigation exposes existing order tracking to the resident (319.337708ms)
+✔ stalled attachment releases the confirmation flow (281.53275ms)
+✔ schedule uses Argentina calendar date across UTC midnight (143.496ms)
+✔ telephone accepts formatting but rejects letters and oversized values (3.569708ms)
+✔ invalid and oversized attachments are rejected before analysis or upload (5.780625ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 47
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8082.059333

@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "body": {
+    "identificado": false,
+    "observaciones": "No mandaste fotos y lo que contás no es un desperfecto de la vivienda: recuperar la contraseña de tu correo es algo que tenés que gestionar con el proveedor del mail (Gmail, Hotmail, etc.), no es algo que resuelva ENJINIA.",
+    "preguntas": [
+      "¿Tenés además algún problema en el departamento (humedad, plomería, electricidad, aberturas) que quieras reportar?",
+      "Si es así, ¿nos podés mandar una o dos fotos del sector afectado?"
+    ],
+    "riesgoInmediato": false,
+    "familia": null,
+    "antecedentes": [],
+    "conFotos": false,
+    "estimado": null
+  }
+}

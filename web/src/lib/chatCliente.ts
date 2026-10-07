@@ -1,6 +1,8 @@
 /* Cliente del chat conversacional de Nora, desde el navegador.
    Envuelve /api/chat (ver esa ruta y lib/chatNora.ts para la charla en sí). */
 
+import type { AntecedenteParaCliente, Familia } from "./antecedentes";
+
 export type TurnoChat = { rol: "cliente" | "nora"; texto: string };
 
 export type RespuestaChatNora = {
@@ -8,10 +10,13 @@ export type RespuestaChatNora = {
   listo: boolean;
   categoriaSlug: string | null;
   resumen: string;
+  familia?: Familia | null;
+  antecedentes?: AntecedenteParaCliente[];
 };
 
 export async function chatearConNora(historial: TurnoChat[]): Promise<RespuestaChatNora> {
   const r = await fetch("/api/chat", {
+    signal: AbortSignal.timeout(35000),
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ historial }),

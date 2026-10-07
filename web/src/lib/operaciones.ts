@@ -1,3 +1,4 @@
+import { mensajeErrorAgenda } from "./agenda";
 /* ============================================================
    PANEL DE OPERACIONES — acceso a datos
 
@@ -26,10 +27,13 @@
    Mismo patrón que ya se usaba para que un técnico reclamara un
    pedido de la bolsa (tomarTrabajo(), ahora eliminado). */
 
+import { direccionConUnidad } from "./edificio";
 import { supabaseNavegador } from "./supabase/cliente";
-import type { EstadoServicio } from "./tipos";
+import { esSituacion, type EstadoServicio, type SituacionServicio } from "./tipos";
 
-function fallar(contexto: string, error: { message: string }): never {
+function fallar(contexto: string, error: { message: string; code?: string }): never {
+  const agenda = mensajeErrorAgenda(error);
+  if (agenda) throw new Error(agenda);
   console.error(`[operaciones] ${contexto}:`, error.message);
   throw new Error(`No pudimos ${contexto}. Probá de nuevo en un momento.`);
 }
@@ -134,6 +138,9 @@ export type ServicioDetalle = {
   categoriaNombre: string;
   descripcion: string;
   estado: EstadoServicio;
+  /** Por qué está frenado, en paralelo al estado. Ver db/50. */
+  situacion: SituacionServicio | null;
+  situacionNota: string | null;
   montoArs: number | null;
   metodoPago: "efectivo" | "mercado_pago" | null;
   fechaPreferida: string | null;
@@ -160,7 +167,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
   const { data: servicio, error: errServicio } = await supabase
     .from("servicios")
     .select(
-      "id, categoria_slug, descripcion, estado, monto_ars, metodo_pago, fecha_preferida, franja_preferida, creado_el, propiedad_id, cliente_id",
+      "id, categoria_slug, descripcion, estado, situacion, situacion_nota, monto_ars, metodo_pago, fecha_preferida, franja_preferida, creado_el, propiedad_id, cliente_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -173,7 +180,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
       supabase.from("categorias").select("nombre").eq("slug", servicio.categoria_slug).maybeSingle(),
       supabase
         .from("propiedades")
-        .select("nombre, calle, numero, localidad, provincia, notas_acceso")
+        .select("nombre, calle, numero, localidad, provincia, notas_acceso, piso, unidad, sector15_uf, sector15_unidades(nucleo)")
         .eq("id", servicio.propiedad_id)
         .maybeSingle(),
       supabase.from("perfiles").select("nombre, telefono").eq("id", servicio.cliente_id).maybeSingle(),
@@ -207,6 +214,8 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
     categoriaNombre: categoria?.nombre ?? servicio.categoria_slug,
     descripcion: servicio.descripcion,
     estado: servicio.estado,
+    situacion: esSituacion(servicio.situacion) ? servicio.situacion : null,
+    situacionNota: servicio.situacion_nota ?? null,
     montoArs: servicio.monto_ars,
     metodoPago: servicio.metodo_pago,
     fechaPreferida: servicio.fecha_preferida,
@@ -215,7 +224,7 @@ export async function obtenerServicioOperaciones(id: string): Promise<ServicioDe
     cliente: { nombre: perfil?.nombre ?? "—", telefono: perfil?.telefono ?? null },
     propiedad: {
       nombre: propiedad?.nombre ?? "—",
-      direccion: [propiedad?.calle, propiedad?.numero].filter(Boolean).join(" "),
+      direccion: direccionConUnidad(propiedad?.calle ?? "", propiedad?.numero, propiedad?.piso, propiedad?.unidad, (propiedad?.sector15_unidades as unknown as {nucleo: string} | null)?.nucleo, propiedad?.sector15_uf),
       localidad: propiedad?.localidad ?? "",
       provincia: propiedad?.provincia ?? "",
       notasAcceso: propiedad?.notas_acceso ?? null,
@@ -287,6 +296,30 @@ export async function ofertarPrecio(id: string, montoArs: number): Promise<void>
     "solicitado",
     { estado: "presupuestado", monto_ars: montoArs },
     "enviar el presupuesto",
+  );
+}
+
+/* ---------- Por qué está frenado ----------
+
+   No cambia el estado a propósito: el pedido sigue donde está en el ciclo,
+   y esto explica por qué no avanza. Ver el razonamiento en db/50.
+
+   No usa actualizarCondicionado porque no hay transición de estado que
+   condicionar: lo que importa es que el estado NO se mueva. Se condiciona
+   al estado que operaciones tenía en pantalla, así que si otra sesión movió
+   el pedido mientras tanto, esto falla en vez de pisarlo. */
+export async function marcarSituacion(
+  id: string,
+  estadoActual: EstadoServicio,
+  situacion: SituacionServicio | null,
+  nota: string | null,
+): Promise<void> {
+  const limpia = nota?.trim().slice(0, 300) || null;
+  await actualizarCondicionado(
+    id,
+    estadoActual,
+    { situacion, situacion_nota: situacion ? limpia : null },
+    situacion ? "marcar por qué está frenado" : "destrabar el pedido",
   );
 }
 

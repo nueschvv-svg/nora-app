@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Send, Sparkles } from "lucide-react";
 import { chatearConNora, type TurnoChat } from "@/lib/chatCliente";
+import type { AntecedenteParaCliente } from "@/lib/antecedentes";
 import { IsotipoNora } from "@/componentes/LogoNora";
 
 type Mensaje = { rol: "cliente" | "nora"; texto: string };
@@ -39,6 +40,10 @@ export function ChatNora({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState<{ categoriaSlug: string; resumen: string } | null>(null);
+  /* Antecedentes reales de ENJINIA que el servidor ya validó contra la base.
+     Se muestran acá para que la persona vea, antes de pedir, que esto no es
+     una respuesta genérica: es lo que ya pasó en su propio edificio. */
+  const [antecedentes, setAntecedentes] = useState<AntecedenteParaCliente[]>([]);
   const listaRef = useRef<HTMLDivElement>(null);
 
   /* scrollTo() sobre el propio contenedor de mensajes, no
@@ -51,7 +56,7 @@ export function ChatNora({
   useEffect(() => {
     const el = listaRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [mensajes, enviando]);
 
   const enviar = async (e: React.FormEvent) => {
@@ -74,6 +79,7 @@ export function ChatNora({
       const historial: TurnoChat[] = nuevos.slice(1).map((m) => ({ rol: m.rol, texto: m.texto }));
       const resultado = await chatearConNora(historial);
       setMensajes((prev) => [...prev, { rol: "nora", texto: resultado.respuesta }]);
+      setAntecedentes(resultado.antecedentes ?? []);
       if (resultado.listo && resultado.categoriaSlug) {
         setListo({ categoriaSlug: resultado.categoriaSlug, resumen: resultado.resumen });
       }
@@ -123,7 +129,7 @@ export function ChatNora({
      entera. */
   return (
     <section
-      className={`h-full flex flex-col overflow-hidden ${
+      className={`nora-chat h-full flex flex-col overflow-hidden ${
         siempreTarjeta
           ? "rounded-xl3 border border-line/60 shadow-card"
           : "sm:rounded-xl3 sm:border sm:border-line/60 sm:shadow-card"
@@ -141,12 +147,13 @@ export function ChatNora({
         <div className="min-w-0">
           <p className="text-[13.5px] font-bold font-display text-ink leading-tight">Nora</p>
           <p className="flex items-center gap-1.5 text-[11px] text-mute">
-            <span className="live-dot w-[6px] h-[6px] rounded-full bg-good" aria-hidden="true" />
-            En línea
+            <span className="w-[6px] h-[6px] rounded-full bg-good" aria-hidden="true" />
+            Asistente virtual
           </p>
         </div>
       </div>
 
+      <p className="px-4 py-2 text-xs text-mute">No es un canal de emergencias. Ante riesgo inmediato, contactá a emergencias o a la administración.</p>
       <div ref={listaRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto no-scrollbar px-4 py-4">
         {mensajes.map((m, i) => (
           <div
@@ -159,7 +166,7 @@ export function ChatNora({
               </span>
             )}
             <p
-              className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-snug whitespace-pre-line shadow-card ${
+              className={`max-w-[80%] px-3.5 py-2.5 text-[15px] leading-relaxed whitespace-pre-line break-words min-w-0 shadow-card ${
                 m.rol === "nora"
                   ? "bg-sand border border-line rounded-2xl rounded-tl-md text-ink"
                   : "bg-brand-600 text-white rounded-2xl rounded-tr-md"
@@ -190,6 +197,24 @@ export function ChatNora({
         )}
       </div>
 
+      {listo && antecedentes.length > 0 && (
+        <div className="shrink-0 px-4 pb-2">
+          <div className="rounded-xl2 bg-surface border border-hair px-3 py-2.5 space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+              ENJINIA ya resolvió esto acá
+            </p>
+            {antecedentes.map((a) => (
+              <p key={a.id} className="text-[12px] text-mute leading-snug">
+                «{a.desperfecto}» — suele ser: {a.sueleSer}
+              </p>
+            ))}
+            <p className="text-[11px] text-faint leading-snug">
+              Orientación de trabajos anteriores, no un diagnóstico.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="glass shrink-0 px-4 py-3 border-t border-line/50">
         {listo ? (
           <button
@@ -212,7 +237,7 @@ export function ChatNora({
               onChange={(e) => setEntrada(e.target.value)}
               placeholder="Ej: pierde agua la canilla de la cocina…"
               disabled={enviando}
-              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-[13.5px] text-ink placeholder:text-faint outline-none focus:border-brand-300 disabled:opacity-60"
+              className="flex-1 rounded-full bg-sand border border-line px-4 py-3 text-base text-ink placeholder:text-faint outline-none focus:border-brand-300 disabled:opacity-60"
             />
             <button
               type="submit"

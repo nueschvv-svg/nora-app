@@ -19,6 +19,9 @@ const REQUIERE_CUENTA_REAL = ["/operaciones", "/cambiar-clave"];
 export async function actualizarSesion(request: NextRequest) {
   let respuesta = NextResponse.next({ request });
 
+  // El consumidor usa su propio Bearer secreto; no crea sesiones anónimas.
+  if (request.nextUrl.pathname === "/api/cron/avisos") return respuesta;
+
   // Sin Supabase configurado, la app sigue andando con los datos del
   // navegador. Útil para ver el diseño sin tener que crear una cuenta.
   if (!HAY_SUPABASE) return respuesta;
@@ -79,7 +82,7 @@ export async function actualizarSesion(request: NextRequest) {
      navegador sigue el redirect, hace un POST contra una página que no
      acepta POST, y el cliente recibe un 404 sin ninguna pista de que lo
      que faltaba era la sesión. */
-  if (!user && !esPublica) {
+  if ((!user || (user.is_anonymous && requiereCuentaReal)) && !esPublica) {
     if (esApi) {
       return NextResponse.json({ error: "Necesitás iniciar sesión." }, { status: 401 });
     }
@@ -90,7 +93,7 @@ export async function actualizarSesion(request: NextRequest) {
   }
 
   // Con sesión y entrando al login: derecho al inicio.
-  if (user && ruta.startsWith("/entrar")) {
+  if (user && !user.is_anonymous && ruta.startsWith("/entrar")) {
     const url = request.nextUrl.clone();
     url.pathname = "/inicio";
     url.search = "";

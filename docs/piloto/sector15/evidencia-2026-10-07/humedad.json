@@ -1,0 +1,48 @@
+{
+  "status": 200,
+  "body": {
+    "identificado": false,
+    "observaciones": "No llegaron fotos, así que voy con lo que me contás: una mancha en el cielorraso del baño que además gotea justo cuando usan la ducha en el departamento de arriba. Ese goteo asociado al uso del baño superior suele venir de una filtración desde la unidad de arriba (desagüe de bañera, sellado o artefactos), pero hay que confirmarlo en el lugar.",
+    "preguntas": [
+      "¿El goteo aparece sólo cuando se duchan arriba o también en otros momentos (por ejemplo cuando llueve)?",
+      "¿La mancha está creciendo o la ves igual que al principio?",
+      "¿Hay alguna luz, ojo de buey o ventilador cerca de la zona donde gotea?"
+    ],
+    "riesgoInmediato": false,
+    "familia": "humedad_filtracion",
+    "antecedentes": [
+      {
+        "id": "humedad_filtracion-05",
+        "familia": "humedad_filtracion",
+        "familiaNombre": "Humedad y filtraciones",
+        "frecuencia": 23,
+        "desperfecto": "humedad en cielorraso baño",
+        "sueleSer": "filtración por unidad superior",
+        "tambienFue": "filtración por artefactos sanitarios de unidad superior || filtración por bidet de unidad superior || filtración por inodoro de unidad superior",
+        "tareaHabitual": "se continua con trabajos pendientes. Se realizo cierre de cielorraso con placa de yeso y se coloco yeso y enduido. Posterior secado y lijado se dio terminación con una primera mano de esmalte sintético blanco y luego con látex para interior color blanco."
+      },
+      {
+        "id": "humedad_filtracion-04",
+        "familia": "humedad_filtracion",
+        "familiaNombre": "Humedad y filtraciones",
+        "frecuencia": 24,
+        "desperfecto": "cielorraso baño con humedad",
+        "sueleSer": "filtración por unidad superior",
+        "tambienFue": "filtración por unidad superior ya reparada || filtración por unidad superior ya reparada, mancha seca || filtración por desagüe de bañera superior (codo suelto)",
+        "tareaHabitual": "se procedió a retirar cielorraso dañado y se procedió a colocar placa de yeso en cielorraso. Se atornillo la misma a perfilería existente. Se coloco yeso y enduido. Posterior secado y lijado, se dio terminación final con látex para interior para cielorrasos color blanco en paño completo con dos manos de pintura."
+      },
+      {
+        "id": "humedad_filtracion-02",
+        "familia": "humedad_filtracion",
+        "familiaNombre": "Humedad y filtraciones",
+        "frecuencia": 37,
+        "desperfecto": "mancha humedad en cielorraso baño",
+        "sueleSer": "posible filtración ya reparada / mancha seca",
+        "tambienFue": "posible filtración ya reparada – mancha seca || posible filtración ya reparada – mancha seca / no se detectaron en visitas filtraciones || filtración por nivel superior",
+        "tareaHabitual": "se procedió a retirar con espátula todo desprendimiento de pintura y se coloco yeso y enduido. Posterior secado y lijado se dio terminación final con látex para interior antihumedad color blanco."
+      }
+    ],
+    "conFotos": false,
+    "estimado": null
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Banknote, CalendarClock, Check, Loader2, QrCode, Star, X, XCircle } from "lucide-react";
 import { IconoEquipo } from "./IconoEquipo";
 import { useApp } from "./ContextoApp";
@@ -15,7 +15,14 @@ import {
   type MiCalificacion,
 } from "@/lib/datos";
 import { suscribirseAServicio } from "@/lib/tiempoReal";
-import { ETIQUETA_ESTADO, ETIQUETA_FRANJA, type EstadoServicio, type Servicio } from "@/lib/tipos";
+import {
+  DETALLE_SITUACION,
+  ETIQUETA_ESTADO,
+  ETIQUETA_FRANJA,
+  ETIQUETA_SITUACION,
+  type EstadoServicio,
+  type Servicio,
+} from "@/lib/tipos";
 import { fecha, pesos } from "@/lib/formato";
 import type { CategoriaBD } from "@/lib/datos";
 
@@ -131,7 +138,9 @@ export function HojaServicio({
   abierto: boolean;
   alCerrar: () => void;
 }) {
-  const { propiedad } = useApp();
+  const { propiedades } = useApp();
+  const propiedad = propiedades.find((p) => p.id === servicio?.propiedadId);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const [fotos, setFotos] = useState<FotoServicio[]>([]);
   const [fotosDeServicio, setFotosDeServicio] = useState<string | null>(null);
@@ -249,11 +258,21 @@ export function HojaServicio({
 
   useEffect(() => {
     if (!abierto) return;
+    const anterior = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus({ preventScroll: true });
     const alPresionar = (e: KeyboardEvent) => {
       if (e.key === "Escape") alCerrar();
+      if (e.key === "Tab") {
+        const controles = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []).filter((el) => el.getClientRects().length > 0);
+        const primero = controles[0];
+        const ultimo = controles.at(-1);
+        if (!primero) { e.preventDefault(); return; }
+        if (e.shiftKey && (document.activeElement === primero || document.activeElement === panelRef.current)) { e.preventDefault(); ultimo?.focus(); }
+        else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+      }
     };
     document.addEventListener("keydown", alPresionar);
-    return () => document.removeEventListener("keydown", alPresionar);
+    return () => { document.removeEventListener("keydown", alPresionar); anterior?.focus({ preventScroll: true }); };
   }, [abierto, alCerrar]);
 
   return (
@@ -268,9 +287,11 @@ export function HojaServicio({
 
       <div
         role="dialog"
+        ref={panelRef}
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Detalle del servicio"
-        className={`absolute bottom-0 inset-x-0 z-[56] glass-sheet rounded-t-[26px] max-h-[88%] overflow-y-auto no-scrollbar transition-transform duration-[400ms] ease-[cubic-bezier(.22,1,.36,1)] ${
+        className={`absolute bottom-0 inset-x-0 z-[56] nora-sheet glass-sheet rounded-t-[26px] max-h-[88%] overflow-y-auto no-scrollbar transition-transform duration-[400ms] ease-[cubic-bezier(.22,1,.36,1)] ${
           abierto ? "translate-y-0" : "translate-y-full"
         }`}
       >
@@ -322,6 +343,22 @@ export function HojaServicio({
 
               {!ESTADOS_SIN_PROGRESO.has(estadoMostrado ?? servicio.estado) && (
                 <Progreso pasoActual={pasoActual} oscuro />
+              )}
+
+              {/* Por qué está frenado. Va acá arriba, pegado al estado, porque
+                  es exactamente la pregunta que se hace alguien que entra a
+                  mirar un pedido que no avanza. Antes la barra de progreso se
+                  quedaba quieta sin ninguna explicación. */}
+              {servicio.situacion && (
+                <div className="relative mt-3 rounded-xl2 bg-white/15 px-3 py-2.5">
+                  <p className="text-[12.5px] font-semibold">{ETIQUETA_SITUACION[servicio.situacion]}</p>
+                  <p className="text-[11.5px] text-brand-100 leading-snug mt-0.5">
+                    {DETALLE_SITUACION[servicio.situacion]}
+                  </p>
+                  {servicio.situacionNota && (
+                    <p className="text-[11.5px] text-brand-100 leading-snug mt-1">{servicio.situacionNota}</p>
+                  )}
+                </div>
               )}
             </div>
 

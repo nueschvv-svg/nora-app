@@ -25,8 +25,11 @@ export function useModoBienvenida(): ModoBienvenida {
     if (decidido.current) return;
     decidido.current = true;
     if (typeof window === "undefined") return;
-    const yaVista = window.sessionStorage.getItem(CLAVE_SESION);
-    if (!yaVista) window.sessionStorage.setItem(CLAVE_SESION, "1");
+    let yaVista: string | null = null;
+    try {
+      yaVista = window.sessionStorage.getItem(CLAVE_SESION);
+      if (!yaVista) window.sessionStorage.setItem(CLAVE_SESION, "1");
+    } catch { /* Navegación privada: conservar la intro sin bloquear el inicio. */ }
     const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     Promise.resolve().then(() => {

@@ -144,6 +144,8 @@ export function BotNora() {
       <div
         ref={panelRef}
         role="dialog"
+        inert={!abierto}
+        aria-hidden={!abierto}
         aria-label="Asistente Nora"
         className={`absolute right-3 top-[4.75rem] z-50 w-[min(340px,calc(100vw-1.5rem))] max-h-[70vh] bg-surface rounded-xl2 border border-line shadow-sheet flex flex-col overflow-hidden transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)] origin-top-right ${
           abierto ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"

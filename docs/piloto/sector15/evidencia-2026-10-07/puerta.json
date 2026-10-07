@@ -1,0 +1,48 @@
+{
+  "status": 200,
+  "body": {
+    "identificado": false,
+    "observaciones": "Por ahora sólo tengo lo que me contás: no llegó ninguna foto, así que no puedo ver cómo está la puerta ni la cerradura. En el predio, cuando la puerta de ingreso no cierra bien, suele ser por el pestillo trabado, por la cerradura floja o rota, o porque la hoja roza con el marco de chapa; habría que confirmarlo.",
+    "preguntas": [
+      "¿La puerta llega a apoyar contra el marco y lo que falla es la traba, o directamente roza y no termina de cerrar?",
+      "¿El picaporte vuelve solo a su lugar y gira la llave sin problema, o está duro o trabado?",
+      "¿Podés mandarme un par de fotos: una de la cerradura y el pestillo, y otra del marco donde encastra?"
+    ],
+    "riesgoInmediato": false,
+    "familia": "aberturas_carpinteria",
+    "antecedentes": [
+      {
+        "id": "aberturas_carpinteria-02",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 16,
+        "desperfecto": "puerta ingreso no cierra correctamente",
+        "sueleSer": "pestillo trabado",
+        "tambienFue": "cerradura rota. || pestillo no ingresa en perforación de marco chapa || hoja de carpintería roza en marco",
+        "tareaHabitual": "se procedió a retirar cerradura y se realizo regulación de la misma logrando destrabar pestillo. Se coloco nuevamente la misma y se dejo carpintería en adecuadas condiciones de uso."
+      },
+      {
+        "id": "aberturas_carpinteria-15",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 4,
+        "desperfecto": "puerta de ingreso no cierra correctamente",
+        "sueleSer": "cerradura suelta – floja / tiene un solo tornillo.",
+        "tambienFue": "falta atornillas cerradura || pestillo no ingresa de manera correcta en orificio marco || cerradura rota",
+        "tareaHabitual": "se procedió a realizar en cerradura dos remaches, de tal forma que la misma quede firme. Luego de arreglo se corroboro su correcto funcionamiento."
+      },
+      {
+        "id": "aberturas_carpinteria-11",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 5,
+        "desperfecto": "puerta ingreso no traba correctamente",
+        "sueleSer": "cerradura rota.",
+        "tambienFue": "pestillo trabado || bocallave demasiado ajustado impide que regrese picaporte",
+        "tareaHabitual": "se realizo provisión y colocación de nueva cerradura. Luego de colocación se corroboro su correcto funcionamiento."
+      }
+    ],
+    "conFotos": false,
+    "estimado": null
+  }
+}
