@@ -73,6 +73,8 @@ export function DetalleServicio({ id }: { id: string }) {
   const [guardando, setGuardando] = useState<string | null>(null);
   const [avisoAccion, setAvisoAccion] = useState<string | null>(null);
   const [conflicto, setConflicto] = useState(false);
+  const [situacionElegida, setSituacionElegida] = useState<SituacionServicio | null>(null);
+  const [notaSituacion, setNotaSituacion] = useState("");
 
   const traer = useCallback(() => setIntento((n) => n + 1), []);
 
@@ -301,13 +303,34 @@ export function DetalleServicio({ id }: { id: string }) {
                 cargando={guardando === `situacion-${s}`}
                 onClick={() => {
                   const quitar = servicio.situacion === s;
-                  const nota = quitar ? null : window.prompt("Detalle para el residente (opcional)");
-                  if (!quitar && nota === null) return;
-                  conGuardado(`situacion-${s}`, () => marcarSituacion(servicio.id, servicio.estado, quitar ? null : s, nota));
+                  if (quitar) {
+                    conGuardado(`situacion-${s}`, () => marcarSituacion(servicio.id, servicio.estado, null, null));
+                  } else {
+                    setSituacionElegida(s);
+                    setNotaSituacion("");
+                  }
                 }}
               />
             ))}
           </div>
+          {situacionElegida && (
+            <form className="mt-4 space-y-3" onSubmit={(e) => {
+              e.preventDefault();
+              conGuardado(`situacion-${situacionElegida}`, async () => {
+                await marcarSituacion(servicio.id, servicio.estado, situacionElegida, notaSituacion.trim() || null);
+                setSituacionElegida(null);
+                setNotaSituacion("");
+              });
+            }}>
+              <p className="text-sm font-medium text-ink">{ETIQUETA_SITUACION[situacionElegida]}</p>
+              <label className="block text-sm text-mute" htmlFor="nota-situacion">Detalle para el residente (opcional)</label>
+              <textarea id="nota-situacion" value={notaSituacion} onChange={(e) => setNotaSituacion(e.target.value)} rows={3} maxLength={1000} className="w-full rounded-xl border border-line bg-white p-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-brand" />
+              <div className="flex flex-wrap gap-3">
+                <button type="submit" disabled={guardando !== null} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{guardando ? "Guardando…" : "Guardar situación"}</button>
+                <button type="button" disabled={guardando !== null} onClick={() => setSituacionElegida(null)} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar cambio</button>
+              </div>
+            </form>
+          )}
         </Seccion>
       )}
 
