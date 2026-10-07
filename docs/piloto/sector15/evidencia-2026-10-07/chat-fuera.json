@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "respuesta": "Uy, con eso no te puedo ayudar: yo me ocupo de los arreglos de las viviendas del Sector 15. Si tenés algún desperfecto en tu casa (humedad, plomería, electricidad, lo que sea), contame y lo vemos.",
+    "listo": false,
+    "categoriaSlug": null,
+    "resumen": "",
+    "familia": null,
+    "antecedentes": []
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "body": {
+    "respuesta": "Uy, qué incómodo eso, sobre todo en la puerta de entrada. Contame una cosa: ¿la hoja llega bien al marco y lo que falla es el pestillo o la cerradura, o sentís que la puerta roza y no termina de entrar en su lugar?",
+    "listo": false,
+    "categoriaSlug": null,
+    "resumen": "",
+    "familia": "aberturas_carpinteria",
+    "antecedentes": [
+      {
+        "id": "aberturas_carpinteria-02",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 16,
+        "desperfecto": "puerta ingreso no cierra correctamente",
+        "sueleSer": "pestillo trabado",
+        "tambienFue": "cerradura rota. || pestillo no ingresa en perforación de marco chapa || hoja de carpintería roza en marco",
+        "tareaHabitual": "se procedió a retirar cerradura y se realizo regulación de la misma logrando destrabar pestillo. Se coloco nuevamente la misma y se dejo carpintería en adecuadas condiciones de uso."
+      },
+      {
+        "id": "aberturas_carpinteria-15",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 4,
+        "desperfecto": "puerta de ingreso no cierra correctamente",
+        "sueleSer": "cerradura suelta – floja / tiene un solo tornillo.",
+        "tambienFue": "falta atornillas cerradura || pestillo no ingresa de manera correcta en orificio marco || cerradura rota",
+        "tareaHabitual": "se procedió a realizar en cerradura dos remaches, de tal forma que la misma quede firme. Luego de arreglo se corroboro su correcto funcionamiento."
+      },
+      {
+        "id": "aberturas_carpinteria-11",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 5,
+        "desperfecto": "puerta ingreso no traba correctamente",
+        "sueleSer": "cerradura rota.",
+        "tambienFue": "pestillo trabado || bocallave demasiado ajustado impide que regrese picaporte",
+        "tareaHabitual": "se realizo provisión y colocación de nueva cerradura. Luego de colocación se corroboro su correcto funcionamiento."
+      }
+    ]
+  }
+}

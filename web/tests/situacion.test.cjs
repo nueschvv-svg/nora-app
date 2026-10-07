@@ -51,6 +51,8 @@ async function preparar(db) {
   await db.exec(`create trigger trg_solo_cancelar before update on public.servicios
     for each row execute function public.solo_permitir_cancelar();`);
   await db.exec(SQL('50_situacion_servicio.sql'));
+  await db.exec(SQL('51_orden_limpieza_situacion.sql'));
+  await db.exec(SQL('51_orden_limpieza_situacion.sql')); // repetible
 }
 
 const comoUid = (db, uid) => db.exec(`update auth.actual set uid = ${uid ? `'${uid}'::uuid` : 'null'}`);
@@ -139,4 +141,25 @@ test('la rama de estado de la bitácora sigue viva después de agregarle la de s
   } finally {
     await db.close();
   }
+});
+
+test('residente cancela con situación pendiente sin poder alterar situación, nota ni monto', async () => {
+  const db = new PGlite();
+  try {
+    await preparar(db);
+    await db.exec(`insert into perfiles(id,rol) values ('${RESIDENTE}','cliente'), ('${OPERADOR}','operaciones');
+      insert into servicios(id,cliente_id,estado,monto_ars) values ('30000000-0000-4000-8000-000000000010','${RESIDENTE}','solicitado',100);`);
+    const id = '30000000-0000-4000-8000-000000000010';
+    await comoUid(db, OPERADOR);
+    await db.exec(`update servicios set situacion='materiales',situacion_nota='Falta material' where id='${id}'`);
+    await comoUid(db, RESIDENTE);
+    for (const cambio of ["situacion=null,situacion_nota=null", "situacion_nota='alterada'", 'monto_ars=1']) {
+      await assert.rejects(db.exec(`update servicios set estado='cancelado',${cambio} where id='${id}'`), /sin cambiar otros datos/);
+    }
+    await db.exec(`update servicios set estado='cancelado' where id='${id}'`);
+    const fila = (await db.query(`select estado,situacion,situacion_nota,monto_ars from servicios where id='${id}'`)).rows[0];
+    assert.equal(fila.estado,'cancelado'); assert.equal(fila.situacion,null); assert.equal(fila.situacion_nota,null); assert.equal(Number(fila.monto_ars),100);
+    const eventos = (await db.query(`select estado_previo,estado_nuevo from servicio_eventos where servicio_id='${id}' and estado_nuevo='cancelado'`)).rows;
+    assert.deepEqual(eventos,[{estado_previo:'solicitado',estado_nuevo:'cancelado'}]);
+  } finally { await db.close(); }
 });

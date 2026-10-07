@@ -1403,7 +1403,7 @@ function PasoAnalisis({
             <Sparkles className="w-4 h-4" />
           </span>
           <div>
-            <p className="text-[12.5px] font-bold font-display text-ink leading-tight">Análisis de Nora</p>
+            <p className="text-[12.5px] font-bold font-display text-ink leading-tight">{!analizando && diagnostico?.conFotos ? "Fotos analizadas" : "Análisis de Nora"}</p>
             {analizando && (
               <p className="flex items-center gap-1.5 text-[11px] text-brand-600">
                 <span className="live-dot w-[6px] h-[6px] rounded-full bg-brand-600" aria-hidden="true" />

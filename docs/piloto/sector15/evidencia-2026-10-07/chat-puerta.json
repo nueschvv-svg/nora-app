@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "body": {
+    "respuesta": "Uy, esa es de las más comunes acá. Contame una cosa: ¿la hoja raspa o roza contra el marco al cerrar, o cierra bien pero el pestillo no entra o la cerradura queda trabada?",
+    "listo": false,
+    "categoriaSlug": null,
+    "resumen": "",
+    "familia": "aberturas_carpinteria",
+    "antecedentes": [
+      {
+        "id": "aberturas_carpinteria-02",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 16,
+        "desperfecto": "puerta ingreso no cierra correctamente",
+        "sueleSer": "pestillo trabado",
+        "tambienFue": "cerradura rota. || pestillo no ingresa en perforación de marco chapa || hoja de carpintería roza en marco",
+        "tareaHabitual": "se procedió a retirar cerradura y se realizo regulación de la misma logrando destrabar pestillo. Se coloco nuevamente la misma y se dejo carpintería en adecuadas condiciones de uso."
+      },
+      {
+        "id": "aberturas_carpinteria-15",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 4,
+        "desperfecto": "puerta de ingreso no cierra correctamente",
+        "sueleSer": "cerradura suelta – floja / tiene un solo tornillo.",
+        "tambienFue": "falta atornillas cerradura || pestillo no ingresa de manera correcta en orificio marco || cerradura rota",
+        "tareaHabitual": "se procedió a realizar en cerradura dos remaches, de tal forma que la misma quede firme. Luego de arreglo se corroboro su correcto funcionamiento."
+      },
+      {
+        "id": "aberturas_carpinteria-06",
+        "familia": "aberturas_carpinteria",
+        "familiaNombre": "Aberturas y carpintería",
+        "frecuencia": 8,
+        "desperfecto": "puerta ingreso no abre correctamente",
+        "sueleSer": "pestillo trabado",
+        "tambienFue": "hoja roza con marco de chapa || madera deteriorada con humedad. || falta regular bisagras, hoja caída",
+        "tareaHabitual": "se coloco aceite lubricante en cerradura de carpintería, logrando de tal manera destrabar pestillo y dejar carpintería en adecuadas condiciones de uso."
+      }
+    ]
+  }
+}

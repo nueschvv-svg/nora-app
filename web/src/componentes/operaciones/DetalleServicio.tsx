@@ -324,7 +324,7 @@ export function DetalleServicio({ id }: { id: string }) {
             }}>
               <p className="text-sm font-medium text-ink">{ETIQUETA_SITUACION[situacionElegida]}</p>
               <label className="block text-sm text-mute" htmlFor="nota-situacion">Detalle para el residente (opcional)</label>
-              <textarea id="nota-situacion" value={notaSituacion} onChange={(e) => setNotaSituacion(e.target.value)} rows={3} maxLength={1000} className="w-full rounded-xl border border-line bg-white p-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-brand" />
+              <textarea id="nota-situacion" value={notaSituacion} onChange={(e) => setNotaSituacion(e.target.value)} rows={3} maxLength={300} className="w-full rounded-xl border border-line bg-white p-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-brand" />
               <div className="flex flex-wrap gap-3">
                 <button type="submit" disabled={guardando !== null} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{guardando ? "Guardando…" : "Guardar situación"}</button>
                 <button type="button" disabled={guardando !== null} onClick={() => setSituacionElegida(null)} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar cambio</button>
